@@ -25,30 +25,22 @@ final class SupplierInvoiceController extends AbstractController
     public function index(EntityManagerInterface $em, PurchaseOrderRepository $orders): Response
     {
         $invoices = $em->getRepository(SupplierInvoice::class)->findBy([], ['createdAt' => 'DESC'], 100);
-        $invoicedOrderIds = [];
-        foreach ($invoices as $invoice) {
-            $invoicedOrderIds[] = $invoice->getPurchaseOrder()->getId();
-        }
 
-        // Received quantities are the source of truth for invoice eligibility.
-        // This also keeps partially received orders billable without depending
-        // on a status that may have been left stale by an earlier workflow.
-        $billableOrders = array_values(array_filter(
-            $orders->findBy([], ['createdAt' => 'DESC'], 100),
-            static function (PurchaseOrder $order) use ($invoicedOrderIds): bool {
-                if (in_array($order->getId(), $invoicedOrderIds, true)) {
-                    return false;
-                }
-
-                foreach ($order->getLines() as $line) {
-                    if ((float) $line->getReceivedQuantity() > 0) {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-        ));
+        // Let the database exclude already-invoiced orders. Looking only at the
+        // latest 100 invoices can otherwise re-offer older orders and hit the
+        // one-invoice-per-order unique constraint.
+        $billableOrders = $em->createQueryBuilder()
+            ->select('DISTINCT order')
+            ->from(PurchaseOrder::class, 'order')
+            ->innerJoin('order.lines', 'line')
+            ->leftJoin(SupplierInvoice::class, 'invoice', 'WITH', 'invoice.purchaseOrder = order')
+            ->where('invoice.id IS NULL')
+            ->andWhere('line.receivedQuantity > 0')
+            ->andWhere('order.status NOT IN (:blockedStatuses)')
+            ->setParameter('blockedStatuses', [PurchaseOrder::STATUS_DRAFT, PurchaseOrder::STATUS_CANCELLED])
+            ->orderBy('order.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
 
         return $this->render('supplier_invoice/index.html.twig', [
             'invoices' => $invoices,
