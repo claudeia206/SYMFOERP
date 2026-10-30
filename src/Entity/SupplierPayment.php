@@ -53,7 +53,7 @@ class SupplierPayment
         $reference = $reference !== null ? trim($reference) : null;
         if ($reference !== null && mb_strlen($reference) > 120) { throw new InvalidArgumentException('Référence de règlement trop longue.'); }
         $this->invoice = $invoice;
-        $this->amount = number_format($amountInCents / 100, 2, '.', '');
+        $this->amount = (string) $whole.'.'.str_pad($fraction, 2, '0');
         $this->paidAt = $paidAt;
         $this->method = $method;
         $this->reference = $reference !== '' ? $reference : null;
