@@ -178,6 +178,8 @@ jobs:
           from datetime import date, timedelta
           customer_match = re.search(r'<option value="(\d+)"[^>]*>Client CI</option>', quote_form)
           assert customer_match, "New customer was not available in the quote form"
+          statement_html = client.open(base + "/third-parties/" + customer_match.group(1) + "/account-statement").read().decode()
+          assert "Relevé de compte client" in statement_html, "Customer account statement did not render"
           quote_payload = {
               "customer_id": customer_match.group(1),
               "valid_until": (date.today() + timedelta(days=30)).isoformat(),
