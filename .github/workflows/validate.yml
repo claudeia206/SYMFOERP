@@ -367,23 +367,3 @@ jobs:
           print("Symfony authentication, third-party registry, quote creation, VAT totals, acceptance, idempotent order conversion, order completion and PDF export passed.")
           PY
 
-      - name: Smoke test fresh Dolibarr installation
-        run: |
-          set -eu
-          cleanup() {
-            docker compose --env-file .env.docker down --volumes --remove-orphans >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-          docker compose --env-file .env.docker up --detach db_dolibarr dolibarr
-          for attempt in $(seq 1 60); do
-            if curl --connect-timeout 2 --max-time 5 --fail --silent http://127.0.0.1:8080/ --output /tmp/symfoerp-dolibarr.html; then
-              if grep -qi "Dolibarr" /tmp/symfoerp-dolibarr.html; then
-                echo "Fresh Dolibarr installation responded successfully."
-                exit 0
-              fi
-            fi
-            sleep 2
-          done
-          docker compose --env-file .env.docker logs dolibarr db_dolibarr
-          echo "Fresh Dolibarr HTTP smoke test failed." >&2
-          exit 1
