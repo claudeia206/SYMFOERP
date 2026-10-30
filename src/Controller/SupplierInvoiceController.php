@@ -24,9 +24,35 @@ final class SupplierInvoiceController extends AbstractController
     #[Route('', name: 'app_supplier_invoices', methods: ['GET'])]
     public function index(EntityManagerInterface $em, PurchaseOrderRepository $orders): Response
     {
+        $invoices = $em->getRepository(SupplierInvoice::class)->findBy([], ['createdAt' => 'DESC'], 100);
+        $invoicedOrderIds = [];
+        foreach ($invoices as $invoice) {
+            $invoicedOrderIds[] = $invoice->getPurchaseOrder()->getId();
+        }
+
+        // Received quantities are the source of truth for invoice eligibility.
+        // This also keeps partially received orders billable without depending
+        // on a status that may have been left stale by an earlier workflow.
+        $billableOrders = array_values(array_filter(
+            $orders->findBy([], ['createdAt' => 'DESC'], 100),
+            static function (PurchaseOrder $order) use ($invoicedOrderIds): bool {
+                if (in_array($order->getId(), $invoicedOrderIds, true)) {
+                    return false;
+                }
+
+                foreach ($order->getLines() as $line) {
+                    if ((float) $line->getReceivedQuantity() > 0) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        ));
+
         return $this->render('supplier_invoice/index.html.twig', [
-            'invoices' => $em->getRepository(SupplierInvoice::class)->findBy([], ['createdAt' => 'DESC'], 100),
-            'orders' => array_values(array_filter($orders->findBy([], ['createdAt' => 'DESC'], 100), static fn(PurchaseOrder $o): bool => in_array($o->getStatus(), [PurchaseOrder::STATUS_PARTIALLY_RECEIVED, PurchaseOrder::STATUS_RECEIVED], true))),
+            'invoices' => $invoices,
+            'orders' => $billableOrders,
         ]);
     }
 
