@@ -140,6 +140,8 @@ jobs:
           assert "Devis" in sales_html, "Authenticated user could not open the sales quotes module"
           report_html = client.open(base + "/reports/finance").read().decode()
           assert "Reporting financier" in report_html, "Authenticated user could not open financial reporting"
+          bank_html = client.open(base + "/finance/bank").read().decode()
+          assert "Rapprochement bancaire" in bank_html, "Authenticated user could not open bank reconciliation"
           settings_page = client.open(base + "/settings/company").read().decode()
           settings_parser = TokenParser()
           settings_parser.feed(settings_page)
