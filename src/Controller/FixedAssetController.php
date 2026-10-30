@@ -120,12 +120,15 @@ final class FixedAssetController extends AbstractController
         if (!$this->isCsrfTokenValid('fixed_asset_create', (string) $request->request->get('_token'))) throw $this->createAccessDeniedException();
         $code=trim((string)$request->request->get('code')); $name=trim((string)$request->request->get('name'));
         $cost=(float)$request->request->get('acquisition_cost'); $residual=(float)$request->request->get('residual_value');
-        $years=(int)$request->request->get('useful_life_years'); $date=(string)$request->request->get('in_service_date');
-        $parsed=DateTimeImmutable::createFromFormat('!Y-m-d',$date);
+        $years=(int)$request->request->get('useful_life_years');
+        $acquisitionDate=(string)$request->request->get('acquisition_date');
+        $serviceDate=(string)$request->request->get('in_service_date');
+        $parsedAcquisition=DateTimeImmutable::createFromFormat('!Y-m-d',$acquisitionDate);
+        $parsedService=DateTimeImmutable::createFromFormat('!Y-m-d',$serviceDate);
         $assetAccount=(int)$request->request->get('asset_account_id'); $accumAccount=(int)$request->request->get('accumulated_account_id');
         $expenseAccount=(int)$request->request->get('expense_account_id'); $journal=(int)$request->request->get('journal_id');
         $bankAccount=(int)$request->request->get('disposal_bank_account_id'); $gainAccount=(int)$request->request->get('disposal_gain_account_id'); $lossAccount=(int)$request->request->get('disposal_loss_account_id');
-        if ($code==='' || mb_strlen($code)>64 || $name==='' || mb_strlen($name)>255 || !$parsed || $parsed->format('Y-m-d')!==$date || $cost<=0 || $residual<0 || $residual>=$cost || $years<1 || $years>100 || min($assetAccount,$accumAccount,$expenseAccount,$journal,$bankAccount,$gainAccount,$lossAccount)<=0 || count(array_unique([$assetAccount,$accumAccount,$expenseAccount,$bankAccount,$gainAccount,$lossAccount]))!==6) {
+        if ($code==='' || mb_strlen($code)>64 || $name==='' || mb_strlen($name)>255 || !$parsedAcquisition || $parsedAcquisition->format('Y-m-d')!==$acquisitionDate || !$parsedService || $parsedService->format('Y-m-d')!==$serviceDate || $parsedAcquisition>$parsedService || $cost<=0 || $residual<0 || $residual>=$cost || $years<1 || $years>100 || min($assetAccount,$accumAccount,$expenseAccount,$journal,$bankAccount,$gainAccount,$lossAccount)<=0 || count(array_unique([$assetAccount,$accumAccount,$expenseAccount,$bankAccount,$gainAccount,$lossAccount]))!==6) {
             $this->addFlash('error','Vérifiez les données, les comptes doivent être distincts et le journal renseigné.');
             return $this->redirectToRoute('app_fixed_assets');
         }
@@ -135,7 +138,7 @@ final class FixedAssetController extends AbstractController
         try {
             $db->insert('app_fixed_asset',[
                 'code'=>$code,'name'=>$name,'acquisition_cost'=>number_format($cost,2,'.',''),'residual_value'=>number_format($residual,2,'.',''),
-                'useful_life_years'=>$years,'acquisition_date'=>$date,'in_service_date'=>$date,'status'=>'active',
+                'useful_life_years'=>$years,'acquisition_date'=>$acquisitionDate,'in_service_date'=>$serviceDate,'status'=>'active',
                 'asset_account_id'=>$assetAccount,'accumulated_account_id'=>$accumAccount,'expense_account_id'=>$expenseAccount,
                 'journal_id'=>$journal,'disposal_bank_account_id'=>$bankAccount,'disposal_gain_account_id'=>$gainAccount,
                 'disposal_loss_account_id'=>$lossAccount,'created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s'),
