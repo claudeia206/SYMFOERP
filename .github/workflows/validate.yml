@@ -39,6 +39,9 @@ jobs:
       - name: Check local installation script syntax
         run: bash -n bin/install-symfony-local.sh
 
+      - name: Test fixed asset depreciation schedule
+        run: docker run --rm symfoerp-symfony:ci php tests/fixed_asset_depreciation_smoke.php
+
       - name: Test third-party entity invariants
         run: docker run --rm symfoerp-symfony:ci php tests/third_party_entity_smoke.php
 
