@@ -49,11 +49,12 @@ final class BankReconciliationController extends AbstractController
                         $rawAmount=str_replace([' ','€',chr(194).chr(160)],'',$values['amount']??'');
                         if(str_contains($rawAmount,',')&&!str_contains($rawAmount,'.'))$rawAmount=str_replace(',','.',$rawAmount);
                         if(!preg_match('/^-?\d{1,10}(?:\.\d{1,2})?$/D',$rawAmount)) throw new \InvalidArgumentException('Ligne CSV invalide.');
-                        $label=trim($values['label']??'');$amount=number_format((float)$rawAmount,2,'.','');
-                        if($label===''||abs((float)$amount)<0.005) throw new \InvalidArgumentException('Ligne CSV invalide.');
-                        $reference=trim($values['reference']??'');
+                        $label=mb_substr(trim($values['label']??''),0,255);$amountCents=$this->toCents($rawAmount);
+                        if($label===''||$amountCents===0) throw new \\InvalidArgumentException('Ligne CSV invalide.');
+                        $amount=$this->fromCents($amountCents);
+                        $reference=mb_substr(trim($values['reference']??''),0,120);
                         $fingerprint=hash('sha256',$date->format('Y-m-d')."|".$label."|".$amount."|".$reference);
-                        $count=$db->executeStatement('INSERT IGNORE INTO app_bank_transaction (transaction_date,label,amount,reference,fingerprint,imported_at) VALUES (?,?,?,?,?,?)',[$date->format('Y-m-d'),mb_substr($label,0,255),$amount,$reference!==''?mb_substr($reference,0,120):null,$fingerprint,(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
+                        $count=$db->executeStatement('INSERT IGNORE INTO app_bank_transaction (transaction_date,label,amount,reference,fingerprint,imported_at) VALUES (?,?,?,?,?,?)',[$date->format('Y-m-d'),$label,$amount,$reference!==''?$reference:null,$fingerprint,(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
                         if($count===1)++$inserted;else ++$duplicates;
                     } catch(\Throwable){++$invalid;}
                 }
@@ -103,6 +104,13 @@ final class BankReconciliationController extends AbstractController
             }
         }
         throw new \InvalidArgumentException('Date bancaire invalide.');
+    }
+
+    private function fromCents(int $cents): string
+    {
+        $sign = $cents < 0 ? '-' : '';
+        $absolute = abs($cents);
+        return $sign.intdiv($absolute, 100).'.'.str_pad((string) ($absolute % 100), 2, '0', STR_PAD_LEFT);
     }
 
     private function toCents(string $value): int
