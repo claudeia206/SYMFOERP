@@ -73,6 +73,32 @@ final class FiscalClosingController extends AbstractController
         }
         $from = sprintf('%04d-01-01', $year);
         $to = sprintf('%04d-12-31', $year);
+        $draftCount = (int) $db->fetchOne(
+            'SELECT COUNT(*) FROM app_journal_entry WHERE status <> ? AND entry_date BETWEEN ? AND ?',
+            ['posted', $from, $to]
+        );
+        $unbalancedCount = (int) $db->fetchOne(
+            'SELECT COUNT(*) FROM (
+                SELECT e.id FROM app_journal_entry e
+                INNER JOIN app_journal_entry_line l ON l.entry_id = e.id
+                WHERE e.status = ? AND e.entry_date BETWEEN ? AND ?
+                GROUP BY e.id HAVING ABS(SUM(l.debit) - SUM(l.credit)) > 0.005
+            ) unbalanced_entries',
+            ['posted', $from, $to]
+        );
+        $totals = $db->fetchAssociative(
+            'SELECT COALESCE(SUM(l.debit), 0) AS debit, COALESCE(SUM(l.credit), 0) AS credit
+             FROM app_journal_entry e
+             INNER JOIN app_journal_entry_line l ON l.entry_id = e.id
+             WHERE e.status = ? AND e.entry_date BETWEEN ? AND ?',
+            ['posted', $from, $to]
+        ) ?: [];
+        if ($draftCount > 0 || $unbalancedCount > 0 || abs((float) ($totals['debit'] ?? 0) - (float) ($totals['credit'] ?? 0)) >= 0.005) {
+            throw new \\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException(
+                'Export FEC refusé : corrigez les écritures non comptabilisées ou déséquilibrées avant de générer le fichier.'
+            );
+        }
+
         $rows = $db->fetchAllAssociative(
             'SELECT j.code AS journal_code, j.name AS journal_name, e.entry_number,
                     e.entry_date, a.code AS account_code, a.name AS account_name,
