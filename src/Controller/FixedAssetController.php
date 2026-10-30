@@ -20,7 +20,28 @@ final class FixedAssetController extends AbstractController
     {
         $asOfInput = (string) $request->query->get('as_of', 'today');
         try { $asOf = new DateTimeImmutable($asOfInput); } catch (Throwable) { throw $this->createNotFoundException('Date de calcul invalide.'); }
-        $assets = $db->fetchAllAssociative('SELECT * FROM app_fixed_asset ORDER BY code');
+        $search = trim((string) $request->query->get('q', ''));
+        $status = (string) $request->query->get('status', 'all');
+        $allowedStatuses = ['all', 'active', 'disposed', 'archived'];
+        if (!in_array($status, $allowedStatuses, true)) {
+            $status = 'all';
+        }
+
+        $conditions = [];
+        $parameters = [];
+        if ($search !== '') {
+            $conditions[] = '(code LIKE ? OR name LIKE ?)';
+            $parameters[] = '%' . addcslashes($search, '%_\\\\') . '%';
+            $parameters[] = '%' . addcslashes($search, '%_\\\\') . '%';
+        }
+        if ($status !== 'all') {
+            $conditions[] = 'status = ?';
+            $parameters[] = $status;
+        }
+        $sql = 'SELECT * FROM app_fixed_asset'
+            . ($conditions === [] ? '' : ' WHERE ' . implode(' AND ', $conditions))
+            . ' ORDER BY code';
+        $assets = $db->fetchAllAssociative($sql, $parameters);
         $plans = [];
         foreach ($assets as $asset) {
             $plans[(int) $asset['id']] = $calculator->straightLine(
@@ -35,7 +56,7 @@ final class FixedAssetController extends AbstractController
         foreach ($posted as $item) $postedMap[(int)$item['asset_id']][(string)$item['fiscal_year']] = (float)$item['amount'];
         return $this->render('accounting/fixed_assets.html.twig', [
             'assets'=>$assets, 'plans'=>$plans, 'as_of'=>$asOf->format('Y-m-d'),
-            'accounts'=>$accounts, 'journals'=>$journals, 'posted_map'=>$postedMap,
+            'accounts'=>$accounts, 'journals'=>$journals, 'posted_map'=>$postedMap,\n            'search'=>$search, 'status'=>$status,
         ]);
     }
 
