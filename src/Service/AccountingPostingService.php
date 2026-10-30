@@ -64,11 +64,22 @@ final class AccountingPostingService
     private function post(string $type,int $sourceId,string $journalCode,string $date,?string $reference,string $description,array $lines):void
     {
         $this->db->transactional(function(Connection $db)use($type,$sourceId,$journalCode,$date,$reference,$description,$lines):void{
+            if($sourceId<=0)throw new RuntimeException('Identifiant de pièce comptable invalide.');
             if($db->fetchOne('SELECT 1 FROM app_accounting_source_posting WHERE source_type=? AND source_id=?',[$type,$sourceId]))return;
+            $date=$this->validatedDate($date);
+            if(!preg_match('/^[A-Z]{2}$/D',$journalCode))throw new RuntimeException('Code journal invalide.');
             $journal=$db->fetchAssociative('SELECT id,code FROM app_accounting_journal WHERE code=? FOR UPDATE',[$journalCode]);
             if(!$journal)throw new RuntimeException('Journal '.$journalCode.' non configuré.');
             $debit=0;$credit=0;$resolved=[];
-            foreach($lines as $line){$account=$db->fetchAssociative('SELECT id FROM app_accounting_account WHERE code=? AND is_active=1',[$line['account']]);if(!$account)throw new RuntimeException('Compte '.$line['account'].' absent ou inactif.');$debit+=(int)$line['debit'];$credit+=(int)$line['credit'];$resolved[]=['account_id'=>(int)$account['id'],'label'=>$line['label'],'debit'=>(int)$line['debit'],'credit'=>(int)$line['credit']];}
+            foreach($lines as $line){
+                if(!is_array($line)||!isset($line['account'],$line['label'],$line['debit'],$line['credit'])||!is_string($line['account'])||!is_string($line['label']))throw new RuntimeException('Ligne de comptabilisation automatique invalide.');
+                $lineDebit=$line['debit'];$lineCredit=$line['credit'];
+                if(!is_int($lineDebit)||!is_int($lineCredit)||$lineDebit<0||$lineCredit<0||(($lineDebit>0)===($lineCredit>0)))throw new RuntimeException('Montants de ligne comptable invalides.');
+                $account=$db->fetchAssociative('SELECT id FROM app_accounting_account WHERE code=? AND is_active=1 FOR UPDATE',[$line['account']]);
+                if(!$account)throw new RuntimeException('Compte '.$line['account'].' absent ou inactif.');
+                $debit+=$lineDebit;$credit+=$lineCredit;
+                $resolved[]=['account_id'=>(int)$account['id'],'label'=>$line['label'],'debit'=>$lineDebit,'credit'=>$lineCredit];
+            }
             if($debit<=0||$debit!==$credit)throw new RuntimeException('Écriture automatique déséquilibrée.');
             $number=(int)$db->fetchOne('SELECT COALESCE(MAX(entry_number),0)+1 FROM app_journal_entry WHERE journal_id=?',[$journal['id']]);
             $db->insert('app_journal_entry',['journal_id'=>$journal['id'],'entry_number'=>$number,'entry_date'=>$date,'reference'=>$reference,'description'=>mb_substr($description,0,255),'status'=>'posted','created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
@@ -77,5 +88,18 @@ final class AccountingPostingService
             $db->insert('app_accounting_source_posting',['source_type'=>$type,'source_id'=>$sourceId,'entry_id'=>$entryId,'posted_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
         });
     }
-    private function cents(mixed $amount):int { return (int)round((float)$amount*100); }
+    private function cents(mixed $amount):int
+    {
+        if(!is_string($amount)&&!is_int($amount))throw new RuntimeException('Montant source invalide.');
+        $value=trim((string)$amount);
+        if(!preg_match('/^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,2})?$/D',$value))throw new RuntimeException('Montant source invalide : 12 chiffres et deux décimales maximum.');
+        [$whole,$fraction]=array_pad(explode('.',$value,2),2,'');
+        return ((int)$whole)*100+(int)str_pad($fraction,2,'0');
+    }
+    private function validatedDate(string $date):string
+    {
+        $parsed=DateTimeImmutable::createFromFormat('!Y-m-d',$date);
+        if(!$parsed||$parsed->format('Y-m-d')!==$date)throw new RuntimeException('Date de pièce comptable invalide.');
+        return $date;
+    }
 }
