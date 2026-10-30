@@ -21,6 +21,9 @@ if [[ ! -f .env.docker ]]; then
   echo "Fichier .env.docker créé à partir du modèle."
 fi
 
+# The file contains application and database credentials.
+chmod 600 .env.docker
+
 python3 - <<'PY'
 from pathlib import Path
 import secrets
