@@ -109,7 +109,7 @@ jobs:
           grep -q '^app:user:create' /tmp/symfoerp-console-commands.log
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:sync-metadata-storage -vvv 2>&1 | tee /tmp/symfoerp-migration-storage.log
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:migrate --no-interaction -vvv 2>&1 | tee /tmp/symfoerp-migrate.log
-          docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:status --show-versions -vvv 2>&1 | tee /tmp/symfoerp-migration-status.log
+          docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:status -vvv 2>&1 | tee /tmp/symfoerp-migration-status.log
           # A SELECT is intentional: unlike SHOW TABLES, it fails the job if the
           # application schema is missing or the command points at the wrong DB.
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:query:sql "SELECT COUNT(*) AS user_count FROM app_user"
