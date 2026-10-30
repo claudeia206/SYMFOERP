@@ -48,6 +48,7 @@ services:
 
   # Fresh Dolibarr 24.0.2 installation; no legacy database import.
   dolibarr:
+    profiles: ["comparison"]
     image: dolibarr/dolibarr:24.0.2-php8.5
     container_name: symfoerp-dolibarr
     restart: unless-stopped
@@ -82,6 +83,7 @@ services:
       - dolibarr_net
 
   db_dolibarr:
+    profiles: ["comparison"]
     image: mariadb:11.4
     container_name: symfoerp-dolibarr-db
     restart: unless-stopped
