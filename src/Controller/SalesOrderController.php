@@ -93,6 +93,31 @@ final class SalesOrderController extends AbstractController
         if($allDelivered) $order->setStatus(SalesOrder::STATUS_FULFILLED);
         return $delivery;
     }
+
+    #[Route('/{id}/deliveries/{deliveryId}/pdf', name: 'app_sales_delivery_pdf', requirements: ['id' => '\\d+', 'deliveryId' => '\\d+'], methods: ['GET'])]
+    public function deliveryPdf(SalesOrder $order, SalesDelivery $delivery): Response
+    {
+        if ($delivery->getOrder()->getId() !== $order->getId()) {
+            throw $this->createNotFoundException('Ce bon de livraison ne correspond pas à cette commande.');
+        }
+        $options = new Options();
+        $options->set('defaultFont', 'DejaVu Sans');
+        $options->set('isRemoteEnabled', false);
+        $options->set('isPhpEnabled', false);
+        $pdf = new Dompdf($options);
+        $pdf->loadHtml($this->renderView('sales_delivery/pdf.html.twig', [
+            'delivery' => $delivery,
+            'order' => $order,
+        ]), 'UTF-8');
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->render();
+        return new Response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$delivery->getNumber().'.pdf"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
     /** @return list<string> */
     private function allowedActions(string $status): array
     {
