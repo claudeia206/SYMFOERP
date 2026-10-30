@@ -294,13 +294,13 @@ final class FixedAssetController extends AbstractController
                 [$id]
             );
             if (!$asset || $asset['status'] !== 'disposed' || empty($asset['disposal_journal_entry_id'])) {
-                throw new \\InvalidArgumentException('Seules les immobilisations sorties et comptabilisées peuvent être archivées.');
+                throw new \InvalidArgumentException('Seules les immobilisations sorties et comptabilisées peuvent être archivées.');
             }
 
             $db->update('app_fixed_asset', ['status' => 'archived'], ['id' => $id]);
             $db->commit();
             $this->addFlash('success', 'Immobilisation archivée.');
-        } catch (\\InvalidArgumentException $e) {
+        } catch (\InvalidArgumentException $e) {
             if ($db->isTransactionActive()) $db->rollBack();
             $this->addFlash('error', $e->getMessage());
         } catch (Throwable) {
