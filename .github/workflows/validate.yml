@@ -113,6 +113,7 @@ jobs:
           # A SELECT is intentional: unlike SHOW TABLES, it fails the job if the
           # application schema is missing or the command points at the wrong DB.
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:query:sql "SELECT COUNT(*) AS user_count FROM app_user"
+          docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:schema:update --dump-sql -vvv 2>&1 | tee /tmp/symfoerp-schema-diff.log
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:schema:validate
           docker compose --env-file .env.docker run --rm --no-deps -e SYMFOERP_ADMIN_EMAIL=ci-admin@example.test -e SYMFOERP_ADMIN_PASSWORD=CI-Only-Password-2026 symfony php bin/console app:user:create
           docker compose --env-file .env.docker up --detach symfony
