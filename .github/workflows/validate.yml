@@ -98,6 +98,8 @@ jobs:
           set -eu
           docker compose --env-file .env.docker up --detach symfony
           docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:migrate --no-interaction
+          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:status --show-versions
+          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:query:sql "SHOW TABLES LIKE 'app_user'"
           docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:schema:validate
           docker compose --env-file .env.docker exec --no-TTY -e SYMFOERP_ADMIN_EMAIL=ci-admin@example.test -e SYMFOERP_ADMIN_PASSWORD=CI-Only-Password-2026 symfony php bin/console app:user:create
           python3 - <<'PY'
