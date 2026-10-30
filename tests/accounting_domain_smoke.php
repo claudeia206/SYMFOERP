@@ -20,11 +20,14 @@ expectAccountingFailure(fn()=>new AccountingEntryLine($bank,'Zero','0','0',1),'z
 $journal=new AccountingJournal('VE','Ventes');
 $year=new AccountingFiscalYear('2026',new DateTimeImmutable('2026-01-01'),new DateTimeImmutable('2026-12-31'));
 $entry=new AccountingEntry($journal,$year,'VE-2026-000001',new DateTimeImmutable('2026-10-30'),'Vente comptant');
-$entry->setSource('sales_invoice',42);\nif($entry->getSourceType()!=='sales_invoice'||$entry->getSourceId()!==42)throw new RuntimeException('Accounting source tracking failed.');\n$entry->addLine($debit)->addLine($credit);
+$entry->setSource('sales_invoice',42);
+if($entry->getSourceType()!=='sales_invoice'||$entry->getSourceId()!==42)throw new RuntimeException('Accounting source tracking failed.');
+$entry->addLine($debit)->addLine($credit);
 $entry->validateForPosting()->post();
 if($entry->getStatus()!=='posted'||$entry->totals()!==['debit'=>125035,'credit'=>125035])throw new RuntimeException('Balanced posting failed.');
 $unbalanced=new AccountingEntry($journal,$year,'VE-2026-000002',new DateTimeImmutable('2026-10-30'),'Écriture déséquilibrée');
 $unbalanced->addLine(new AccountingEntryLine($bank,'Débit','100','0',1));
 $unbalanced->addLine(new AccountingEntryLine($sales,'Crédit','0','99.99',2));
 expectAccountingFailure(fn()=>$unbalanced->validateForPosting(),'unbalanced entry');
-echo "Accounting domain smoke test passed.\n";
+echo "Accounting domain smoke test passed.
+";
