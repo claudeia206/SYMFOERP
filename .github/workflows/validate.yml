@@ -99,6 +99,7 @@ jobs:
       - name: Apply migrations and test authenticated third-party access
         run: |
           set -eu
+          trap 'docker compose --env-file .env.docker logs --no-color symfony db_symfony || true; docker compose --env-file .env.docker exec --no-TTY symfony sh -lc "ls -la var/log; for f in var/log/*.log; do echo ===\$f===; tail -n 160 \$f; done" || true' ERR
           docker compose --env-file .env.docker up --detach symfony
           docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:migrate --no-interaction
           docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:schema:validate
@@ -126,7 +127,15 @@ jobs:
           parser.feed(login_page)
           assert parser.token, "Login CSRF token is missing"
           payload = urllib.parse.urlencode({"email": "ci-admin@example.test", "password": "CI-Only-Password-2026", "_csrf_token": parser.token}).encode()
-          client.open(urllib.request.Request(base + "/login", data=payload)).read()
+          try:
+              login_response = client.open(urllib.request.Request(base + "/login", data=payload))
+              login_body = login_response.read()
+              assert login_response.geturl().endswith("/"), f"Login did not reach dashboard: {login_response.geturl()}"
+          except Exception as error:
+              print(f"Login request failed: {error!r}")
+              if hasattr(error, "read"):
+                  print(error.read().decode(errors="replace")[-12000:])
+              raise
           registry = client.open(base + "/third-parties")
           html = registry.read().decode()
           assert registry.geturl().endswith("/third-parties"), "Authenticated user could not access third parties"
