@@ -242,6 +242,9 @@ jobs:
           payment_html = payment_response.read().decode()
           assert "Le règlement a été enregistré" in payment_html, "Sales payment was not saved"
           assert "Payée" in payment_html, "Fully paid invoice did not transition to paid"
+          automatic_accounting_html = client.open(base + "/accounting").read().decode()
+          assert "VE-2026-000001" in automatic_accounting_html, "Issued sales invoice was not automatically posted"
+          assert "BQ-2026-000001" in automatic_accounting_html, "Bank-transfer receipt was not automatically posted"
           invoice_pdf = client.open(base + "/sales/invoices/" + invoice_id_match.group(1) + "/pdf")
           invoice_pdf_content = invoice_pdf.read()
           assert invoice_pdf.headers.get_content_type() == "application/pdf", "Invoice PDF route returned the wrong content type"
@@ -282,7 +285,7 @@ jobs:
           assert "VE-2026-000002" in accounting_result, "Manual accounting entry was not created after automatic invoice posting"
           assert "posted" in accounting_result, "Manual accounting entry was not posted"
           trial_html = client.open(base + "/accounting/trial-balance").read().decode()
-          assert "1 250,00 €" in trial_html, "Trial balance did not include the posted accounting entry"
+          assert "1 370,00 €" in trial_html, "Trial balance did not include the invoice, receipt and manual entry postings"
           ledger_match = re.search(r'href="/accounting/ledger/(\d+)', trial_html)
           assert ledger_match, "Trial balance does not link to the general ledger"
           ledger_html = client.open(base + "/accounting/ledger/" + ledger_match.group(1)).read().decode()
