@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
-use App\\Entity\\SalesInvoice;
-use App\\Entity\\SalesPayment;
-use App\\Entity\\SupplierInvoice;
-use App\\Entity\\SupplierPayment;
+use App\Entity\SalesInvoice;
+use App\Entity\SalesPayment;
+use App\Entity\SupplierInvoice;
+use App\Entity\SupplierPayment;
 
 function expectPaymentAmountAccepted(callable $factory, string $amount): void
 {
@@ -45,4 +45,4 @@ foreach ([$salesFactory, $supplierFactory] as $factory) {
     }
 }
 
-echo "Payment amount validation smoke test passed.\\n";
+echo "Payment amount validation smoke test passed.\n";
