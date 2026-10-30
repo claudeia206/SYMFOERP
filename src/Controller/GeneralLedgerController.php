@@ -17,7 +17,7 @@ final class GeneralLedgerController extends AbstractController
         $from=(string)$request->query->get('from',(new DateTimeImmutable('first day of january this year'))->format('Y-m-d'));
         $to=(string)$request->query->get('to',(new DateTimeImmutable('today'))->format('Y-m-d'));
         $this->validatePeriod($from,$to);
-        $accounts=$db->fetchAllAssociative('SELECT a.id,a.code,a.name,a.account_class,COALESCE(SUM(l.debit),0) AS debit,COALESCE(SUM(l.credit),0) AS credit FROM app_accounting_account a LEFT JOIN app_journal_entry_line l ON l.account_id=a.id LEFT JOIN app_journal_entry e ON e.id=l.entry_id AND e.status=? AND e.entry_date BETWEEN ? AND ? WHERE a.is_active=1 GROUP BY a.id,a.code,a.name,a.account_class ORDER BY a.code',['posted',$from,$to]);
+        $accounts=$db->fetchAllAssociative('SELECT a.id,a.code,a.name,a.account_class,COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END),0) AS debit,COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END),0) AS credit FROM app_accounting_account a LEFT JOIN app_journal_entry_line l ON l.account_id=a.id LEFT JOIN app_journal_entry e ON e.id=l.entry_id AND e.status=? AND e.entry_date BETWEEN ? AND ? WHERE a.is_active=1 GROUP BY a.id,a.code,a.name,a.account_class ORDER BY a.code',['posted',$from,$to]);
         $debitTotal=0.0;$creditTotal=0.0;
         foreach($accounts as &$account){$account['debit']=(float)$account['debit'];$account['credit']=(float)$account['credit'];$account['balance']=round($account['debit']-$account['credit'],2);$debitTotal+=$account['debit'];$creditTotal+=$account['credit'];}
         unset($account);
@@ -54,7 +54,8 @@ final class GeneralLedgerController extends AbstractController
                     $account=$db->fetchAssociative('SELECT id FROM app_accounting_account WHERE id=? AND is_active=1 FOR UPDATE',[$accountId]);
                     if(!$account)throw new \InvalidArgumentException('Un compte sélectionné est inexistant ou inactif.');
                 }
-                $number=(int)$db->fetchOne('SELECT COALESCE(MAX(entry_number),0)+1 FROM app_journal_entry WHERE journal_id=? AND YEAR(entry_date)=YEAR(?) FOR UPDATE',[$journalId,$date]);
+                $db->fetchOne('SELECT id FROM app_accounting_journal WHERE id=? FOR UPDATE',[$journalId]);
+                $number=(int)$db->fetchOne('SELECT COALESCE(MAX(entry_number),0)+1 FROM app_journal_entry WHERE journal_id=?',[$journalId]);
                 $db->insert('app_journal_entry',['journal_id'=>$journalId,'entry_number'=>$number,'entry_date'=>$date,'reference'=>$reference!==''?$reference:null,'description'=>$description,'status'=>'posted','created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
                 $entryId=(int)$db->lastInsertId();
                 foreach($lines as $line)$db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$line['account_id'],'label'=>$line['label'],'debit'=>number_format($line['debit']/100,2,'.',''),'credit'=>number_format($line['credit']/100,2,'.','')]);
