@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Service\\DepreciationCalculator;
+use App\Service\DepreciationCalculator;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
