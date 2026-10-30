@@ -13,13 +13,17 @@ final class FinancialReportController extends AbstractController
     {
         $sales=$connection->fetchAllAssociative(<<<'SQL'
             SELECT i.id,i.number,i.status,i.invoice_date,i.due_date,t.name AS counterparty,
-                   COALESCE(amounts.total,0) AS total,COALESCE(payments.paid,0) AS paid
+                   GREATEST(0,COALESCE(amounts.total,0)-COALESCE(credits.total,0)) AS total,COALESCE(payments.paid,0) AS paid
             FROM app_sales_invoice i
             INNER JOIN app_third_party t ON t.id=i.third_party_id
             LEFT JOIN (
                 SELECT invoice_id,SUM(ROUND(quantity*unit_price,2)+ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS total
                 FROM app_sales_invoice_line GROUP BY invoice_id
             ) amounts ON amounts.invoice_id=i.id
+            LEFT JOIN (
+                SELECT n.invoice_id,SUM(ROUND(l.quantity*l.unit_price,2)+ROUND(ROUND(l.quantity*l.unit_price,2)*l.vat_rate/100,2)) AS total
+                FROM app_sales_credit_note n INNER JOIN app_sales_credit_note_line l ON l.credit_note_id=n.id GROUP BY n.invoice_id
+            ) credits ON credits.invoice_id=i.id
             LEFT JOIN (
                 SELECT invoice_id,SUM(amount) AS paid
                 FROM app_sales_payment GROUP BY invoice_id
