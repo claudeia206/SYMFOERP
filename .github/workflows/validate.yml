@@ -57,6 +57,9 @@ jobs:
       - name: Test bank transaction reconciliation
         run: docker run --rm symfoerp-symfony:ci php tests/bank_transaction_entity_smoke.php
 
+      - name: Test strict bank statement parsing
+        run: docker run --rm symfoerp-symfony:ci php tests/bank_statement_value_parser_smoke.php
+
       - name: Test product catalogue and stock invariants
         run: docker run --rm symfoerp-symfony:ci php tests/product_entity_smoke.php
 
