@@ -65,7 +65,7 @@ final class AccountingReportController extends AbstractController
   $value=is_string($value)&&$value!==''?$value:$fallback;
   if(!preg_match('/^\d{4}-\d{2}-\d{2}$/D',$value))throw new BadRequestHttpException('Date de filtre invalide.');
   $date=DateTimeImmutable::createFromFormat('!Y-m-d',$value);$errors=DateTimeImmutable::getLastErrors();
-  if(!$date||($errors!==false&&($errors['warning_count']>0||$errors['error_count']>0))||$date->format('Y-m-d')!==$value)throw new InvalidArgumentException('Date de filtre invalide.');
+  if(!$date||($errors!==false&&($errors['warning_count']>0||$errors['error_count']>0))||$date->format('Y-m-d')!==$value)throw new BadRequestHttpException('Date de filtre invalide.');
   return $date;
  }
  private function toCents(string $amount):int{
