@@ -1,0 +1,18 @@
+{% extends 'base.html.twig' %}
+{% block title %}Relevé de compte · {{ customer.name }}{% endblock %}
+{% block body %}
+<p class="muted">CRM / COMPTABILITÉ CLIENT</p>
+<p><a href="{{ path('app_third_party_show',{id:customer.id}) }}">← Fiche client</a></p>
+<h1>Relevé de compte client</h1>
+<section class="card"><h2>{{ customer.name }}</h2><p>{{ customer.address ?? '' }}{% if customer.postalCode %}, {{ customer.postalCode }}{% endif %} {{ customer.city ?? '' }}</p><p>Situation arrêtée au {{ as_of|date('d/m/Y') }}</p><p><a href="{{ path('app_customer_account_statement_pdf',{id:customer.id}) }}">Télécharger / imprimer le PDF</a></p></section>
+<section class="card">
+<h2>Historique des mouvements</h2>
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Date</th><th>Pièce</th><th>Libellé</th><th>Débit</th><th>Crédit</th><th>Solde dû</th></tr></thead><tbody>
+{% for movement in movements %}
+<tr><td>{{ movement.movement_date|date('d/m/Y') }}</td><td>{{ movement.document }}</td><td>{{ movement.description }}</td><td>{{ movement.debit|number_format(2,',',' ') }} €</td><td>{{ movement.credit|number_format(2,',',' ') }} €</td><td>{{ movement.balance|number_format(2,',',' ') }} €</td></tr>
+{% else %}<tr><td colspan="6">Aucun mouvement client sur la période.</td></tr>{% endfor %}
+</tbody></table></div>
+<p><strong>Solde client au {{ as_of|date('d/m/Y') }} : {{ balance|number_format(2,',',' ') }} €</strong></p>
+</section>
+<p class="muted">Les factures augmentent le solde dû ; les règlements et avoirs le diminuent. Ce relevé est un état auxiliaire calculé à partir des pièces enregistrées, pas une balance comptable certifiée.</p>
+{% endblock %}
