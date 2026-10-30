@@ -43,39 +43,74 @@ final class FixedAssetController extends AbstractController
     #[Route('/export.csv', name: 'app_fixed_assets_export', methods: ['GET'])]
     public function export(Connection $db): Response
     {
-        $assets=$db->fetchAllAssociative(
-            'SELECT a.*, COALESCE(d.total_depreciation,0) AS total_depreciation, d.last_depreciation_year
+        $assets = $db->fetchAllAssociative(
+            'SELECT a.*, COALESCE(d.total_depreciation, 0) AS total_depreciation,
+                    d.last_depreciation_year
              FROM app_fixed_asset a
              LEFT JOIN (
-                 SELECT asset_id, SUM(amount) AS total_depreciation, MAX(fiscal_year) AS last_depreciation_year
-                 FROM app_fixed_asset_depreciation GROUP BY asset_id
-             ) d ON d.asset_id=a.id
+                 SELECT asset_id, SUM(amount) AS total_depreciation,
+                        MAX(fiscal_year) AS last_depreciation_year
+                 FROM app_fixed_asset_depreciation
+                 GROUP BY asset_id
+             ) d ON d.asset_id = a.id
              ORDER BY a.code'
         );
-        $escape=static function(mixed $value): string {
-            $value=(string)($value??'');
-            if(preg_match('/^[=+@\\-\\t\\r]/',$value))$value="'".$value;
-            return $value;
+
+        $stream = fopen('php://temp', 'r+');
+        if ($stream === false) {
+            throw new \RuntimeException('Impossible de préparer le fichier CSV.');
+        }
+
+        // BOM UTF-8 pour une ouverture correcte dans Excel.
+        fwrite($stream, "\xEF\xBB\xBF");
+        fputcsv($stream, [
+            'Code', 'Immobilisation', 'Date acquisition', 'Mise en service',
+            'Coût brut', 'Amortissements comptabilisés', 'VNC comptable',
+            'Durée (ans)', 'Dernier exercice amorti', 'Statut',
+            'Date de sortie', 'Prix de cession',
+        ], ';', '"', '\\');
+
+        $safeText = static function (mixed $value): string {
+            $value = (string) ($value ?? '');
+            // Neutralise les formules Excel/LibreOffice dans les champs texte.
+            return preg_match('/^[\s\x00-\x1F]*[=+\-@]/u', $value) === 1
+                ? "'" . $value
+                : $value;
         };
-        $rows=[['Code','Immobilisation','Date acquisition','Mise en service','Coût brut','Amortissements comptabilisés','VNC comptable','Durée (ans)','Dernier exercice amorti','Statut','Date de sortie','Prix de cession']];
-        foreach($assets as $asset){
-            $cost=(float)$asset['acquisition_cost'];$accumulated=(float)$asset['total_depreciation'];
-            $rows[]=[
-                $escape($asset['code']),$escape($asset['name']),$asset['acquisition_date'],$asset['in_service_date'],
-                number_format($cost,2,'.',''),number_format($accumulated,2,'.',''),
-                number_format(max(0.0,round($cost-$accumulated,2)),2,'.',''),
-                (string)$asset['useful_life_years'],$asset['last_depreciation_year']??'',
-                $asset['status'],$asset['disposal_date']??'',
-                $asset['disposal_proceeds']===null?'':number_format((float)$asset['disposal_proceeds'],2,'.',''),
-            ];
+
+        foreach ($assets as $asset) {
+            $cost = (float) $asset['acquisition_cost'];
+            $residual = (float) $asset['residual_value'];
+            $accumulated = (float) $asset['total_depreciation'];
+            $netBookValue = max($residual, round($cost - $accumulated, 2));
+
+            fputcsv($stream, [
+                $safeText($asset['code']),
+                $safeText($asset['name']),
+                $asset['acquisition_date'],
+                $asset['in_service_date'],
+                number_format($cost, 2, '.', ''),
+                number_format($accumulated, 2, '.', ''),
+                number_format($netBookValue, 2, '.', ''),
+                (string) $asset['useful_life_years'],
+                $asset['last_depreciation_year'] ?? '',
+                $safeText($asset['status']),
+                $asset['disposal_date'] ?? '',
+                $asset['disposal_proceeds'] === null
+                    ? ''
+                    : number_format((float) $asset['disposal_proceeds'], 2, '.', ''),
+            ], ';', '"', '\\');
         }
-        $output="\\xEF\\xBB\\xBF";
-        foreach($rows as $row){
-            $output.=implode(';',array_map(static fn($value):string=>'"'.str_replace('"','""',(string)$value).'"',$row))."\\r\\n";
-        }
-        $response=new Response($output);
-        $response->headers->set('Content-Type','text/csv; charset=UTF-8');
-        $response->headers->set('Content-Disposition','attachment; filename="registre-immobilisations.csv"');
+
+        rewind($stream);
+        $csv = stream_get_contents($stream);
+        fclose($stream);
+
+        $response = new Response($csv === false ? '' : $csv);
+        $response->headers->set('Content-Type', 'text/csv; charset=UTF-8');
+        $response->headers->set('Content-Disposition', 'attachment; filename="registre-immobilisations.csv"');
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+
         return $response;
     }
 
