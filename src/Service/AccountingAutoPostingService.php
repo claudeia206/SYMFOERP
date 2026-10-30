@@ -1,19 +1,19 @@
 <?php
 declare(strict_types=1);
-namespace App\\Service;
+namespace App\Service;
 
-use App\\Entity\\AccountingAccount;
-use App\\Entity\\AccountingEntry;
-use App\\Entity\\AccountingEntryLine;
-use App\\Entity\\AccountingFiscalYear;
-use App\\Entity\\AccountingJournal;
-use App\\Entity\\SalesInvoice;
-use App\\Entity\\SalesPayment;
-use App\\Entity\\SupplierInvoice;
-use App\\Entity\\SupplierPayment;
+use App\Entity\AccountingAccount;
+use App\Entity\AccountingEntry;
+use App\Entity\AccountingEntryLine;
+use App\Entity\AccountingFiscalYear;
+use App\Entity\AccountingJournal;
+use App\Entity\SalesInvoice;
+use App\Entity\SalesPayment;
+use App\Entity\SupplierInvoice;
+use App\Entity\SupplierPayment;
 use DateTimeImmutable;
-use Doctrine\\ORM\\EntityManagerInterface;
-use Doctrine\\ORM\\LockMode;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\LockMode;
 use InvalidArgumentException;
 
 final class AccountingAutoPostingService
@@ -73,7 +73,7 @@ final class AccountingAutoPostingService
 
  private function post(string $sourceType,int $sourceId,string $journalCode,DateTimeImmutable $date,string $label,callable $build):void
  {
-  if(!$this->em->getConnection()->isTransactionActive())throw new \\LogicException('La comptabilisation automatique doit être appelée dans la transaction métier source.');
+  if(!$this->em->getConnection()->isTransactionActive())throw new \LogicException('La comptabilisation automatique doit être appelée dans la transaction métier source.');
   $repo=$this->em->getRepository(AccountingEntry::class);
   if($repo->findOneBy(['sourceType'=>$sourceType,'sourceId'=>$sourceId]) instanceof AccountingEntry)return;
   $year=$this->em->createQueryBuilder()->select('y')->from(AccountingFiscalYear::class,'y')->where('y.startsOn <= :date')->andWhere('y.endsOn >= :date')->andWhere('y.closed = false')->setParameter('date',$date)->getQuery()->getOneOrNullResult();
