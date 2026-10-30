@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Controller;
+namespace App\\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Attribute\Route;
+use Symfony\\Bundle\\FrameworkBundle\\Controller\\AbstractController;
+use Symfony\\Component\\HttpFoundation\\Response;
+use Symfony\\Component\\Routing\\Attribute\\Route;
 
 final class DashboardController extends AbstractController
 {
@@ -19,9 +19,42 @@ final class DashboardController extends AbstractController
                     'status' => 'Disponible',
                     'route' => 'app_third_parties',
                 ],
-                ['name' => 'Ventes', 'description' => 'Création et suivi des devis clients', 'status' => 'Disponible', 'route' => 'app_sales_quotes'],
-                ['name' => 'Achats', 'description' => 'Demandes, commandes et fournisseurs', 'status' => 'À construire'],
-                ['name' => 'Stocks', 'description' => 'Articles, dépôts et mouvements', 'status' => 'À construire'],
+                [
+                    'name' => 'Catalogue produits',
+                    'description' => 'Références, tarifs et niveaux de stock',
+                    'status' => 'Disponible',
+                    'route' => 'app_products',
+                ],
+                [
+                    'name' => 'Devis clients',
+                    'description' => 'Création, suivi et conversion des devis',
+                    'status' => 'Disponible',
+                    'route' => 'app_sales_quotes',
+                ],
+                [
+                    'name' => 'Commandes clients',
+                    'description' => 'Suivi des commandes et sorties de stock',
+                    'status' => 'Disponible',
+                    'route' => 'app_sales_orders',
+                ],
+                [
+                    'name' => 'Factures clients',
+                    'description' => 'Émission, PDF et suivi des règlements',
+                    'status' => 'Disponible',
+                    'route' => 'app_sales_invoices',
+                ],
+                [
+                    'name' => 'Commandes fournisseurs',
+                    'description' => 'Approvisionnement et réceptions partielles',
+                    'status' => 'Disponible',
+                    'route' => 'app_purchase_orders',
+                ],
+                [
+                    'name' => 'Factures fournisseurs',
+                    'description' => 'Validation des factures et règlements sortants',
+                    'status' => 'Disponible',
+                    'route' => 'app_supplier_invoices',
+                ],
             ],
         ]);
     }
