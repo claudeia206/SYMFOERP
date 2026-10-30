@@ -42,6 +42,9 @@ final class BankStatementValueParser
         $unsigned = $negative ? substr($value, 1) : $value;
         [$whole, $fraction] = array_pad(explode('.', $unsigned, 2), 2, '');
         $cents = ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
+        if ($cents === 0) {
+            throw new InvalidArgumentException('Une opération bancaire doit avoir un montant non nul.');
+        }
 
         return $negative ? -$cents : $cents;
     }
