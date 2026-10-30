@@ -134,19 +134,44 @@ class SupplierInvoice
         if ($payment->getInvoice() !== $this || !in_array($this->status, [self::STATUS_RECEIVED, self::STATUS_PARTIALLY_PAID], true)) {
             throw new InvalidArgumentException('Seule une facture fournisseur reçue peut être réglée.');
         }
-        if ($this->getRemainingAmount() <= 0 || (float) $payment->getAmount() > $this->getRemainingAmount() + 0.001) {
+        $remainingCents = $this->getRemainingAmountCents();
+        if ($remainingCents <= 0 || self::decimalToCents($payment->getAmount()) > $remainingCents) {
             throw new InvalidArgumentException('Le règlement dépasse le solde restant ou la facture est déjà soldée.');
         }
         if (!$this->payments->contains($payment)) { $this->payments->add($payment); }
-        $this->status = $this->getRemainingAmount() <= 0.001 ? self::STATUS_PAID : self::STATUS_PARTIALLY_PAID;
+        $this->status = $this->getRemainingAmountCents() === 0 ? self::STATUS_PAID : self::STATUS_PARTIALLY_PAID;
         return $this;
     }
 
     public function getTotalExcludingTax(): float { return array_reduce($this->lines->toArray(), static fn(float $s, SupplierInvoiceLine $l): float => $s + $l->getTotalExcludingTax(), 0.0); }
     public function getTotalTax(): float { return array_reduce($this->lines->toArray(), static fn(float $s, SupplierInvoiceLine $l): float => $s + $l->getTotalTax(), 0.0); }
     public function getTotalIncludingTax(): float { return round($this->getTotalExcludingTax() + $this->getTotalTax(), 2); }
-    public function getPaidAmount(): float { return round(array_reduce($this->payments->toArray(), static fn(float $s, SupplierPayment $p): float => $s + (float) $p->getAmount(), 0.0), 2); }
-    public function getRemainingAmount(): float { return max(0.0, round($this->getTotalIncludingTax() - $this->getPaidAmount(), 2)); }
+    public function getPaidAmount(): float
+    {
+        $cents = array_reduce($this->payments->toArray(), static fn(int $sum, SupplierPayment $payment): int => $sum + self::decimalToCents($payment->getAmount()), 0);
+        return $cents / 100;
+    }
+
+    public function getRemainingAmount(): float
+    {
+        return $this->getRemainingAmountCents() / 100;
+    }
+
+    private function getRemainingAmountCents(): int
+    {
+        $totalCents = self::decimalToCents($this->getTotalIncludingTax());
+        $paidCents = array_reduce($this->payments->toArray(), static fn(int $sum, SupplierPayment $payment): int => $sum + self::decimalToCents($payment->getAmount()), 0);
+        return max(0, $totalCents - $paidCents);
+    }
+
+    private static function decimalToCents(float|string $amount): int
+    {
+        if (is_string($amount)) {
+            [$whole, $fraction] = array_pad(explode('.', $amount, 2), 2, '');
+            return ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
+        }
+        return (int) round($amount * 100);
+    }
     public function getEffectiveStatus(?DateTimeImmutable $today = null): string
     {
         if (in_array($this->status, [self::STATUS_RECEIVED, self::STATUS_PARTIALLY_PAID], true) && $this->getRemainingAmount() > 0 && $this->dueDate < ($today ?? new DateTimeImmutable('today'))) { return self::STATUS_OVERDUE; }
