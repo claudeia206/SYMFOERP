@@ -60,7 +60,7 @@ class SalesPayment
             throw new InvalidArgumentException('Payment reference is too long.');
         }
         $this->invoice = $invoice;
-        $this->amount = number_format($amountInCents / 100, 2, '.', '');
+        $this->amount = (string) $whole.'.'.str_pad($fraction, 2, '0');
         $this->paidAt = $paidAt;
         $this->method = $method;
         $this->reference = $reference !== '' ? $reference : null;
