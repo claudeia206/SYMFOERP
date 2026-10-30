@@ -18,7 +18,7 @@ CREATE TABLE app_accounting_source_posting (
  UNIQUE INDEX uniq_accounting_source (source_type, source_id),
  UNIQUE INDEX uniq_accounting_source_entry (entry_id),
  PRIMARY KEY(id)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE \`utf8mb4_unicode_ci\` ENGINE = InnoDB
+) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
 SQL);
         $this->addSql('ALTER TABLE app_accounting_source_posting ADD CONSTRAINT fk_accounting_source_entry FOREIGN KEY (entry_id) REFERENCES app_journal_entry (id) ON DELETE RESTRICT');
     }
