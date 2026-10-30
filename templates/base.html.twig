@@ -18,7 +18,16 @@
 </head>
 <body>
 <header><strong>SYMFOERP</strong><nav aria-label="Navigation principale"><a href="{{ path('app_dashboard') }}">Accueil</a><a href="{{ path('app_third_parties') }}">Tiers</a><a href="{{ path('app_products') }}">Produits</a><a href="{{ path('app_sales_quotes') }}">Devis</a><a href="{{ path('app_sales_orders') }}">Commandes</a><a href="{{ path('app_purchase_orders') }}">Achats</a><a href="{{ path('app_supplier_invoices') }}">Factures fournisseurs</a><a href="{{ path('app_sales_invoices') }}">Factures</a><a href="{{ path('app_sales_payment_reminders') }}">Relances</a><a href="{{ path('app_financial_report') }}">Reporting</a><a href="{{ path('app_general_ledger') }}">Comptabilité</a><a href="{{ path('app_vat_declaration') }}">TVA</a><a href="{{ path('app_accounting_aging') }}">Balance âgée</a><a href="{{ path('app_financial_statements') }}">États financiers</a><a href="{{ path('app_bank_reconciliation') }}">Banque</a><a href="{{ path('app_cash_flow_forecast') }}">Trésorerie</a><a href="{{ path('app_company_settings') }}">Entreprise</a>{% if app.user %}<span>{{ app.user.userIdentifier }}</span><form method="post" action="{{ path('app_logout') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}"><button type="submit">Déconnexion</button></form>{% endif %}</nav></header>
-<main>{% block body %}{% endblock %}</main>
+<main>
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="card" role="status" aria-live="polite" data-flash-type="{{ label }}" style="margin-bottom:16px;border-left:4px solid {{ label == 'error' ? '#b91c1c' : '#15803d' }};">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endfor %}
+    {% block body %}{% endblock %}
+</main>
 <footer>SYMFOERP · Socle applicatif Symfony 7.4 LTS</footer>
 </body>
 </html>
