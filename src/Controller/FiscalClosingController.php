@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\FecExportFormatter;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -16,13 +18,10 @@ final class FiscalClosingController extends AbstractController
     #[Route('/fec', name: 'app_accounting_fec', methods: ['GET'])]
     public function index(Connection $db, Request $request): Response
     {
-        $year = (int) $request->query->get('year', (new DateTimeImmutable())->format('Y'));
-        if ($year < 2000 || $year > 2100) {
-            throw $this->createNotFoundException('Exercice invalide.');
-        }
-
+        $year = $this->resolveYear($request->query->get('year'), (int) (new DateTimeImmutable())->format('Y'));
         $from = sprintf('%04d-01-01', $year);
         $to = sprintf('%04d-12-31', $year);
+
         $summary = $db->fetchAssociative(
             'SELECT COUNT(DISTINCT e.id) AS entries, COUNT(l.id) AS lines,
                     COALESCE(SUM(l.debit),0) AS debit, COALESCE(SUM(l.credit),0) AS credit
@@ -35,44 +34,48 @@ final class FiscalClosingController extends AbstractController
             'SELECT COUNT(*) FROM app_journal_entry WHERE status<>? AND entry_date BETWEEN ? AND ?',
             ['posted', $from, $to]
         );
-        $unbalanced = (int) $db->fetchOne(
-            'SELECT COUNT(*) FROM (
-                SELECT e.id FROM app_journal_entry e
-                INNER JOIN app_journal_entry_line l ON l.entry_id=e.id
-                WHERE e.status=? AND e.entry_date BETWEEN ? AND ?
-                GROUP BY e.id HAVING ABS(SUM(l.debit)-SUM(l.credit))>0.005
-             ) unbalanced_entries',
-            ['posted', $from, $to]
-        );
+        $unbalanced = $this->countInvalidPostedEntries($db, $from, $to);
         $period = $db->fetchAssociative('SELECT closed_at FROM app_accounting_fiscal_year WHERE fiscal_year = ?', [$year]);
-        $debit = (float) ($summary['debit'] ?? 0);
-        $credit = (float) ($summary['credit'] ?? 0);
+        $debit = (string) ($summary['debit'] ?? '0.00');
+        $credit = (string) ($summary['credit'] ?? '0.00');
+        $differenceCents = $this->decimalToCents($debit) - $this->decimalToCents($credit);
 
         return $this->render('accounting/fec.html.twig', [
             'year' => $year,
             'summary' => [
                 'entries' => (int) ($summary['entries'] ?? 0),
                 'lines' => (int) ($summary['lines'] ?? 0),
-                'debit' => $debit,
-                'credit' => $credit,
-                'difference' => round($debit - $credit, 2),
+                'debit' => (float) $debit,
+                'credit' => (float) $credit,
+                'difference' => $differenceCents / 100,
             ],
             'draft_count' => $draftCount,
             'unbalanced_count' => $unbalanced,
-            'ready' => $draftCount === 0 && $unbalanced === 0 && abs($debit - $credit) < 0.005 && ($period['closed_at'] ?? null) === null,
+            'ready' => $draftCount === 0 && $unbalanced === 0 && $differenceCents === 0 && ($period['closed_at'] ?? null) === null,
             'closed_at' => $period['closed_at'] ?? null,
         ]);
     }
 
     #[Route('/fec/export', name: 'app_accounting_fec_export', methods: ['GET'])]
-    public function export(Connection $db, Request $request): Response
+    public function export(Connection $db, Request $request, FecExportFormatter $formatter): Response
     {
-        $year = (int) $request->query->get('year', (new DateTimeImmutable())->format('Y'));
-        if ($year < 2000 || $year > 2100) {
-            throw $this->createNotFoundException('Exercice invalide.');
-        }
+        $year = $this->resolveYear($request->query->get('year'), (int) (new DateTimeImmutable())->format('Y'));
         $from = sprintf('%04d-01-01', $year);
         $to = sprintf('%04d-12-31', $year);
+
+        $draftCount = (int) $db->fetchOne(
+            'SELECT COUNT(*) FROM app_journal_entry WHERE status<>? AND entry_date BETWEEN ? AND ?',
+            ['posted', $from, $to]
+        );
+        $invalidCount = $this->countInvalidPostedEntries($db, $from, $to);
+        if ($draftCount !== 0 || $invalidCount !== 0) {
+            return new Response(
+                sprintf('Export FEC refusé : %d écriture(s) non comptabilisée(s), %d écriture(s) comptabilisée(s) incomplète(s) ou déséquilibrée(s).', $draftCount, $invalidCount),
+                Response::HTTP_CONFLICT,
+                ['Content-Type' => 'text/plain; charset=UTF-8', 'Cache-Control' => 'no-store']
+            );
+        }
+
         $rows = $db->fetchAllAssociative(
             'SELECT j.code AS journal_code, j.name AS journal_name, e.entry_number,
                     e.entry_date, a.code AS account_code, a.name AS account_name,
@@ -86,32 +89,40 @@ final class FiscalClosingController extends AbstractController
             ['posted', $from, $to]
         );
 
-        $columns = [
-            'JournalCode', 'JournalLib', 'EcritureNum', 'EcritureDate',
-            'CompteNum', 'CompteLib', 'CompAuxNum', 'CompAuxLib',
-            'PieceRef', 'PieceDate', 'EcritureLib', 'Debit', 'Credit',
-            'EcritureLet', 'DateLet', 'ValidDate', 'Montantdevise', 'Idevise',
-        ];
-        $lines = [implode('|', $columns)];
+        $fecRows = [];
         foreach ($rows as $row) {
-            $date = (new DateTimeImmutable((string) $row['entry_date']))->format('Ymd');
-            $values = [
-                $row['journal_code'], $row['journal_name'], (string) $row['entry_number'], $date,
-                $row['account_code'], $row['account_name'], '', '',
-                $row['reference'] ?? '', $date, $row['label'] ?: $row['description'],
-                number_format((float) $row['debit'], 2, '.', ''),
-                number_format((float) $row['credit'], 2, '.', ''),
-                '', '', $date, '', '',
+            $date = DateTimeImmutable::createFromFormat('!Y-m-d', (string) $row['entry_date']);
+            $dateErrors = DateTimeImmutable::getLastErrors();
+            if ($date === false || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0)) || $date->format('Y-m-d') !== (string) $row['entry_date']) {
+                throw new RuntimeException('Une date d’écriture est invalide : export FEC interrompu.');
+            }
+            $formattedDate = $date->format('Ymd');
+            $fecRows[] = [
+                $row['journal_code'],
+                $row['journal_name'],
+                (string) $row['entry_number'],
+                $formattedDate,
+                $row['account_code'],
+                $row['account_name'],
+                '',
+                '',
+                $row['reference'] ?? '',
+                $formattedDate,
+                ($row['label'] ?? '') !== '' ? $row['label'] : $row['description'],
+                $formatter->formatAmount((string) $row['debit']),
+                $formatter->formatAmount((string) $row['credit']),
+                '',
+                '',
+                $formattedDate,
+                '',
+                '',
             ];
-            $lines[] = implode('|', array_map(static function ($value): string {
-                $value = str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $value);
-                return $value;
-            }, $values));
         }
 
-        $response = new Response(implode("\r\n", $lines) . "\r\n");
+        $response = new Response($formatter->formatDocument($fecRows));
         $response->headers->set('Content-Type', 'text/plain; charset=UTF-8');
         $response->headers->set('Content-Disposition', sprintf('attachment; filename="FEC_%d.txt"', $year));
+        $response->headers->set('Cache-Control', 'no-store, private');
         return $response;
     }
 
@@ -136,27 +147,19 @@ final class FiscalClosingController extends AbstractController
                 [$year]
             );
             if (!$period) {
-                throw new \RuntimeException('Exercice comptable non initialisé.');
+                throw new RuntimeException('Exercice comptable non initialisé.');
             }
             if ($period['closed_at'] !== null) {
-                throw new \RuntimeException('Cet exercice est déjà clôturé.');
+                throw new RuntimeException('Cet exercice est déjà clôturé.');
             }
 
             $draftCount = (int) $db->fetchOne(
                 'SELECT COUNT(*) FROM app_journal_entry WHERE status <> ? AND entry_date BETWEEN ? AND ?',
                 ['posted', $from, $to]
             );
-            $unbalancedCount = (int) $db->fetchOne(
-                'SELECT COUNT(*) FROM (
-                    SELECT e.id FROM app_journal_entry e
-                    INNER JOIN app_journal_entry_line l ON l.entry_id = e.id
-                    WHERE e.status = ? AND e.entry_date BETWEEN ? AND ?
-                    GROUP BY e.id HAVING ABS(SUM(l.debit) - SUM(l.credit)) > 0.005
-                ) unbalanced_entries',
-                ['posted', $from, $to]
-            );
+            $unbalancedCount = $this->countInvalidPostedEntries($db, $from, $to);
             if ($draftCount !== 0 || $unbalancedCount !== 0) {
-                throw new \RuntimeException('Clôture refusée : écritures non validées ou déséquilibrées.');
+                throw new RuntimeException('Clôture refusée : écritures non validées, incomplètes ou déséquilibrées.');
             }
 
             $db->update('app_accounting_fiscal_year', [
@@ -174,4 +177,40 @@ final class FiscalClosingController extends AbstractController
         return $this->redirectToRoute('app_accounting_fec', ['year' => $year]);
     }
 
+    private function countInvalidPostedEntries(Connection $db, string $from, string $to): int
+    {
+        return (int) $db->fetchOne(
+            'SELECT COUNT(*) FROM (
+                SELECT e.id
+                FROM app_journal_entry e
+                LEFT JOIN app_journal_entry_line l ON l.entry_id=e.id
+                WHERE e.status=? AND e.entry_date BETWEEN ? AND ?
+                GROUP BY e.id
+                HAVING COUNT(l.id)<2 OR COALESCE(SUM(l.debit),0)<>COALESCE(SUM(l.credit),0)
+             ) invalid_entries',
+            ['posted', $from, $to]
+        );
+    }
+
+    private function resolveYear(mixed $value, int $default): int
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+        $year = filter_var($value, FILTER_VALIDATE_INT);
+        if ($year === false || $year < 2000 || $year > 2100) {
+            throw $this->createNotFoundException('Exercice invalide.');
+        }
+
+        return $year;
+    }
+
+    private function decimalToCents(string $amount): int
+    {
+        if (!preg_match('/^\d{1,13}(?:\.\d{1,2})?$/D', $amount)) {
+            throw new RuntimeException('Total comptable non décimal.');
+        }
+        [$integer, $fraction] = array_pad(explode('.', $amount, 2), 2, '');
+        return ((int) $integer * 100) + (int) str_pad($fraction, 2, '0');
+    }
 }
