@@ -24,6 +24,7 @@ final class DashboardController extends AbstractController
                 ['name' => 'Factures fournisseurs', 'description' => 'Validation des factures et règlements sortants', 'status' => 'Disponible', 'route' => 'app_supplier_invoices'],
                 ['name' => 'Reporting financier', 'description' => 'Créances, dettes et flux de trésorerie', 'status' => 'Disponible', 'route' => 'app_financial_report'],
                 ['name' => 'Rapprochement bancaire', 'description' => 'Import CSV et rapprochement des règlements', 'status' => 'Disponible', 'route' => 'app_bank_reconciliation'],
+                ['name' => 'Prévision de trésorerie', 'description' => 'Projection des flux sur 13 semaines', 'status' => 'Disponible', 'route' => 'app_cash_flow_forecast'],
             ],
         ]);
     }
