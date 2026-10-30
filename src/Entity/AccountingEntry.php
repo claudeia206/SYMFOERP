@@ -7,7 +7,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 #[ORM\Entity]
-#[ORM\Table(name:'app_accounting_entry',uniqueConstraints:[new ORM\UniqueConstraint(name:'uniq_accounting_entry_journal_number',columns:['journal_id','number'])])]
+#[ORM\Table(name:'app_accounting_entry',uniqueConstraints:[new ORM\UniqueConstraint(name:'uniq_accounting_entry_journal_number',columns:['journal_id','number']),new ORM\UniqueConstraint(name:'uniq_accounting_entry_source',columns:['source_type','source_id'])])]
 #[ORM\Index(name:'idx_accounting_entry_date',columns:['entry_date','fiscal_year_id'])]
 class AccountingEntry {
  #[ORM\Id,ORM\GeneratedValue,ORM\Column] private ?int $id=null;
