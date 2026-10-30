@@ -94,7 +94,7 @@ final class FiscalClosingController extends AbstractController
             ['posted', $from, $to]
         ) ?: [];
         if ($draftCount > 0 || $unbalancedCount > 0 || abs((float) ($totals['debit'] ?? 0) - (float) ($totals['credit'] ?? 0)) >= 0.005) {
-            throw new \\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException(
+            throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException(
                 'Export FEC refusé : corrigez les écritures non comptabilisées ou déséquilibrées avant de générer le fichier.'
             );
         }
