@@ -66,6 +66,8 @@ final class SalesInvoiceController extends AbstractController
         try {
             $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice, $posting): void {
                 $entityManager->lock($invoice, LockMode::PESSIMISTIC_WRITE);
+                // Reload state after the lock; the route converter may have loaded a stale draft.
+                $entityManager->refresh($invoice);
                 $profile = $entityManager->find(CompanyProfile::class, 1);
                 if (!$profile instanceof CompanyProfile) {
                     throw new InvalidArgumentException('Configurez d’abord l’identité légale de l’entreprise.');
