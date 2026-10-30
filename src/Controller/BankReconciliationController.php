@@ -34,12 +34,14 @@ final class BankReconciliationController extends AbstractController
             rewind($handle); $headers=fgetcsv($handle,0,$delimiter);
             if(!$headers) throw new \InvalidArgumentException('En-tête CSV manquant.');
             $headers=array_map(static fn($v)=>strtolower(trim((string)$v)), $headers);
+            if(count($headers)!==count(array_unique($headers))||count($headers)>20) throw new \\InvalidArgumentException('En-têtes CSV dupliqués ou trop nombreux.');
             foreach(['date','label','amount'] as $required) if(!in_array($required,$headers,true)) throw new \InvalidArgumentException('Colonnes obligatoires : date, label, amount. Référence facultative : reference.');
             $inserted=0;$duplicates=0;$invalid=0;
             $db->beginTransaction();
             try {
                 while(($row=fgetcsv($handle,0,$delimiter))!==false){
                     if(count($row)===1&&trim((string)$row[0])==='') continue;
+                    if(count($row)!==count($headers)) { ++$invalid; continue; }
                     $values=[];foreach($headers as $i=>$key)$values[$key]=trim((string)($row[$i]??''));
                     try {
                         $rawDate=$values['date']??'';
@@ -73,7 +75,7 @@ final class BankReconciliationController extends AbstractController
             $transaction=$db->fetchAssociative('SELECT * FROM app_bank_transaction WHERE id=? FOR UPDATE',[$id]);
             if(!$transaction) throw new \InvalidArgumentException('Opération bancaire introuvable.');
             if($transaction['matched_sales_payment_id']!==null||$transaction['matched_supplier_payment_id']!==null) throw new \InvalidArgumentException('Cette opération est déjà rapprochée.');
-            $type=(string)$request->request->get('payment_type');$paymentId=(int)$request->request->get('payment_id');
+            $type=(string)$request->request->get('payment_type');$rawPaymentId=$request->request->get('payment_id');$paymentId=(is_string($rawPaymentId)&&preg_match('/^[1-9]\\d{0,8}$/D',$rawPaymentId))?(int)$rawPaymentId:0;
             if($paymentId<=0||!in_array($type,['sales','supplier'],true))throw new \InvalidArgumentException('Règlement sélectionné invalide.');
             $table=$type==='sales'?'app_sales_payment':'app_supplier_payment';
             $column=$type==='sales'?'matched_sales_payment_id':'matched_supplier_payment_id';
@@ -87,4 +89,29 @@ final class BankReconciliationController extends AbstractController
         catch(Throwable){if($db->isTransactionActive())$db->rollBack();$this->addFlash('error','Le rapprochement a échoué.');}
         return $this->redirectToRoute('app_bank_reconciliation');
     }
+
+    private function parseStatementDate(string $value): DateTimeImmutable
+    {
+        foreach (['!Y-m-d', '!d/m/Y'] as $format) {
+            $date = DateTimeImmutable::createFromFormat($format, $value);
+            $errors = DateTimeImmutable::getLastErrors();
+            if ($date !== false && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))) {
+                return $date;
+            }
+        }
+        throw new \InvalidArgumentException('Date bancaire invalide.');
+    }
+
+    private function toCents(string $value): int
+    {
+        if (!preg_match('/^-?(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/D', $value)) {
+            throw new \InvalidArgumentException('Montant bancaire invalide.');
+        }
+        $negative = str_starts_with($value, '-');
+        $unsigned = $negative ? substr($value, 1) : $value;
+        [$whole, $fraction] = array_pad(explode('.', $unsigned, 2), 2, '');
+        $cents = ((int) $whole) * 100 + (int) str_pad($fraction, 2, '0');
+        return $negative ? -$cents : $cents;
+    }
+
 }
