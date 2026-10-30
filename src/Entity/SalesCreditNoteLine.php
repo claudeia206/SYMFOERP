@@ -21,7 +21,7 @@ class SalesCreditNoteLine
     #[ORM\Column(name:'vat_rate',type:'decimal',precision:5,scale:2)] private string $vatRate;
     public function __construct(SalesCreditNote $creditNote,SalesInvoiceLine $invoiceLine,string $quantity)
     {
-        if(!is_numeric($quantity)||(float)$quantity<=0||(float)$quantity>9999999.999) throw new InvalidArgumentException('La quantité de l’avoir doit être positive.');
+        if(!preg_match('/^(?:0|[1-9]\\d{0,6})(?:\\.\\d{1,3})?$/D',$quantity)||(float)$quantity<=0) throw new InvalidArgumentException('La quantité de l’avoir doit être un nombre décimal positif avec trois décimales maximum.');
         $this->creditNote=$creditNote; $this->invoiceLine=$invoiceLine; $this->description=$invoiceLine->getDescription();
         $this->quantity=number_format((float)$quantity,3,'.',''); $this->unitPrice=$invoiceLine->getUnitPrice(); $this->vatRate=$invoiceLine->getVatRate();
     }
