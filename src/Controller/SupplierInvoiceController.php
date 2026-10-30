@@ -11,7 +11,7 @@ use App\Repository\PurchaseOrderRepository;
 use App\Entity\ThirdParty;
 use App\Service\AccountingPostingService;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\LockMode;
+use Doctrine\DBAL\LockMode;
 use InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
