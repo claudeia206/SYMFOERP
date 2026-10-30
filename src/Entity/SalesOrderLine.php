@@ -41,6 +41,9 @@ class SalesOrderLine
 
     public function __construct(string $description, string $quantity, string $unitPrice, string $vatRate, int $position, ?Product $product = null)
     {
+        if (!preg_match('/^\\d+(?:\\.\\d{1,3})?$/D', $quantity) || (float) $quantity <= 0 || (float) $quantity > 9999999.999) {
+            throw new \InvalidArgumentException('La quantité de vente doit être un nombre décimal strictement positif.');
+        }
         $this->product = $product;
         $this->description = $description;
         $this->quantity = $quantity;
