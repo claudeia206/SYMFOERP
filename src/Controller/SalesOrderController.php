@@ -2,6 +2,8 @@
 declare(strict_types=1);
 namespace App\Controller;
 use App\Entity\ProductStockMovement;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use App\Entity\SalesDelivery;
 use App\Entity\SalesDeliveryLine;
 use App\Entity\SalesOrder;
