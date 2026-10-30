@@ -44,6 +44,7 @@ final class FiscalClosingController extends AbstractController
              ) unbalanced_entries',
             ['posted', $from, $to]
         );
+        $period = $db->fetchAssociative('SELECT closed_at FROM app_accounting_fiscal_year WHERE fiscal_year = ?', [$year]);
         $debit = (float) ($summary['debit'] ?? 0);
         $credit = (float) ($summary['credit'] ?? 0);
 
@@ -58,7 +59,8 @@ final class FiscalClosingController extends AbstractController
             ],
             'draft_count' => $draftCount,
             'unbalanced_count' => $unbalanced,
-            'ready' => $draftCount === 0 && $unbalanced === 0 && abs($debit - $credit) < 0.005,
+            'ready' => $draftCount === 0 && $unbalanced === 0 && abs($debit - $credit) < 0.005 && ($period['closed_at'] ?? null) === null,
+            'closed_at' => $period['closed_at'] ?? null,
         ]);
     }
 
