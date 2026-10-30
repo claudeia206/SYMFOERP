@@ -93,6 +93,9 @@ class SupplierInvoice
                 $line->getPosition()
             ));
         }
+        if (!in_array($order->getStatus(), [PurchaseOrder::STATUS_SENT, PurchaseOrder::STATUS_PARTIALLY_RECEIVED, PurchaseOrder::STATUS_RECEIVED], true)) {
+            throw new InvalidArgumentException('Une commande brouillon ou annulée ne peut pas être facturée.');
+        }
         if ($this->lines->isEmpty()) {
             throw new InvalidArgumentException('Aucune quantité réceptionnée ne peut être facturée.');
         }
