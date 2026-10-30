@@ -31,7 +31,12 @@ final class DepreciationCalculator
             if ($next > $end) $next = $end;
             $periodEnd = $next < $asOf->modify('+1 day') ? $next : $asOf->modify('+1 day');
             $days = (int) $cursor->diff($periodEnd)->days;
-            $amount = min(round($base - $accumulated, 2), round($daily * $days, 2));
+            $remaining = round($base - $accumulated, 2);
+            // Absorb intermediate cent rounding in the final period so the
+            // schedule always reaches the exact depreciable base at term end.
+            $amount = $next >= $end
+                ? $remaining
+                : min($remaining, round($daily * $days, 2));
             if ($amount > 0) {
                 $accumulated = round($accumulated + $amount, 2);
                 $rows[] = ['period'=>$cursor->format('Y'), 'amount'=>$amount, 'accumulated'=>$accumulated, 'net_book_value'=>round($cost-$accumulated,2)];
