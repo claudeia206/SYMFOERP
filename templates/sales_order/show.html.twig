@@ -68,6 +68,40 @@
             </table></div>
         {% endif %}
     </section>
+
+    <section class="card">
+        <h2>Enregistrer un retour client</h2>
+        <p class="muted">Un retour ne peut concerner que des quantités déjà livrées et pas encore retournées. Les quantités acceptées sont réintégrées au stock suivi.</p>
+        <form method="post" action="{{ path('app_sales_return_create', {id: order.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('sales_return_' ~ order.id) }}">
+            <div class="table-scroll"><table class="data-table">
+                <thead><tr><th>Article</th><th>Livré</th><th>Déjà retourné</th><th>Encore retournable</th><th>Quantité reçue</th></tr></thead>
+                <tbody>{% for line in order.lines %}
+                    <tr><td>{{ line.description }}</td><td>{{ line.deliveredQuantity }}</td><td>{{ line.returnedQuantity }}</td><td>{{ line.returnableQuantity }}</td>
+                    <td><input type="number" name="quantities[{{ line.id }}]" min="0" max="{{ line.returnableQuantity }}" step="0.001" value="0" aria-label="Quantité retournée pour {{ line.description }}"></td></tr>
+                {% endfor %}</tbody>
+            </table></div>
+            <label for="return-notes">Motif / observations du retour</label>
+            <textarea id="return-notes" name="notes" rows="2" maxlength="2000"></textarea>
+            <button type="submit">Enregistrer le retour client</button>
+        </form>
+    </section>
+    <section class="card">
+        <h2>Historique des retours</h2>
+        {% if returns is empty %}
+            <p class="muted">Aucun retour enregistré pour cette commande.</p>
+        {% else %}
+            <div class="table-scroll"><table class="data-table">
+                <thead><tr><th>Numéro</th><th>Date</th><th>Article</th><th>Quantité retournée</th><th>Observations</th></tr></thead>
+                <tbody>{% for salesReturn in returns %}
+                    {% for line in salesReturn.lines %}
+                    <tr><td>{{ salesReturn.number }}</td><td>{{ salesReturn.returnDate|date('d/m/Y') }}</td><td>{{ line.description }}</td><td>{{ line.quantity }}</td><td>{{ salesReturn.notes ?: '—' }}</td></tr>
+                    {% endfor %}
+                {% endfor %}</tbody>
+            </table></div>
+        {% endif %}
+    </section>
+
     {% if allowed_actions is not empty %}<section class="card"><h2>Actions sur la commande</h2>{% for action in allowed_actions %}
         <form method="post" action="{{ path('app_sales_order_status', {id: order.id}) }}" style="display:inline-block;margin:6px 10px 6px 0"><input type="hidden" name="_token" value="{{ csrf_token('sales_order_status_' ~ order.id) }}"><input type="hidden" name="status" value="{{ action }}"><button type="submit">{{ statuses[action] }}</button></form>
     {% endfor %}</section>{% endif %}
