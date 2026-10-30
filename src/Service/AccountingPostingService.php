@@ -24,8 +24,8 @@ final class AccountingPostingService
         if($this->alreadyPosted('sales_payment',$paymentId))return;
         $payment=$this->db->fetchAssociative('SELECT p.amount,p.paid_at,p.method,p.reference,i.number FROM app_sales_payment p INNER JOIN app_sales_invoice i ON i.id=p.invoice_id WHERE p.id=?',[$paymentId]);
         if(!$payment)throw new RuntimeException('Règlement client introuvable pour comptabilisation.');
-        $amount=$this->cents($payment['amount']);$account=$payment['method']==='cash'?'530000':'512000';$label='Règlement facture '.$payment['number'];
-        $this->post('sales_payment',$paymentId,'BQ',$payment['paid_at'],$payment['reference']?:$payment['number'],$label,[['account'=>$account,'label'=>$label,'debit'=>$amount,'credit'=>0],['account'=>'411000','label'=>'Lettrage client '.$payment['number'],'debit'=>0,'credit'=>$amount]]);
+        $amount=$this->cents($payment['amount']);$isCash=$payment['method']==='cash';$account=$isCash?'530000':'512000';$label='Règlement facture '.$payment['number'];
+        $this->post('sales_payment',$paymentId,$isCash?'CA':'BQ',$payment['paid_at'],$payment['reference']?:$payment['number'],$label,[['account'=>$account,'label'=>$label,'debit'=>$amount,'credit'=>0],['account'=>'411000','label'=>'Lettrage client '.$payment['number'],'debit'=>0,'credit'=>$amount]]);
     }
     public function postSalesCreditNote(int $creditNoteId): void
     {
