@@ -23,7 +23,9 @@ class SalesOrderLine
         $this->product=$product; $this->description=$description; $this->quantity=$quantity; $this->unitPrice=$unitPrice; $this->vatRate=$vatRate; $this->position=max(1,$position);
     }
     public function getId(): ?int { return $this->id; }
-    public function setOrder(SalesOrder $order): self { $this->order=$order; return $this; }
+    
+    public function getPosition(): int { return $this->position; }
+public function setOrder(SalesOrder $order): self { $this->order=$order; return $this; }
     public function getDescription(): string { return $this->description; }
     public function getProduct(): ?Product { return $this->product; }
     public function getQuantity(): string { return $this->quantity; }
