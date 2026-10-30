@@ -42,7 +42,7 @@ final class GeneralLedgerController extends AbstractController
             if(count($raw)<2||count($raw)>30)throw new \InvalidArgumentException('Une écriture doit comporter entre 2 et 30 lignes.');
             $lines=[];$debitCents=0;$creditCents=0;
             foreach($raw as $line){
-                $accountId=(int)($line['account_id']??0);$label=trim((string)($line['label']??$description));
+                $accountId=(int)($line['account_id']??0);$label=trim((string)($line['label']??''))?:$description;
                 $debit=$this->toCents((string)($line['debit']??'0'));$credit=$this->toCents((string)($line['credit']??'0'));
                 if($accountId<=0||$label===''||mb_strlen($label)>255||(($debit>0)===($credit>0)))throw new \InvalidArgumentException('Chaque ligne doit avoir un compte, un libellé et un seul montant au débit ou au crédit.');
                 $lines[]=['account_id'=>$accountId,'label'=>$label,'debit'=>$debit,'credit'=>$credit];$debitCents+=$debit;$creditCents+=$credit;
