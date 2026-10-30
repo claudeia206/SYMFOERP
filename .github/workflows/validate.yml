@@ -180,6 +180,9 @@ jobs:
           assert customer_match, "New customer was not available in the quote form"
           statement_html = client.open(base + "/third-parties/" + customer_match.group(1) + "/account-statement").read().decode()
           assert "Relevé de compte client" in statement_html, "Customer account statement did not render"
+          statement_pdf = client.open(base + "/third-parties/" + customer_match.group(1) + "/account-statement/pdf")
+          assert statement_pdf.headers.get_content_type() == "application/pdf", "Customer account statement PDF returned the wrong content type"
+          assert statement_pdf.read().startswith(b"%PDF-"), "Customer account statement PDF is invalid"
           quote_payload = {
               "customer_id": customer_match.group(1),
               "valid_until": (date.today() + timedelta(days=30)).isoformat(),
