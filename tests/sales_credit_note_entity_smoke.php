@@ -56,4 +56,11 @@ try {
     throw new RuntimeException('A credit note without a reason was accepted.');
 } catch (InvalidArgumentException) {
 }
+foreach (['1e2', '+1.000', '1.0000', '10000000.000'] as $invalidQuantity) {
+    try {
+        new SalesCreditNoteLine($note, $line, $invalidQuantity);
+        throw new RuntimeException('Invalid credit note quantity was accepted: '.$invalidQuantity);
+    } catch (InvalidArgumentException) {
+    }
+}
 echo "Customer credit note totals, VAT, remaining quantities and receivable invariants passed.\n";
