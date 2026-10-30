@@ -1,0 +1,21 @@
+{% extends 'base.html.twig' %}
+{% block title %}Prévision de trésorerie · SYMFOERP{% endblock %}
+{% block body %}
+<p class="muted">FINANCE / PRÉVISIONS</p><h1>Prévision de trésorerie</h1>
+<p>Projection hebdomadaire sur 13 semaines à partir des échéances clients et fournisseurs enregistrées.</p>
+<section class="grid">
+<article class="card"><p class="muted">Encaissements attendus</p><h2>{{ total_inflows|number_format(2,',',' ') }} €</h2><p>Dont échus : {{ overdue_inflows|number_format(2,',',' ') }} €</p></article>
+<article class="card"><p class="muted">Décaissements attendus</p><h2>{{ total_outflows|number_format(2,',',' ') }} €</h2><p>Dont échus : {{ overdue_outflows|number_format(2,',',' ') }} €</p></article>
+<article class="card"><p class="muted">Flux net prévisionnel</p><h2>{{ (total_inflows-total_outflows)|number_format(2,',',' ') }} €</h2><p>Horizon de 13 semaines</p></article>
+</section>
+<section class="card">
+<h2>Échéancier hebdomadaire</h2>
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Semaine</th><th>Encaissements</th><th>Décaissements</th><th>Flux net</th><th>Cumul net prévisionnel</th></tr></thead><tbody>
+{% for week in forecast %}
+<tr><td>{{ week.start|date('d/m/Y') }} – {{ week.end|date('d/m/Y') }}</td><td>{{ week.inflows|number_format(2,',',' ') }} €{% if week.overdue_inflows>0 %}<small> · dont échus {{ week.overdue_inflows|number_format(2,',',' ') }} €</small>{% endif %}</td><td>{{ week.outflows|number_format(2,',',' ') }} €{% if week.overdue_outflows>0 %}<small> · dont échus {{ week.overdue_outflows|number_format(2,',',' ') }} €</small>{% endif %}</td><td>{{ week.net|number_format(2,',',' ') }} €</td><td><strong>{{ week.cumulative_net|number_format(2,',',' ') }} €</strong></td></tr>
+{% endfor %}
+</tbody></table></div>
+</section>
+<p class="muted">Cette projection porte uniquement sur les factures et règlements enregistrés. Le cumul net est une variation prévisionnelle, pas un solde bancaire : aucun solde d’ouverture, frais, paie, taxes, virements groupés ou encaissements non facturés ne sont intégrés. Les échéances déjà dépassées sont positionnées dans la semaine courante.</p>
+<p><a href="{{ path('app_financial_report') }}">Retour au reporting financier</a> · <a href="{{ path('app_bank_reconciliation') }}">Rapprochement bancaire</a></p>
+{% endblock %}
