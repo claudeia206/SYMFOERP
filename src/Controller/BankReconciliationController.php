@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controller;
+use App\Service\BankStatementValueParser;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -21,7 +22,7 @@ final class BankReconciliationController extends AbstractController
     }
 
     #[Route('/import',name:'app_bank_reconciliation_import',methods:['POST'])]
-    public function import(Request $request,Connection $db):Response
+    public function import(Request $request,Connection $db,BankStatementValueParser $parser):Response
     {
         if(!$this->isCsrfTokenValid('bank_statement_import',(string)$request->request->get('_token'))) throw $this->createAccessDeniedException();
         $file=$request->files->get('statement');
@@ -45,15 +46,15 @@ final class BankReconciliationController extends AbstractController
                     $values=[];foreach($headers as $i=>$key)$values[$key]=trim((string)($row[$i]??''));
                     try {
                         $rawDate=$values['date']??'';
-                        $date=$this->parseStatementDate($rawDate);
-                        $rawAmount=str_replace([' ','€',chr(194).chr(160)],'',$values['amount']??'');
-                        if(str_contains($rawAmount,',')&&!str_contains($rawAmount,'.'))$rawAmount=str_replace(',','.',$rawAmount);
-                        if(!preg_match('/^-?\d{1,10}(?:\.\d{1,2})?$/D',$rawAmount)) throw new \InvalidArgumentException('Ligne CSV invalide.');
-                        $label=trim($values['label']??'');$amount=number_format((float)$rawAmount,2,'.','');
-                        if($label===''||abs((float)$amount)<0.005) throw new \InvalidArgumentException('Ligne CSV invalide.');
-                        $reference=trim($values['reference']??'');
+                        $date=$parser->parseDate($rawDate);
+                        $rawAmount=(string)($values['amount']??'');
+                        $label=mb_substr(trim($values['label']??''),0,255);
+                        $amountCents=$parser->parseAmountToCents($rawAmount);
+                        if($label===''||$amountCents===0) throw new \InvalidArgumentException('Ligne CSV invalide.');
+                        $amount=$parser->formatCents($amountCents);
+                        $reference=mb_substr(trim($values['reference']??''),0,120);
                         $fingerprint=hash('sha256',$date->format('Y-m-d')."|".$label."|".$amount."|".$reference);
-                        $count=$db->executeStatement('INSERT IGNORE INTO app_bank_transaction (transaction_date,label,amount,reference,fingerprint,imported_at) VALUES (?,?,?,?,?,?)',[$date->format('Y-m-d'),mb_substr($label,0,255),$amount,$reference!==''?mb_substr($reference,0,120):null,$fingerprint,(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
+                        $count=$db->executeStatement('INSERT IGNORE INTO app_bank_transaction (transaction_date,label,amount,reference,fingerprint,imported_at) VALUES (?,?,?,?,?,?)',[$date->format('Y-m-d'),$label,$amount,$reference!==''?$reference:null,$fingerprint,(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
                         if($count===1)++$inserted;else ++$duplicates;
                     } catch(\Throwable){++$invalid;}
                 }
@@ -91,18 +92,6 @@ final class BankReconciliationController extends AbstractController
         }catch(\InvalidArgumentException $e){if($db->isTransactionActive())$db->rollBack();$this->addFlash('error',$e->getMessage());}
         catch(Throwable){if($db->isTransactionActive())$db->rollBack();$this->addFlash('error','Le rapprochement a échoué.');}
         return $this->redirectToRoute('app_bank_reconciliation');
-    }
-
-    private function parseStatementDate(string $value): DateTimeImmutable
-    {
-        foreach (['!Y-m-d', '!d/m/Y'] as $format) {
-            $date = DateTimeImmutable::createFromFormat($format, $value);
-            $errors = DateTimeImmutable::getLastErrors();
-            if ($date !== false && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))) {
-                return $date;
-            }
-        }
-        throw new \InvalidArgumentException('Date bancaire invalide.');
     }
 
     private function toCents(string $value): int
