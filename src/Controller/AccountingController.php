@@ -61,7 +61,8 @@ final class AccountingController extends AbstractController
      if(!$account)throw new InvalidArgumentException('Compte comptable introuvable.');
      $debit=$this->normalizeAmount((string)($row['debit']??'0'));
      $credit=$this->normalizeAmount((string)($row['credit']??'0'));
-     $lineLabel=trim((string)($row['label']??$label));
+     $lineLabel=trim((string)($row['label']??''));
+     if($lineLabel==='')$lineLabel=$label;
      $entry->addLine(new AccountingEntryLine($account,$lineLabel,$debit,$credit,$position++));
     }
     $entry->validateForPosting();
