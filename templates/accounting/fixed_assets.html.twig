@@ -13,6 +13,7 @@
       <div class="col-md-2"><label class="form-label">Coût (€)</label><input class="form-control" name="acquisition_cost" type="number" min="0.01" step="0.01" required></div>
       <div class="col-md-2"><label class="form-label">Valeur résiduelle (€)</label><input class="form-control" name="residual_value" type="number" min="0" step="0.01" value="0" required></div>
       <div class="col-md-2"><label class="form-label">Durée (années)</label><input class="form-control" name="useful_life_years" type="number" min="1" max="100" required></div>
+      <div class="col-md-3"><label class="form-label">Date d’acquisition</label><input class="form-control" name="acquisition_date" type="date" required></div>
       <div class="col-md-3"><label class="form-label">Mise en service</label><input class="form-control" name="in_service_date" type="date" required></div>
       <div class="col-md-3"><label class="form-label">Compte immobilisation</label><select class="form-select" name="asset_account_id" required><option value="">Choisir…</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} — {{ account.name }}</option>{% endfor %}</select></div>
       <div class="col-md-3"><label class="form-label">Compte amortissements</label><select class="form-select" name="accumulated_account_id" required><option value="">Choisir…</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} — {{ account.name }}</option>{% endfor %}</select></div>
