@@ -148,6 +148,8 @@ jobs:
           assert "Comptabilité générale" in ledger_html, "Authenticated user could not open general ledger"
           vat_html = client.open(base + "/accounting/vat").read().decode()
           assert "Préparation de la déclaration de TVA" in vat_html, "Authenticated user could not open VAT declaration report"
+          aging_html = client.open(base + "/accounting/aging").read().decode()
+          assert "Balance âgée clients et fournisseurs" in aging_html, "Authenticated user could not open receivables and payables aging report"
           vat_csv = client.open(base + "/accounting/vat/export.csv").read()
           assert b"TVA collect" in vat_csv, "VAT CSV export did not return its expected headers"
           settings_page = client.open(base + "/settings/company").read().decode()
