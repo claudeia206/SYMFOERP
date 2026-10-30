@@ -86,7 +86,7 @@ echo "Installation du schéma Symfony..."
 "${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:schema:validate
 
 echo "Création du compte administrateur..."
-"${compose[@]}" run --rm --no-deps symfony php bin/console app:user:create
+"${compose[@]}" run --rm --no-deps -e SYMFOERP_ADMIN_EMAIL -e SYMFOERP_ADMIN_PASSWORD symfony php bin/console app:user:create
 unset SYMFOERP_ADMIN_EMAIL SYMFOERP_ADMIN_PASSWORD
 
 echo "Démarrage de l'application Symfony..."
