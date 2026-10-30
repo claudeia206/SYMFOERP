@@ -15,8 +15,13 @@ final class DepreciationCalculator
             throw new InvalidArgumentException('Paramètres d’amortissement invalides.');
         }
         $base = round($cost - $residual, 2);
-        $daily = $base / ($years * 365.25);
         $end = $start->modify(sprintf('+%d years', $years));
+        $totalDays = (int) $start->diff($end)->days;
+        if ($totalDays < 1) {
+            throw new InvalidArgumentException('Durée d’amortissement invalide.');
+        }
+        // Use the exact calendar duration so the final period reaches the residual value.
+        $daily = $base / $totalDays;
         $cursor = $start;
         $accumulated = 0.0;
         $rows = [];
