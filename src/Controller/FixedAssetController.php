@@ -242,11 +242,34 @@ final class FixedAssetController extends AbstractController
         return $this->redirectToRoute('app_fixed_assets',['as_of'=>$date]);
     }
 
-    #[Route('/{id}/archive', name: 'app_fixed_assets_archive', methods: ['POST'])]
+    #[Route('/{id}/archive', name: 'app_fixed_assets_archive', requirements: ['id'=>'\\d+'], methods: ['POST'])]
     public function archive(int $id, Connection $db, Request $request): Response
     {
-        if (!$this->isCsrfTokenValid('fixed_asset_archive_'.$id,(string)$request->request->get('_token'))) throw $this->createAccessDeniedException();
-        $db->update('app_fixed_asset',['status'=>'archived'],['id'=>$id]);
+        if (!$this->isCsrfTokenValid('fixed_asset_archive_'.$id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+
+        try {
+            $db->beginTransaction();
+            $asset = $db->fetchAssociative(
+                'SELECT id, status, disposal_journal_entry_id FROM app_fixed_asset WHERE id = ? FOR UPDATE',
+                [$id]
+            );
+            if (!$asset || $asset['status'] !== 'disposed' || empty($asset['disposal_journal_entry_id'])) {
+                throw new \\InvalidArgumentException('Seules les immobilisations sorties et comptabilisées peuvent être archivées.');
+            }
+
+            $db->update('app_fixed_asset', ['status' => 'archived'], ['id' => $id]);
+            $db->commit();
+            $this->addFlash('success', 'Immobilisation archivée.');
+        } catch (\\InvalidArgumentException $e) {
+            if ($db->isTransactionActive()) $db->rollBack();
+            $this->addFlash('error', $e->getMessage());
+        } catch (Throwable) {
+            if ($db->isTransactionActive()) $db->rollBack();
+            $this->addFlash('error', 'Impossible d’archiver cette immobilisation.');
+        }
+
         return $this->redirectToRoute('app_fixed_assets');
     }
 }
