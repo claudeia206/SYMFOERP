@@ -29,6 +29,19 @@ try {
 } catch (InvalidArgumentException) {}
 $line->receive('3');
 $order->refreshReceiptStatus();
+
+$order->setStatus(PurchaseOrder::STATUS_DRAFT);
+try {
+    new SupplierInvoice($order, 'F-DRAFT-001');
+    throw new RuntimeException('A draft purchase order was accepted for invoicing.');
+} catch (InvalidArgumentException) {}
+$order->setStatus(PurchaseOrder::STATUS_CANCELLED);
+try {
+    new SupplierInvoice($order, 'F-CANCELLED-001');
+    throw new RuntimeException('A cancelled purchase order was accepted for invoicing.');
+} catch (InvalidArgumentException) {}
+$order->setStatus(PurchaseOrder::STATUS_PARTIALLY_RECEIVED);
+
 $invoice = new SupplierInvoice($order, 'F-2026-001');
 expectSupplierInvoice($invoice->getLines()->count() === 1, 'Received quantities must be copied to supplier invoice lines.');
 expectSupplierInvoice($invoice->getLines()->first()->getQuantity() === '3.000', 'Only received quantity may be invoiced.');
