@@ -44,6 +44,7 @@ final class GeneralLedgerController extends AbstractController
             foreach($raw as $line){
                 $accountId=(int)($line['account_id']??0);$label=trim((string)($line['label']??''))?:$description;
                 $debit=$this->toCents((string)($line['debit']??'0'));$credit=$this->toCents((string)($line['credit']??'0'));
+                if($accountId===0&&$debit===0&&$credit===0&&trim((string)($line['label']??''))==='')continue;
                 if($accountId<=0||$label===''||mb_strlen($label)>255||(($debit>0)===($credit>0)))throw new \InvalidArgumentException('Chaque ligne doit avoir un compte, un libellé et un seul montant au débit ou au crédit.');
                 $lines[]=['account_id'=>$accountId,'label'=>$label,'debit'=>$debit,'credit'=>$credit];$debitCents+=$debit;$creditCents+=$credit;
             }
@@ -81,9 +82,11 @@ final class GeneralLedgerController extends AbstractController
 
     private function toCents(string $value):int
     {
-        $value=str_replace([' ',\"\\u{00A0}\"], '',trim($value));$value=str_replace(',','.',$value);
-        if(!preg_match('/^\\d+(?:\\.\\d{1,2})?$/',$value))throw new \InvalidArgumentException('Montant invalide : deux décimales maximum.');
-        $parts=explode('.',$value,2);return ((int)$parts[0])*100+(int)str_pad($parts[1]??'0',2,'0');
+        $value=str_replace([' ', chr(194).chr(160)], '',trim($value));
+        $value=str_replace(',','.',$value);
+        if(!preg_match('/^\d+(?:\.\d{1,2})?$/',$value))throw new \InvalidArgumentException('Montant invalide : deux décimales maximum.');
+        $parts=explode('.',$value,2);
+        return ((int)$parts[0])*100+(int)str_pad($parts[1]??'0',2,'0');
     }
     private function validatePeriod(string $from,string $to):void
     {
