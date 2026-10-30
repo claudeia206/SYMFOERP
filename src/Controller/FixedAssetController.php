@@ -154,7 +154,8 @@ final class FixedAssetController extends AbstractController
     {
         if (!$this->isCsrfTokenValid('fixed_asset_create', (string) $request->request->get('_token'))) throw $this->createAccessDeniedException();
         $code=trim((string)$request->request->get('code')); $name=trim((string)$request->request->get('name'));
-        $cost=(float)$request->request->get('acquisition_cost'); $residual=(float)$request->request->get('residual_value');
+        $cost = $this->parseMoney($request->request->get('acquisition_cost'));
+        $residual = $this->parseMoney($request->request->get('residual_value'));
         $years=(int)$request->request->get('useful_life_years');
         $acquisitionDate=(string)$request->request->get('acquisition_date');
         $serviceDate=(string)$request->request->get('in_service_date');
@@ -163,7 +164,7 @@ final class FixedAssetController extends AbstractController
         $assetAccount=(int)$request->request->get('asset_account_id'); $accumAccount=(int)$request->request->get('accumulated_account_id');
         $expenseAccount=(int)$request->request->get('expense_account_id'); $journal=(int)$request->request->get('journal_id');
         $bankAccount=(int)$request->request->get('disposal_bank_account_id'); $gainAccount=(int)$request->request->get('disposal_gain_account_id'); $lossAccount=(int)$request->request->get('disposal_loss_account_id');
-        if ($code==='' || mb_strlen($code)>64 || $name==='' || mb_strlen($name)>255 || !$parsedAcquisition || $parsedAcquisition->format('Y-m-d')!==$acquisitionDate || !$parsedService || $parsedService->format('Y-m-d')!==$serviceDate || $parsedAcquisition>$parsedService || $cost<=0 || $residual<0 || $residual>=$cost || $years<1 || $years>100 || min($assetAccount,$accumAccount,$expenseAccount,$journal,$bankAccount,$gainAccount,$lossAccount)<=0 || count(array_unique([$assetAccount,$accumAccount,$expenseAccount,$bankAccount,$gainAccount,$lossAccount]))!==6) {
+        if ($code==='' || mb_strlen($code)>64 || $name==='' || mb_strlen($name)>255 || !$parsedAcquisition || $parsedAcquisition->format('Y-m-d')!==$acquisitionDate || !$parsedService || $parsedService->format('Y-m-d')!==$serviceDate || $parsedAcquisition>$parsedService || $cost===null || $residual===null || $cost<=0 || $residual<0 || $residual>=$cost || $years<1 || $years>100 || min($assetAccount,$accumAccount,$expenseAccount,$journal,$bankAccount,$gainAccount,$lossAccount)<=0 || count(array_unique([$assetAccount,$accumAccount,$expenseAccount,$bankAccount,$gainAccount,$lossAccount]))!==6) {
             $this->addFlash('error','Vérifiez les données, les comptes doivent être distincts et le journal renseigné.');
             return $this->redirectToRoute('app_fixed_assets');
         }
@@ -227,8 +228,8 @@ final class FixedAssetController extends AbstractController
     {
         if(!$this->isCsrfTokenValid('fixed_asset_dispose_'.$id,(string)$request->request->get('_token')))throw $this->createAccessDeniedException();
         $date=(string)$request->request->get('disposal_date','');$parsed=DateTimeImmutable::createFromFormat('!Y-m-d',$date);
-        $proceeds=(float)$request->request->get('disposal_proceeds',-1);
-        if(!$parsed||$parsed->format('Y-m-d')!==$date||$parsed->format('m-d')!=='12-31'||$proceeds<0){
+        $proceeds = $this->parseMoney($request->request->get('disposal_proceeds'));
+        if(!$parsed||$parsed->format('Y-m-d')!==$date||$parsed->format('m-d')!=='12-31'||$proceeds===null){
             $this->addFlash('error','La sortie doit être datée du 31 décembre et le prix de cession doit être positif ou nul.');
             return $this->redirectToRoute('app_fixed_assets');
         }
@@ -309,5 +310,24 @@ final class FixedAssetController extends AbstractController
         }
 
         return $this->redirectToRoute('app_fixed_assets');
+    }
+
+    /**
+     * Parse a monetary input without accepting locale separators, exponents,
+     * signs or more than two decimal places.
+     */
+    private function parseMoney(mixed $value): ?float
+    {
+        if (!is_string($value) && !is_int($value) && !is_float($value)) {
+            return null;
+        }
+
+        $raw = trim((string) $value);
+        if (preg_match('/^\\d{1,12}(?:\\.\\d{1,2})?$/D', $raw) !== 1) {
+            return null;
+        }
+
+        $amount = (float) $raw;
+        return is_finite($amount) ? $amount : null;
     }
 }
