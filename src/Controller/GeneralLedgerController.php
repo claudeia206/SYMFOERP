@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controller;
+use App\Service\AccountingPeriodGuard;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,7 +28,7 @@ final class GeneralLedgerController extends AbstractController
     }
 
     #[Route('/entries',name:'app_general_ledger_entry_create',methods:['POST'])]
-    public function create(Request $request,Connection $db, \\App\\Service\\AccountingPeriodGuard $periodGuard):Response
+    public function create(Request $request,Connection $db, AccountingPeriodGuard $periodGuard):Response
     {
         if(!$this->isCsrfTokenValid('general_ledger_entry',(string)$request->request->get('_token')))throw $this->createAccessDeniedException();
         try{
