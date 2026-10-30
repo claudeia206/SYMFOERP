@@ -36,7 +36,7 @@
     <thead><tr><th>Code</th><th>Immobilisation</th><th>Coût</th><th>Durée</th><th>Année</th><th>Dotation</th><th>Amorti cumulé</th><th>VNC</th><th>Comptabilisation</th><th>Statut</th><th></th></tr></thead><tbody>
     {% for asset in assets %}
       {% set plan = plans[asset.id] %}
-      {% if plan is empty %}<tr><td>{{ asset.code }}</td><td>{{ asset.name }}</td><td>{{ asset.acquisition_cost|number_format(2, ',', ' ') }} €</td><td>{{ asset.useful_life_years }} ans</td><td colspan="5">Aucune dotation à la date choisie</td><td>{{ asset.status }}</td><td></td></tr>
+      {% if plan is empty %}<tr><td>{{ asset.code }}</td><td>{{ asset.name }}</td><td>{{ asset.acquisition_cost|number_format(2, ',', ' ') }} €</td><td>{{ asset.useful_life_years }} ans</td><td colspan="5">Aucune dotation à la date choisie</td><td>{{ asset.status }}</td><td>{% if asset.status == 'disposed' and asset.disposal_journal_entry_id %}<span class="text-muted d-block mb-2">Sortie : {{ asset.disposal_date }}</span><form method="post" action="{{ path('app_fixed_assets_archive',{id:asset.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('fixed_asset_archive_' ~ asset.id) }}"><button class="btn btn-sm btn-outline-secondary">Archiver</button></form>{% endif %}</td></tr>
       {% else %}{% for line in plan %}<tr>
         <td>{{ asset.code }}</td><td>{{ asset.name }}</td><td>{{ asset.acquisition_cost|number_format(2, ',', ' ') }} €</td><td>{{ asset.useful_life_years }} ans</td><td>{{ line.period }}</td>
         <td>{{ line.amount|number_format(2, ',', ' ') }} €</td><td>{{ line.accumulated|number_format(2, ',', ' ') }} €</td><td>{{ line.net_book_value|number_format(2, ',', ' ') }} €</td>
