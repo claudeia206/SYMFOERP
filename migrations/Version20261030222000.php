@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 namespace DoctrineMigrations;
-use Doctrine\\DBAL\\Schema\\Schema;
-use Doctrine\\Migrations\\AbstractMigration;
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\Migrations\AbstractMigration;
 final class Version20261030222000 extends AbstractMigration
 {
  public function getDescription():string{return 'Enforce one accounting entry per source document or payment.';}
