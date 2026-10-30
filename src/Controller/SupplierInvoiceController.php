@@ -26,17 +26,23 @@ final class SupplierInvoiceController extends AbstractController
     {
         $invoices = $em->getRepository(SupplierInvoice::class)->findBy([], ['createdAt' => 'DESC'], 100);
 
-        // Let the database exclude already-invoiced orders. Looking only at the
-        // latest 100 invoices can otherwise re-offer older orders and hit the
-        // one-invoice-per-order unique constraint.
+        // Let the database exclude every previously invoiced order. Looking
+        // only at the latest 100 invoices can otherwise re-offer older orders
+        // and hit the one-invoice-per-order unique constraint.
+        $invoiceSubquery = $em->createQueryBuilder()
+            ->select('invoice.id')
+            ->from(SupplierInvoice::class, 'invoice')
+            ->where('invoice.purchaseOrder = po');
+
         $billableOrders = $em->createQueryBuilder()
             ->select('DISTINCT po')
             ->from(PurchaseOrder::class, 'po')
             ->innerJoin('po.lines', 'line')
-            ->leftJoin(SupplierInvoice::class, 'invoice', 'WITH', 'invoice.purchaseOrder = po')
-            ->where('invoice.id IS NULL')
-            ->andWhere('line.receivedQuantity > 0')
+            ->where('line.receivedQuantity > 0')
             ->andWhere('po.status NOT IN (:blockedStatuses)')
+            ->andWhere($em->createQueryBuilder()->expr()->not(
+                $em->createQueryBuilder()->expr()->exists($invoiceSubquery->getDQL())
+            ))
             ->setParameter('blockedStatuses', [PurchaseOrder::STATUS_DRAFT, PurchaseOrder::STATUS_CANCELLED])
             ->orderBy('po.createdAt', 'DESC')
             ->getQuery()
