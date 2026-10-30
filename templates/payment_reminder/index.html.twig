@@ -11,7 +11,7 @@
 <tr><td>{{ invoice.number }}</td><td>{{ invoice.customer_name }}<br><small>{{ invoice.email ?? 'E-mail absent' }}</small></td><td>{{ invoice.due_date|date('d/m/Y') }}</td><td>{{ invoice.days_overdue }} j</td><td>{{ invoice.remaining|number_format(2,',',' ') }} €</td><td>{{ invoice.reminder_count }}{% if invoice.last_reminder %}<br><small>Dernière : {{ invoice.last_reminder|date('d/m/Y') }}</small>{% endif %}</td><td>
 {% if invoice.email %}
 {% set subject = 'Relance - facture ' ~ invoice.number %}
-{% set body = 'Bonjour ' ~ invoice.customer_name ~ ',%0D%0A%0D%0ANotre facture ' ~ invoice.number ~ ', échue le ' ~ invoice.due_date|date('d/m/Y') ~ ', présente un solde restant dû de ' ~ invoice.remaining|number_format(2,'.',' ') ~ ' EUR.%0D%0AMerci de nous indiquer la date prévue de règlement.%0D%0A%0D%0ACordialement.' %}
+{% set body = 'Bonjour ' ~ invoice.customer_name ~ ',\n\nNotre facture ' ~ invoice.number ~ ', échue le ' ~ invoice.due_date|date('d/m/Y') ~ ', présente un solde restant dû de ' ~ invoice.remaining|number_format(2,'.',' ') ~ ' EUR.\nMerci de nous indiquer la date prévue de règlement.\n\nCordialement.' %}
 <a href="mailto:{{ invoice.email|e('html_attr') }}?subject={{ subject|url_encode }}&body={{ body|url_encode }}">Préparer l’e-mail</a>
 {% endif %}
 <form method="post" action="{{ path('app_payment_reminder_record',{id:invoice.id}) }}">
