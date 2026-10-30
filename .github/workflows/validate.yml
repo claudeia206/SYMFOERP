@@ -298,8 +298,8 @@ jobs:
           purchase_form = client.open(base + "/purchases/new").read().decode()
           purchase_parser = TokenParser()
           purchase_parser.feed(purchase_form)
-          supplier_match = re.search(r'<option value="(\\d+)"[^>]*>Fournisseur CI</option>', purchase_form)
-          product_match = re.search(r'<option value="(\\d+)"[^>]*>CI-ACH-001', purchase_form)
+          supplier_match = re.search(r'<option value="(\d+)"[^>]*>Fournisseur CI</option>', purchase_form)
+          product_match = re.search(r'<option value="(\d+)"[^>]*>CI-ACH-001', purchase_form)
           assert supplier_match and product_match, "Supplier or product missing from purchase order form"
           purchase_response = client.open(urllib.request.Request(base + "/purchases/new", data=urllib.parse.urlencode({
               "supplier_id": supplier_match.group(1), "notes": "CI purchase",
@@ -307,7 +307,7 @@ jobs:
               "lines[0][quantity]": "2",
           }).encode()))
           purchase_html = purchase_response.read().decode()
-          purchase_id = re.search(r"/purchases/(\\d+)", purchase_response.geturl())
+          purchase_id = re.search(r"/purchases/(\d+)", purchase_response.geturl())
           assert purchase_id, "Purchase order was not created"
           purchase_parser = TokenParser()
           purchase_parser.feed(purchase_html)
@@ -327,7 +327,7 @@ jobs:
           supplier_invoice_html = client.open(urllib.request.Request(base + "/purchases/invoices/from-order/" + purchase_id.group(1), data=urllib.parse.urlencode({
               "_token": supplier_invoice_token.group(1), "supplier_invoice_number": "CI-FOUR-001",
           }).encode())).read().decode()
-          supplier_invoice_id = re.search(r'href="/purchases/invoices/(\\d+)"', supplier_invoice_html)
+          supplier_invoice_id = re.search(r'href="/purchases/invoices/(\d+)"', supplier_invoice_html)
           assert supplier_invoice_id, "Supplier invoice draft was not created"
           supplier_detail = client.open(base + "/purchases/invoices/" + supplier_invoice_id.group(1)).read().decode()
           supplier_receive_form = re.search(r'<form method="post" action="/purchases/invoices/' + supplier_invoice_id.group(1) + r'/receive">.*?</form>', supplier_detail, re.S)
