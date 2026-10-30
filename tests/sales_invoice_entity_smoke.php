@@ -57,6 +57,17 @@ try {
 } catch (InvalidArgumentException) {
     // An issued invoice is immutable and cannot receive a second number.
 }
+$normalizedPayment = new SalesPayment($invoice, '0.5', new DateTimeImmutable('2026-10-30'), 'cash');
+expectInvoice($normalizedPayment->getAmount() === '0.50', 'Payment amounts must be normalized without floating-point conversion.');
+foreach (['0', '-1.00', '+1.00', '01.00', '1,00', '1.001', '1e2', '10000000000.00'] as $invalidAmount) {
+    try {
+        new SalesPayment($invoice, $invalidAmount, new DateTimeImmutable('2026-10-30'), 'cash');
+        throw new RuntimeException('Invalid customer payment amount was accepted: '.$invalidAmount);
+    } catch (InvalidArgumentException) {
+        // Payment amounts must use a positive, bounded decimal representation.
+    }
+}
+
 $firstPayment = new SalesPayment($invoice, '40.00', new DateTimeImmutable('2026-10-30'), 'bank_transfer', 'VIR-001');
 $invoice->addPayment($firstPayment);
 expectInvoice($invoice->getStatus() === SalesInvoice::STATUS_PARTIALLY_PAID, 'Partial payment must update invoice status.');
