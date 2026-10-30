@@ -71,6 +71,9 @@ jobs:
 
       - name: Test accounting fiscal period boundaries
         run: docker run --rm symfoerp-symfony:ci php tests/accounting_period_guard_smoke.php
+
+      - name: Test FEC export formatting invariants
+        run: docker run --rm symfoerp-symfony:ci php tests/fec_export_formatter_smoke.php
       - name: Smoke test Symfony HTTP application
         run: |
           set -eu
