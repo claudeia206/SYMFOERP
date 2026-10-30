@@ -78,7 +78,7 @@ fi
 echo "Installation du schéma Symfony..."
 "${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:migrations:sync-metadata-storage
 "${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:migrations:migrate --no-interaction
-"${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:migrations:status --show-versions
+"${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:migrations:status
 "${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:query:sql "SELECT COUNT(*) AS user_count FROM app_user"
 "${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:schema:validate
 
