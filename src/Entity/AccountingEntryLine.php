@@ -25,6 +25,7 @@ class AccountingEntryLine {
  public function setEntry(AccountingEntry $entry):void{$this->entry=$entry;}
  public function getDebitCents():int{return self::toCents($this->debit);}
  public function getCreditCents():int{return self::toCents($this->credit);}
+ public function getEntry():?AccountingEntry{return $this->entry;}
  public function getAccount():AccountingAccount{return $this->account;}
  public function getLabel():string{return $this->label;}
  public function getDebit():string{return $this->debit;}
