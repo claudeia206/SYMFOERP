@@ -14,6 +14,7 @@ class SalesOrderLine
     #[ORM\Column(length: 255)] private string $description;
     #[ORM\Column(type: 'decimal', precision: 10, scale: 3)] private string $quantity;
     #[ORM\Column(name: 'delivered_quantity', type: 'decimal', precision: 10, scale: 3, options: ['default' => '0.000'])] private string $deliveredQuantity='0.000';
+    #[ORM\Column(name: 'returned_quantity', type: 'decimal', precision: 10, scale: 3, options: ['default' => '0.000'])] private string $returnedQuantity='0.000';
     #[ORM\Column(name: 'unit_price', type: 'decimal', precision: 12, scale: 2)] private string $unitPrice;
     #[ORM\Column(name: 'vat_rate', type: 'decimal', precision: 5, scale: 2)] private string $vatRate;
     #[ORM\Column] private int $position;
@@ -32,6 +33,14 @@ class SalesOrderLine
     {
         if(!is_numeric($quantity)||round((float)$quantity,3)<=0||(float)$quantity>(float)$this->getRemainingQuantity()+0.000001) throw new InvalidArgumentException('La quantité livrée doit être positive et ne peut pas dépasser le reliquat.');
         $this->deliveredQuantity=number_format((float)$this->deliveredQuantity+(float)$quantity,3,'.','');
+        return $this;
+    }
+    public function getReturnedQuantity(): string { return $this->returnedQuantity; }
+    public function getReturnableQuantity(): string { return number_format(max(0,(float)$this->deliveredQuantity-(float)$this->returnedQuantity),3,'.',''); }
+    public function recordReturn(string $quantity): self
+    {
+        if(!is_numeric($quantity)||round((float)$quantity,3)<=0||(float)$quantity>(float)$this->getReturnableQuantity()+0.000001) throw new InvalidArgumentException('La quantité retournée dépasse la quantité livrée encore éligible à un retour.');
+        $this->returnedQuantity=number_format((float)$this->returnedQuantity+(float)$quantity,3,'.','');
         return $this;
     }
     public function getUnitPrice(): string { return $this->unitPrice; }
