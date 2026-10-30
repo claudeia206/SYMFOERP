@@ -75,7 +75,7 @@ final class BankReconciliationController extends AbstractController
             $transaction=$db->fetchAssociative('SELECT * FROM app_bank_transaction WHERE id=? FOR UPDATE',[$id]);
             if(!$transaction) throw new \InvalidArgumentException('Opération bancaire introuvable.');
             if($transaction['matched_sales_payment_id']!==null||$transaction['matched_supplier_payment_id']!==null) throw new \InvalidArgumentException('Cette opération est déjà rapprochée.');
-            $type=(string)$request->request->get('payment_type');$rawPaymentId=$request->request->get('payment_id');$paymentId=(is_string($rawPaymentId)&&preg_match('/^[1-9]\\d{0,8}$/D',$rawPaymentId))?(int)$rawPaymentId:0;
+            $type=(string)$request->request->get('payment_type');$rawPaymentId=$request->request->get('payment_id');$paymentId=(is_string($rawPaymentId)&&preg_match('/^[1-9]\d{0,8}$/D',$rawPaymentId))?(int)$rawPaymentId:0;
             if($paymentId<=0||!in_array($type,['sales','supplier'],true))throw new \InvalidArgumentException('Règlement sélectionné invalide.');
             $table=$type==='sales'?'app_sales_payment':'app_supplier_payment';
             $column=$type==='sales'?'matched_sales_payment_id':'matched_supplier_payment_id';
