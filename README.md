@@ -127,6 +127,19 @@ php bin/console cache:clear
 symfony server:start
 ```
 
+## Améliorations de conception par rapport au socle Dolibarr
+
+**Compteur actuel : 4 axes d'amélioration traités ou renforcés dans SYMFOERP.**
+
+Ce compteur mesure les axes de conception adressés par le projet ; il ne prétend pas recenser quatre bogues officiellement reconnus dans le code amont de Dolibarr.
+
+1. **Séparation des responsabilités et des données** — Dolibarr conserve son runtime et sa base dédiés ; les fonctions portées dans Symfony disposent de leur propre architecture et de leur propre base. Aucune modification directe des données Dolibarr.
+2. **Authentification et contrôle d'accès Symfony** — comptes et rôles indépendants, routes protégées, mots de passe hachés, protection CSRF, limitation des tentatives et création contrôlée du premier administrateur.
+3. **Règles métier explicites et validations renforcées** — contrôles des transitions de documents, des dates, des quantités, des soldes, des références et des données obligatoires avant émission ou traitement.
+4. **Fiabilité des opérations et traçabilité** — transactions et verrouillages sur les opérations sensibles, contraintes d'unicité, numérotation protégée, conservation des instantanés commerciaux et historique des mouvements de stock et des opérations comptables.
+
+Le compteur évoluera uniquement lorsqu'un nouvel axe sera effectivement implémenté et documenté. Les fonctions restent en cours de développement ; elles ne constituent pas une preuve de conformité complète ni une comparaison exhaustive avec toutes les éditions et configurations de Dolibarr.
+
 ## Feuille de route
 
 1. Démarrer et valider l'installation neuve Dolibarr 24.0.2.
