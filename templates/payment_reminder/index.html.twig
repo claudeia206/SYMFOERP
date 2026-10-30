@@ -1,0 +1,34 @@
+{% extends 'base.html.twig' %}
+{% block title %}Relances clients · SYMFOERP{% endblock %}
+{% block body %}
+<p class="muted">FINANCE / RECOUVREMENT</p><h1>Relances clients</h1>
+<p>Suivi des factures échues et non soldées. Préparez un e-mail ou consignez une relance effectuée par téléphone ou courrier.</p>
+{% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
+{% for message in app.flashes('error') %}<p class="card" role="alert">{{ message }}</p>{% endfor %}
+<section class="card"><h2>Factures à relancer</h2>
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Facture</th><th>Client</th><th>Échéance</th><th>Retard</th><th>Reste dû</th><th>Relances</th><th>Actions</th></tr></thead><tbody>
+{% for invoice in invoices %}
+<tr><td>{{ invoice.number }}</td><td>{{ invoice.customer_name }}<br><small>{{ invoice.email ?? 'E-mail absent' }}</small></td><td>{{ invoice.due_date|date('d/m/Y') }}</td><td>{{ invoice.days_overdue }} j</td><td>{{ invoice.remaining|number_format(2,',',' ') }} €</td><td>{{ invoice.reminder_count }}{% if invoice.last_reminder %}<br><small>Dernière : {{ invoice.last_reminder|date('d/m/Y') }}</small>{% endif %}</td><td>
+{% if invoice.email %}
+{% set subject = 'Relance - facture ' ~ invoice.number %}
+{% set body = 'Bonjour ' ~ invoice.customer_name ~ ',%0D%0A%0D%0ANotre facture ' ~ invoice.number ~ ', échue le ' ~ invoice.due_date|date('d/m/Y') ~ ', présente un solde restant dû de ' ~ invoice.remaining|number_format(2,'.',' ') ~ ' EUR.%0D%0AMerci de nous indiquer la date prévue de règlement.%0D%0A%0D%0ACordialement.' %}
+<a href="mailto:{{ invoice.email|e('html_attr') }}?subject={{ subject|url_encode }}&body={{ body|url_encode }}">Préparer l’e-mail</a>
+{% endif %}
+<form method="post" action="{{ path('app_payment_reminder_record',{id:invoice.id}) }}">
+<input type="hidden" name="_token" value="{{ csrf_token('payment_reminder_' ~ invoice.id) }}">
+<label>Niveau <select name="level"><option value="1">1 · Première relance</option><option value="2">2 · Deuxième relance</option><option value="3">3 · Dernière relance</option></select></label>
+<label>Canal <select name="channel"><option value="email" {% if not invoice.email %}disabled{% endif %}>E-mail</option><option value="phone">Téléphone</option><option value="letter">Courrier</option></select></label>
+<input name="note" maxlength="2000" placeholder="Commentaire (facultatif)">
+<button type="submit">Enregistrer la relance effectuée</button>
+</form>
+</td></tr>
+{% else %}<tr><td colspan="7">Aucune facture échue impayée.</td></tr>{% endfor %}
+</tbody></table></div></section>
+<section class="card"><h2>Historique des 100 dernières relances</h2>
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Date</th><th>Facture</th><th>Client</th><th>Niveau</th><th>Canal</th><th>Destinataire</th><th>Commentaire</th></tr></thead><tbody>
+{% for item in history %}<tr><td>{{ item.sent_at|date('d/m/Y H:i') }}</td><td>{{ item.number }}</td><td>{{ item.customer_name }}</td><td>{{ item.reminder_level }}</td><td>{{ {'email':'E-mail','phone':'Téléphone','letter':'Courrier'}[item.channel] }}</td><td>{{ item.recipient ?? '—' }}</td><td>{{ item.note ?? '—' }}</td></tr>
+{% else %}<tr><td colspan="7">Aucune relance enregistrée.</td></tr>{% endfor %}
+</tbody></table></div></section>
+<p class="muted">La préparation d’un e-mail ouvre le logiciel de messagerie de l’utilisateur ; aucun message n’est envoyé automatiquement. L’historique est enregistré uniquement après confirmation manuelle de l’envoi ou de l’appel.</p>
+<p><a href="{{ path('app_financial_report') }}">Retour au reporting financier</a></p>
+{% endblock %}
