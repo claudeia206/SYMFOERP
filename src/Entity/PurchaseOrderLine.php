@@ -46,7 +46,7 @@ class PurchaseOrderLine
     public function __construct(Product $product, string $quantity, int $position)
     {
         if (!$product->isActive()) { throw new InvalidArgumentException('Un produit archivé ne peut pas être commandé.'); }
-        if (!is_numeric($quantity) || round((float) $quantity, 3) <= 0 || (float) $quantity > 9999999.999) {
+        if (!preg_match('/^\\d+(?:\\.\\d{1,3})?$/D', $quantity) || round((float) $quantity, 3) <= 0 || (float) $quantity > 9999999.999) {
             throw new InvalidArgumentException('La quantité commandée doit être strictement positive.');
         }
         $this->product = $product;
@@ -70,7 +70,7 @@ class PurchaseOrderLine
     public function getTotalIncludingTax(): float { return $this->getTotalExcludingTax() * (1 + (float) $this->vatRate / 100); }
     public function receive(string $quantity): self
     {
-        if (!is_numeric($quantity) || round((float) $quantity, 3) <= 0 || (float) $quantity > (float) $this->getRemainingQuantity() + 0.000001) {
+        if (!preg_match('/^\\d+(?:\\.\\d{1,3})?$/D', $quantity) || round((float) $quantity, 3) <= 0 || (float) $quantity > (float) $this->getRemainingQuantity() + 0.000001) {
             throw new InvalidArgumentException('La quantité réceptionnée doit être positive et ne peut pas dépasser le reliquat.');
         }
         $this->receivedQuantity = number_format((float) $this->receivedQuantity + (float) $quantity, 3, '.', '');
