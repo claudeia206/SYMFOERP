@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\SalesCreditNote;
 use App\Entity\SalesCreditNoteLine;
 use App\Entity\SalesInvoice;
+use App\Service\AccountingPostingService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\LockMode;
