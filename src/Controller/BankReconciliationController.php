@@ -79,11 +79,14 @@ final class BankReconciliationController extends AbstractController
             if($paymentId<=0||!in_array($type,['sales','supplier'],true))throw new \InvalidArgumentException('Règlement sélectionné invalide.');
             $table=$type==='sales'?'app_sales_payment':'app_supplier_payment';
             $column=$type==='sales'?'matched_sales_payment_id':'matched_supplier_payment_id';
-            $payment=$db->fetchAssociative("SELECT p.id,p.amount FROM {$table} p LEFT JOIN app_bank_transaction b ON b.{$column}=p.id WHERE p.id=? AND b.id IS NULL",[$paymentId]);
-            if(!$payment)throw new \InvalidArgumentException('Ce règlement est introuvable ou déjà rapproché.');
-            $amount=(float)$transaction['amount'];$expected=(float)$payment['amount'];
-            if(($type==='sales'&&$amount<=0)||($type==='supplier'&&$amount>=0)||round(abs($amount),2)!==round($expected,2))throw new \InvalidArgumentException('Le sens ou le montant de l’opération ne correspond pas au règlement sélectionné.');
-            $db->executeStatement("UPDATE app_bank_transaction SET {$column}=? WHERE id=? AND matched_sales_payment_id IS NULL AND matched_supplier_payment_id IS NULL",[$paymentId,$id]);
+            $payment=$db->fetchAssociative("SELECT id,amount FROM {$table} WHERE id=? FOR UPDATE",[$paymentId]);
+            if(!$payment)throw new \InvalidArgumentException('Règlement introuvable.');
+            if((int)$db->fetchOne("SELECT COUNT(*) FROM app_bank_transaction WHERE {$column}=?",[$paymentId])!==0)throw new \InvalidArgumentException('Ce règlement est déjà rapproché.');
+            $amountCents=$this->toCents((string)$transaction['amount']);
+            $expectedCents=$this->toCents((string)$payment['amount']);
+            if(($type==='sales'&&$amountCents<=0)||($type==='supplier'&&$amountCents>=0)||abs($amountCents)!==$expectedCents)throw new \InvalidArgumentException('Le sens ou le montant de l’opération ne correspond pas au règlement sélectionné.');
+            $updated=$db->executeStatement("UPDATE app_bank_transaction SET {$column}=? WHERE id=? AND matched_sales_payment_id IS NULL AND matched_supplier_payment_id IS NULL",[$paymentId,$id]);
+            if($updated!==1)throw new \InvalidArgumentException('Cette opération vient d’être rapprochée par un autre utilisateur.');
             $db->commit();$this->addFlash('success','Opération rapprochée avec le règlement sélectionné.');
         }catch(\InvalidArgumentException $e){if($db->isTransactionActive())$db->rollBack();$this->addFlash('error',$e->getMessage());}
         catch(Throwable){if($db->isTransactionActive())$db->rollBack();$this->addFlash('error','Le rapprochement a échoué.');}
