@@ -71,6 +71,11 @@ class SalesInvoice
     #[ORM\OrderBy(['position' => 'ASC', 'id' => 'ASC'])]
     private Collection $lines;
 
+    /** @var Collection<int, SalesCreditNote> */
+    #[ORM\\OneToMany(mappedBy: 'invoice', targetEntity: SalesCreditNote::class, cascade: ['persist'], orphanRemoval: true)]
+    #[ORM\\OrderBy(['creditDate' => 'DESC', 'id' => 'DESC'])]
+    private Collection $creditNotes;
+
     /** @var Collection<int, SalesPayment> */
     #[ORM\OneToMany(mappedBy: 'invoice', targetEntity: SalesPayment::class, cascade: ['persist'], orphanRemoval: true)]
     #[ORM\OrderBy(['paidAt' => 'DESC', 'id' => 'DESC'])]
@@ -89,6 +94,7 @@ class SalesInvoice
         $this->createdAt = new DateTimeImmutable();
         $this->lines = new ArrayCollection();
         $this->payments = new ArrayCollection();
+        $this->creditNotes = new ArrayCollection();
 
         foreach ($order->getLines() as $line) {
             $this->addLine(new SalesInvoiceLine($line->getDescription(), $line->getQuantity(), $line->getUnitPrice(), $line->getVatRate(), $line->getPosition(), $line->getProduct()));
@@ -146,6 +152,25 @@ class SalesInvoice
     /** @return Collection<int, SalesPayment> */
     public function getPayments(): Collection { return $this->payments; }
 
+    /** @return Collection<int, SalesCreditNote> */
+    public function getCreditNotes(): Collection { return $this->creditNotes; }
+
+    public function addCreditNote(SalesCreditNote $creditNote): self
+    {
+        if ($creditNote->getInvoice() !== $this) {
+            throw new InvalidArgumentException('Credit note belongs to another invoice.');
+        }
+        if (!$this->creditNotes->contains($creditNote)) {
+            $this->creditNotes->add($creditNote);
+        }
+        return $this;
+    }
+
+    public function getCreditedAmount(): float
+    {
+        return round(array_reduce($this->creditNotes->toArray(), static fn (float $sum, SalesCreditNote $note): float => $sum + $note->getTotalIncludingTax(), 0.0), 2);
+    }
+
     public function addPayment(SalesPayment $payment): self
     {
         if ($payment->getInvoice() !== $this) {
@@ -186,7 +211,7 @@ class SalesInvoice
 
     public function getRemainingAmount(): float
     {
-        return max(0.0, round($this->getTotalIncludingTax() - $this->getPaidAmount(), 2));
+        return max(0.0, round($this->getTotalIncludingTax() - $this->getPaidAmount() - $this->getCreditedAmount(), 2));
     }
 
     public function getEffectiveStatus(?DateTimeImmutable $today = null): string
