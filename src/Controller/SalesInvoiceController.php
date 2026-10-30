@@ -9,6 +9,7 @@ use App\Entity\CompanyProfile;
 use App\Entity\SalesOrder;
 use App\Entity\SalesPayment;
 use App\Repository\SalesInvoiceRepository;
+use App\Service\AccountingPostingService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use DateTimeImmutable;
