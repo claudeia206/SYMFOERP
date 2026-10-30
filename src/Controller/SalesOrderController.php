@@ -56,21 +56,47 @@ final class SalesOrderController extends AbstractController
                 }
 
                 if ($target === SalesOrder::STATUS_FULFILLED) {
+                    // Lock each distinct product once, in a stable order. Refreshing
+                    // per line would discard earlier unflushed changes for duplicate products.
+                    $products = [];
+                    $linesByProduct = [];
                     foreach ($order->getLines() as $line) {
                         $product = $line->getProduct();
                         if ($product === null || !$product->isStockTracked()) {
                             continue;
                         }
+                        $productId = $product->getId();
+                        if ($productId === null) {
+                            throw new InvalidArgumentException('Un produit de la commande n’est pas enregistré.');
+                        }
+                        $products[$productId] = $product;
+                        $linesByProduct[$productId][] = $line;
+                    }
 
+                    ksort($products, SORT_NUMERIC);
+                    foreach ($products as $productId => $product) {
                         $entityManager->lock($product, LockMode::PESSIMISTIC_WRITE);
-                        $quantity = number_format(-(float) $line->getQuantity(), 3, '.', '');
-                        $product->adjustStock($quantity);
-                        $entityManager->persist(new ProductStockMovement(
-                            $product,
-                            $quantity,
-                            'sale',
-                            sprintf('Livraison commande %s · ligne %d', $order->getNumber() ?? ('#'.$order->getId()), $line->getId())
-                        ));
+                        $entityManager->refresh($product);
+
+                        $totalQuantity = 0.0;
+                        foreach ($linesByProduct[$productId] as $line) {
+                            $lineQuantity = (float) $line->getQuantity();
+                            if ($lineQuantity <= 0 || round($lineQuantity, 3) !== $lineQuantity) {
+                                throw new InvalidArgumentException('Une quantité de livraison est invalide.');
+                            }
+                            $totalQuantity += $lineQuantity;
+                        }
+
+                        $product->adjustStock(number_format(-$totalQuantity, 3, '.', ''));
+                        foreach ($linesByProduct[$productId] as $line) {
+                            $quantity = number_format(-(float) $line->getQuantity(), 3, '.', '');
+                            $entityManager->persist(new ProductStockMovement(
+                                $product,
+                                $quantity,
+                                'sale',
+                                sprintf('Livraison commande %s · ligne %d', $order->getNumber() ?? ('#'.$order->getId()), $line->getId())
+                            ));
+                        }
                     }
                 }
 
