@@ -268,13 +268,12 @@ final class FixedAssetController extends AbstractController
             $description=sprintf('Sortie immobilisation %s - cession %s',$asset['code'],$date);
             $db->insert('app_journal_entry',['journal_id'=>$journalId,'entry_number'=>$number,'entry_date'=>$date,'reference'=>'CESSION-'.$asset['code'],'description'=>$description,'status'=>'posted','created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
             $entryId=(int)$db->lastInsertId();$fmt=static fn(float $v):string=>number_format($v,2,'.','');
-            $lines=[
-                ['account_id'=>$asset['disposal_bank_account_id'],'label'=>'Prix de cession '.$asset['code'],'debit'=>$fmt($proceeds),'credit'=>'0.00'],
-                ['account_id'=>$asset['accumulated_account_id'],'label'=>'Reprise amortissements '.$asset['code'],'debit'=>$fmt($accumulated),'credit'=>'0.00'],
-                ['account_id'=>$asset['asset_account_id'],'label'=>'Sortie valeur brute '.$asset['code'],'debit'=>'0.00','credit'=>$fmt($cost)],
-            ];
-            if($gain>=0)$lines[]=['account_id'=>$asset['disposal_gain_account_id'],'label'=>'Plus-value de cession '.$asset['code'],'debit'=>'0.00','credit'=>$fmt($gain)];
-            else $lines[]=['account_id'=>$asset['disposal_loss_account_id'],'label'=>'Moins-value de cession '.$asset['code'],'debit'=>$fmt(abs($gain)),'credit'=>'0.00'];
+            $lines=[];
+            if($proceeds>0)$lines[]=['account_id'=>$asset['disposal_bank_account_id'],'label'=>'Prix de cession '.$asset['code'],'debit'=>$fmt($proceeds),'credit'=>'0.00'];
+            if($accumulated>0)$lines[]=['account_id'=>$asset['accumulated_account_id'],'label'=>'Reprise amortissements '.$asset['code'],'debit'=>$fmt($accumulated),'credit'=>'0.00'];
+            $lines[]=['account_id'=>$asset['asset_account_id'],'label'=>'Sortie valeur brute '.$asset['code'],'debit'=>'0.00','credit'=>$fmt($cost)];
+            if($gain>0)$lines[]=['account_id'=>$asset['disposal_gain_account_id'],'label'=>'Plus-value de cession '.$asset['code'],'debit'=>'0.00','credit'=>$fmt($gain)];
+            elseif($gain<0)$lines[]=['account_id'=>$asset['disposal_loss_account_id'],'label'=>'Moins-value de cession '.$asset['code'],'debit'=>$fmt(abs($gain)),'credit'=>'0.00'];
             foreach($lines as $line)$db->insert('app_journal_entry_line',['entry_id'=>$entryId]+$line);
             $db->update('app_fixed_asset',['status'=>'disposed','disposal_date'=>$date,'disposal_proceeds'=>$fmt($proceeds),'disposal_journal_entry_id'=>$entryId],['id'=>$id]);
             $db->commit();
