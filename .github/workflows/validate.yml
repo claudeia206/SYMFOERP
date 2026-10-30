@@ -111,6 +111,9 @@ jobs:
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:schema:validate
           docker compose --env-file .env.docker run --rm --no-deps -e SYMFOERP_ADMIN_EMAIL=ci-admin@example.test -e SYMFOERP_ADMIN_PASSWORD=CI-Only-Password-2026 symfony php bin/console app:user:create
           docker compose --env-file .env.docker up --detach symfony
+          # Verify the exact same database from the running web container.
+          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:query:sql "SELECT COUNT(*) AS user_count FROM app_user"
+          docker compose --env-file .env.docker exec --no-TTY db_symfony sh -lc 'mariadb --user="$MARIADB_USER" --password="$MARIADB_PASSWORD" "$MARIADB_DATABASE" --execute="SELECT COUNT(*) AS user_count FROM app_user"'
           python3 - <<'PY'
           import http.cookiejar
           import urllib.parse
