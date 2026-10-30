@@ -5,7 +5,9 @@
 </style>{% endblock %}
 {% block body %}
 <div>
- <div class="accounting-head"><div><h1>Comptabilité générale</h1><p>Plan comptable, journaux, exercices et écritures.</p></div><span class="accounting-pill">Socle initial</span></div>
+ {% for message in app.flashes('success') %}<p class="accounting-pill">{{ message }}</p>{% endfor %}
+ {% for message in app.flashes('error') %}<p class="accounting-pill draft">{{ message }}</p>{% endfor %}
+ <div class="accounting-head"><div><h1>Comptabilité générale</h1><p>Plan comptable, journaux, exercices et écritures.</p></div><a href="{{ path('app_accounting_entry_new') }}" class="accounting-pill">+ Nouvelle écriture</a></div>
  <div class="accounting-grid">
   <div class="accounting-card"><small>Comptes actifs</small><strong>{{ accounts|length }}</strong></div>
   <div class="accounting-card"><small>Journaux actifs</small><strong>{{ journals|length }}</strong></div>
