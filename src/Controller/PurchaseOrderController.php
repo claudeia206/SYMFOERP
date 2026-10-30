@@ -96,16 +96,48 @@ final class PurchaseOrderController extends AbstractController
                     throw new InvalidArgumentException('Cette commande ne peut plus être réceptionnée.');
                 }
                 $quantities = $request->request->all('received');
+                $receipts = [];
+                $products = [];
                 foreach ($order->getLines() as $line) {
                     $quantity = trim((string) ($quantities[(string) $line->getId()] ?? ''));
-                    if ($quantity === '') { continue; }
-                    if (!is_numeric($quantity)) { throw new InvalidArgumentException('Une quantité réceptionnée doit être numérique.'); }
-                    if ((float) $quantity == 0.0) { continue; }
+                    if ($quantity === '') {
+                        continue;
+                    }
+                    if (!preg_match('/^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,3})?$/D', $quantity)) {
+                        throw new InvalidArgumentException('Une quantité réceptionnée doit être un nombre décimal positif avec trois décimales maximum.');
+                    }
+                    if ((float) $quantity === 0.0) {
+                        continue;
+                    }
+
                     $product = $line->getProduct();
+                    $receipts[] = ['line' => $line, 'product' => $product, 'quantity' => $quantity];
+                    if ($product->isStockTracked()) {
+                        $productId = $product->getId();
+                        if ($productId === null) {
+                            throw new InvalidArgumentException('Un produit réceptionné n’est pas enregistré.');
+                        }
+                        $products[$productId] = $product;
+                    }
+                }
+
+                // Acquire locks deterministically and refresh once per distinct product.
+                // This preserves multiple receipt lines for the same product in this UnitOfWork.
+                ksort($products, SORT_NUMERIC);
+                foreach ($products as $product) {
                     $em->lock($product, LockMode::PESSIMISTIC_WRITE);
+                    $em->refresh($product);
+                }
+
+                $stockTotals = [];
+                foreach ($receipts as $receipt) {
+                    $line = $receipt['line'];
+                    $product = $receipt['product'];
+                    $quantity = $receipt['quantity'];
                     $line->receive($quantity);
                     if ($product->isStockTracked()) {
-                        $product->adjustStock($quantity);
+                        $productId = $product->getId();
+                        $stockTotals[$productId] = ($stockTotals[$productId] ?? 0.0) + (float) $quantity;
                         $em->persist(new ProductStockMovement(
                             $product,
                             $quantity,
@@ -113,6 +145,10 @@ final class PurchaseOrderController extends AbstractController
                             sprintf('Réception %s · ligne %d', $order->getNumber() ?? ('#'.$order->getId()), $line->getId())
                         ));
                     }
+                }
+
+                foreach ($stockTotals as $productId => $totalQuantity) {
+                    $products[$productId]->adjustStock(number_format($totalQuantity, 3, '.', ''));
                 }
                 $order->refreshReceiptStatus();
                 $em->flush();
