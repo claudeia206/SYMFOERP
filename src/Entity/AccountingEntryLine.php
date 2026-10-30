@@ -14,6 +14,7 @@ class AccountingEntryLine {
  #[ORM\Column(type:'decimal',precision:14,scale:2)] private string $debit='0.00';
  #[ORM\Column(type:'decimal',precision:14,scale:2)] private string $credit='0.00';
  #[ORM\Column] private int $position;
+ #[ORM\Column(name:'matching_code',length:40,nullable:true)] private ?string $matchingCode=null;
  public function __construct(AccountingAccount $account,string $label,string $debit,string $credit,int $position){
   if(!$account->isActive()||trim($label)===''||$position<1||!preg_match('/^(?:0|[1-9][0-9]{0,11})(?:\.[0-9]{1,2})?$/D',$debit)||!preg_match('/^(?:0|[1-9][0-9]{0,11})(?:\.[0-9]{1,2})?$/D',$credit))throw new InvalidArgumentException('Ligne comptable invalide.');
   $d=self::toCents($debit);$c=self::toCents($credit);
@@ -30,4 +31,6 @@ class AccountingEntryLine {
  public function getLabel():string{return $this->label;}
  public function getDebit():string{return $this->debit;}
  public function getCredit():string{return $this->credit;}
+ public function getMatchingCode():?string{return $this->matchingCode;}
+ public function setMatchingCode(string $code):void{if($this->matchingCode!==null||!preg_match('/^LET-[A-F0-9]{16}$/D',$code))throw new InvalidArgumentException('Lettrage déjà affecté ou référence invalide.');$this->matchingCode=$code;}
 }
