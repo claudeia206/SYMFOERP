@@ -94,13 +94,13 @@ class Product
         $this->purchasePrice = $this->money($data['purchase_price'] ?? null, 'Prix d’achat');
         $this->salePrice = $this->money($data['sale_price'] ?? null, 'Prix de vente');
         $vat = $data['vat_rate'] ?? null;
-        if (!is_numeric($vat) || (float) $vat < 0 || (float) $vat > 100) {
+        if (!preg_match('/^\\d+(?:\\.\\d{1,2})?$/D', (string) $vat) || (float) $vat < 0 || (float) $vat > 100) {
             throw new InvalidArgumentException('Le taux de TVA doit être compris entre 0 et 100.');
         }
         $this->vatRate = number_format((float) $vat, 2, '.', '');
         $this->stockTracked = isset($data['stock_tracked']) && (string) $data['stock_tracked'] === '1';
         $threshold = $data['stock_alert_threshold'] ?? '0';
-        if (!is_numeric($threshold) || (float) $threshold < 0 || (float) $threshold > 999999999.999) {
+        if (!preg_match('/^\\d+(?:\\.\\d{1,3})?$/D', (string) $threshold) || (float) $threshold < 0 || (float) $threshold > 999999999.999) {
             throw new InvalidArgumentException('Le seuil de stock doit être un nombre positif ou nul.');
         }
         $this->stockAlertThreshold = number_format((float) $threshold, 3, '.', '');
@@ -131,7 +131,7 @@ class Product
 
     public function adjustStock(string $quantity): self
     {
-        if (!$this->stockTracked || !is_numeric($quantity) || (float) $quantity == 0.0 || abs((float) $quantity) > 999999999.999) {
+        if (!$this->stockTracked || !preg_match('/^-?\\d+(?:\\.\\d{1,3})?$/D', $quantity) || (float) $quantity == 0.0 || abs((float) $quantity) > 999999999.999) {
             throw new InvalidArgumentException('Mouvement de stock invalide.');
         }
         $next = round((float) $this->stockQuantity + (float) $quantity, 3);
@@ -145,7 +145,7 @@ class Product
 
     private function money(mixed $value, string $label): string
     {
-        if (!is_numeric($value) || (float) $value < 0 || (float) $value > 9999999999.99) {
+        if (!preg_match('/^\\d+(?:\\.\\d{1,2})?$/D', (string) $value) || (float) $value < 0 || (float) $value > 9999999999.99) {
             throw new InvalidArgumentException($label.' doit être un montant positif ou nul.');
         }
         return number_format((float) $value, 2, '.', '');
