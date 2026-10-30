@@ -1,0 +1,28 @@
+{% extends 'base.html.twig' %}
+{% block title %}Déclaration de TVA · SYMFOERP{% endblock %}
+{% block body %}
+<p class="muted">COMPTABILITÉ / FISCALITÉ</p>
+<h1>Préparation de la déclaration de TVA</h1>
+<p>Calcul à partir des écritures comptabilisées sur la période. Les montants sont indicatifs et doivent être contrôlés avant déclaration.</p>
+<section class="card">
+<form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+<label>Du <input type="date" name="from" value="{{ from }}" required></label>
+<label>Au <input type="date" name="to" value="{{ to }}" required></label>
+<button type="submit">Calculer</button>
+<a href="{{ path('app_vat_declaration_export',{from:from,to:to}) }}">Exporter en CSV</a>
+</form>
+</section>
+<section class="grid">
+<article class="card"><p class="muted">TVA collectée (445710)</p><h2>{{ collected|number_format(2,',',' ') }} €</h2></article>
+<article class="card"><p class="muted">TVA déductible (445660 + 445620)</p><h2>{{ deductible|number_format(2,',',' ') }} €</h2></article>
+<article class="card"><p class="muted">{{ net >= 0 ? 'TVA nette à payer' : 'Crédit de TVA théorique' }}</p><h2>{{ net|abs|number_format(2,',',' ') }} €</h2></article>
+</section>
+<section class="card">
+<h2>Détail mensuel</h2>
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Mois</th><th>TVA collectée</th><th>TVA déductible</th><th>Solde</th></tr></thead><tbody>
+{% for month in months %}<tr><td>{{ month.period }}</td><td>{{ month.collected|number_format(2,',',' ') }} €</td><td>{{ month.deductible|number_format(2,',',' ') }} €</td><td>{{ month.net|abs|number_format(2,',',' ') }} € {{ month.net>0?'à payer':(month.net<0?'crédit':'—') }}</td></tr>
+{% else %}<tr><td colspan="4">Aucun mouvement de TVA comptabilisé sur cette période.</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+<p class="muted">Le calcul repose sur les comptes 445710, 445660 et 445620 du plan initial. Il ne gère pas encore les régimes particuliers, autoliquidations, prorata, exigibilité sur encaissements, déclarations rectificatives ni les cases du formulaire fiscal officiel. Ne pas utiliser comme déclaration fiscale sans revue comptable.</p>
+{% endblock %}
