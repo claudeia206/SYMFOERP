@@ -7,7 +7,6 @@ namespace App\Controller;
 use App\Entity\PurchaseOrder;
 use App\Entity\SupplierInvoice;
 use App\Entity\SupplierPayment;
-use App\Repository\PurchaseOrderRepository;
 use App\Entity\ThirdParty;
 use App\Service\AccountingPostingService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,7 +21,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class SupplierInvoiceController extends AbstractController
 {
     #[Route('', name: 'app_supplier_invoices', methods: ['GET'])]
-    public function index(EntityManagerInterface $em, PurchaseOrderRepository $orders): Response
+    public function index(EntityManagerInterface $em): Response
     {
         $invoices = $em->getRepository(SupplierInvoice::class)->findBy([], ['createdAt' => 'DESC'], 100);
 
@@ -34,14 +33,15 @@ final class SupplierInvoiceController extends AbstractController
             ->from(SupplierInvoice::class, 'invoice')
             ->where('invoice.purchaseOrder = po');
 
-        $billableOrders = $em->createQueryBuilder()
+        $queryBuilder = $em->createQueryBuilder();
+        $billableOrders = $queryBuilder
             ->select('DISTINCT po')
             ->from(PurchaseOrder::class, 'po')
             ->innerJoin('po.lines', 'line')
             ->where('line.receivedQuantity > 0')
             ->andWhere('po.status NOT IN (:blockedStatuses)')
-            ->andWhere($em->createQueryBuilder()->expr()->not(
-                $em->createQueryBuilder()->expr()->exists($invoiceSubquery->getDQL())
+            ->andWhere($queryBuilder->expr()->not(
+                $queryBuilder->expr()->exists($invoiceSubquery->getDQL())
             ))
             ->setParameter('blockedStatuses', [PurchaseOrder::STATUS_DRAFT, PurchaseOrder::STATUS_CANCELLED])
             ->orderBy('po.createdAt', 'DESC')
