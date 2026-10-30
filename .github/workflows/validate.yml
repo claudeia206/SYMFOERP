@@ -356,7 +356,7 @@ jobs:
           }).encode())).read().decode()
           assert "réceptionnées" in received_html, "Purchase order receipt failed"
           supplier_invoice_index = client.open(base + "/purchases/invoices").read().decode()
-          create_supplier_form = re.search(r'<form method="post" action="/purchases/invoices/from-order/' + purchase_id.group(1) + r'">.*?</form>', supplier_invoice_index, re.S)
+          create_supplier_form = re.search(r'<form\b(?=[^>]*\baction="/purchases/invoices/from-order/' + purchase_id.group(1) + r'")[^>]*>.*?</form>', supplier_invoice_index, re.S)
           assert create_supplier_form, "Supplier invoice creation form missing after receipt"
           supplier_invoice_token = re.search(r'name="_token" value="([^"]+)"', create_supplier_form.group(0))
           assert supplier_invoice_token, "Supplier invoice creation CSRF token missing"
