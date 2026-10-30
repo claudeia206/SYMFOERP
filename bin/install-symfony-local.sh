@@ -16,6 +16,11 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! docker info >/dev/null 2>&1; then
+  echo "Le moteur Docker ne répond pas. Démarrez Docker puis relancez l’installation." >&2
+  exit 1
+fi
+
 if [[ ! -f .env.docker ]]; then
   cp .env.docker.example .env.docker
   echo "Fichier .env.docker créé à partir du modèle."
@@ -23,6 +28,13 @@ fi
 
 # The file contains application and database credentials.
 chmod 600 .env.docker
+
+# Validate interpolation and configuration before building or creating containers.
+compose=(docker compose --env-file .env.docker)
+if ! "${compose[@]}" config --quiet; then
+  echo "La configuration Docker Compose est invalide. Vérifiez .env.docker." >&2
+  exit 1
+fi
 
 python3 - <<'PY'
 from pathlib import Path
@@ -58,14 +70,13 @@ if (( ${#SYMFOERP_ADMIN_PASSWORD} < 12 )); then
 fi
 export SYMFOERP_ADMIN_EMAIL SYMFOERP_ADMIN_PASSWORD
 
-compose=(docker compose --env-file .env.docker)
-
 echo "Construction de l'image Symfony..."
 "${compose[@]}" build symfony
 
 echo "Démarrage de la base MariaDB dédiée à Symfony..."
 "${compose[@]}" up --detach db_symfony
-for attempt in $(seq 1 60); do
+health=""
+for attempt in $(seq 1 90); do
   health="$(docker inspect --format '{{.State.Health.Status}}' symfoerp-db 2>/dev/null || true)"
   if [[ "$health" == "healthy" ]]; then
     break
