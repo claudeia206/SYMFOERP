@@ -20,6 +20,7 @@ CREATE TABLE app_sales_credit_note (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
 SQL);
         $this->addSql('ALTER TABLE app_sales_credit_note ADD CONSTRAINT fk_sales_credit_note_invoice FOREIGN KEY (invoice_id) REFERENCES app_sales_invoice (id) ON DELETE RESTRICT');
+        $this->addSql('CREATE TABLE app_credit_note_sequence (fiscal_year INT NOT NULL, last_number INT NOT NULL, PRIMARY KEY(fiscal_year)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
         $this->addSql(<<<'SQL'
 CREATE TABLE app_sales_credit_note_line (
  id INT AUTO_INCREMENT NOT NULL, credit_note_id INT NOT NULL, invoice_line_id INT NOT NULL,
@@ -33,7 +34,7 @@ SQL);
     }
     public function down(Schema $schema): void
     {
-        $this->addSql('DROP TABLE app_sales_credit_note_line'); $this->addSql('DROP TABLE app_sales_credit_note');
+        $this->addSql('DROP TABLE app_sales_credit_note_line'); $this->addSql('DROP TABLE app_sales_credit_note'); $this->addSql('DROP TABLE app_credit_note_sequence');
         $this->addSql('ALTER TABLE app_sales_invoice_line DROP credited_quantity');
     }
 }
