@@ -19,7 +19,16 @@ final class FixedAssetController extends AbstractController
     public function index(Connection $db, Request $request, DepreciationCalculator $calculator): Response
     {
         $asOfInput = (string) $request->query->get('as_of', 'today');
-        try { $asOf = new DateTimeImmutable($asOfInput); } catch (Throwable) { throw $this->createNotFoundException('Date de calcul invalide.'); }
+        if ($asOfInput === 'today') {
+            $asOf = new DateTimeImmutable('today');
+        } else {
+            $parsedAsOf = DateTimeImmutable::createFromFormat('!Y-m-d', $asOfInput);
+            $dateErrors = DateTimeImmutable::getLastErrors();
+            if (!$parsedAsOf || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0)) || $parsedAsOf->format('Y-m-d') !== $asOfInput) {
+                throw $this->createNotFoundException('Date de calcul invalide.');
+            }
+            $asOf = $parsedAsOf;
+        }
         $search = trim((string) $request->query->get('q', ''));
         $status = (string) $request->query->get('status', 'all');
         $allowedStatuses = ['all', 'active', 'disposed', 'archived'];
@@ -44,10 +53,14 @@ final class FixedAssetController extends AbstractController
         $assets = $db->fetchAllAssociative($sql, $parameters);
         $plans = [];
         foreach ($assets as $asset) {
-            $plans[(int) $asset['id']] = $calculator->straightLine(
-                (float) $asset['acquisition_cost'], (float) $asset['residual_value'],
-                (int) $asset['useful_life_years'], new DateTimeImmutable($asset['in_service_date']), $asOf
-            );
+            $serviceDate = new DateTimeImmutable($asset['in_service_date']);
+            // An asset not yet in service at the selected date has no depreciation schedule yet.
+            $plans[(int) $asset['id']] = $asOf < $serviceDate
+                ? []
+                : $calculator->straightLine(
+                    (float) $asset['acquisition_cost'], (float) $asset['residual_value'],
+                    (int) $asset['useful_life_years'], $serviceDate, $asOf
+                );
         }
         $accounts = $db->fetchAllAssociative('SELECT id,code,name FROM app_accounting_account WHERE is_active=1 ORDER BY code');
         $journals = $db->fetchAllAssociative('SELECT id,code,name FROM app_accounting_journal ORDER BY code');
@@ -56,7 +69,8 @@ final class FixedAssetController extends AbstractController
         foreach ($posted as $item) $postedMap[(int)$item['asset_id']][(string)$item['fiscal_year']] = (float)$item['amount'];
         return $this->render('accounting/fixed_assets.html.twig', [
             'assets'=>$assets, 'plans'=>$plans, 'as_of'=>$asOf->format('Y-m-d'),
-            'accounts'=>$accounts, 'journals'=>$journals, 'posted_map'=>$postedMap,\n            'search'=>$search, 'status'=>$status,
+            'accounts'=>$accounts, 'journals'=>$journals, 'posted_map'=>$postedMap,
+            'search'=>$search, 'status'=>$status,
         ]);
     }
 
