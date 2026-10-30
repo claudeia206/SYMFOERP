@@ -87,6 +87,7 @@ final class FixedAssetController extends AbstractController
             if(count($accounts)!==2)throw new \InvalidArgumentException('Les comptes de dotation et d’amortissement doivent être actifs.');
             $journalCode=(string)$db->fetchOne('SELECT code FROM app_accounting_journal WHERE id=?',[(int)$asset['journal_id']]);
             if($journalCode==='')throw new \InvalidArgumentException('Journal comptable introuvable.');
+            $db->fetchOne('SELECT id FROM app_accounting_journal WHERE id=? FOR UPDATE',[(int)$asset['journal_id']]);
             $entryNumber=(int)$db->fetchOne('SELECT COALESCE(MAX(entry_number),0)+1 FROM app_journal_entry WHERE journal_id=?',[(int)$asset['journal_id']]);
             $entryDate=$year.'-12-31';
             $description=sprintf('Dotation amortissement %s - %d',$asset['code'],$year);
