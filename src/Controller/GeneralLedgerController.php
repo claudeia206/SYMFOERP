@@ -27,7 +27,7 @@ final class GeneralLedgerController extends AbstractController
     }
 
     #[Route('/entries',name:'app_general_ledger_entry_create',methods:['POST'])]
-    public function create(Request $request,Connection $db):Response
+    public function create(Request $request,Connection $db, \\App\\Service\\AccountingPeriodGuard $periodGuard):Response
     {
         if(!$this->isCsrfTokenValid('general_ledger_entry',(string)$request->request->get('_token')))throw $this->createAccessDeniedException();
         try{
@@ -53,6 +53,7 @@ final class GeneralLedgerController extends AbstractController
             if($debitCents<=0||$debitCents!==$creditCents)throw new \InvalidArgumentException('Écriture déséquilibrée : le total débit doit être égal au total crédit.');
             $db->beginTransaction();
             try{
+                $periodGuard->assertOpenDate($db, $date);
                 foreach(array_unique(array_column($lines,'account_id')) as $accountId){
                     $account=$db->fetchAssociative('SELECT id FROM app_accounting_account WHERE id=? AND is_active=1 FOR UPDATE',[$accountId]);
                     if(!$account)throw new \InvalidArgumentException('Un compte sélectionné est inexistant ou inactif.');
