@@ -32,7 +32,7 @@
 </div>
 <div class="table-scroll"><table class="data-table"><thead><tr><th>Compte</th><th>Libellé de ligne</th><th>Débit (€)</th><th>Crédit (€)</th></tr></thead><tbody>
 {% for row in 0..3 %}<tr>
-<td><select name="lines[{{ row }}][account_id]" required><option value="">Choisir…</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} — {{ account.name }}</option>{% endfor %}</select></td>
+<td><select name="lines[{{ row }}][account_id]" {{ row < 2 ? "required" : "" }}><option value="">Choisir…</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} — {{ account.name }}</option>{% endfor %}</select></td>
 <td><input name="lines[{{ row }}][label]" maxlength="255" placeholder="Libellé"></td>
 <td><input name="lines[{{ row }}][debit]" inputmode="decimal" value="0.00"></td>
 <td><input name="lines[{{ row }}][credit]" inputmode="decimal" value="0.00"></td>
