@@ -29,7 +29,7 @@ final class SalesOrderController extends AbstractController
         return $this->render('sales_order/show.html.twig',[
             'order'=>$order,
             'deliveries'=>$em->getRepository(SalesDelivery::class)->findBy(['order'=>$order],['deliveryDate'=>'DESC','id'=>'DESC']),
-            'returns'=>$em->getRepository(\\App\\Entity\\SalesReturn::class)->findBy(['order'=>$order],['returnDate'=>'DESC','id'=>'DESC']),
+            'returns'=>$em->getRepository(\App\Entity\SalesReturn::class)->findBy(['order'=>$order],['returnDate'=>'DESC','id'=>'DESC']),
             'statuses'=>[SalesOrder::STATUS_OPEN=>'En cours',SalesOrder::STATUS_FULFILLED=>'Terminée',SalesOrder::STATUS_CANCELLED=>'Annulée'],
             'allowed_actions'=>$this->allowedActions($order->getStatus()),
         ]);
