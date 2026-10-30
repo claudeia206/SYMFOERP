@@ -20,6 +20,7 @@ final class DashboardController extends AbstractController
                 ['name' => 'Devis clients', 'description' => 'Création, suivi et conversion des devis', 'status' => 'Disponible', 'route' => 'app_sales_quotes'],
                 ['name' => 'Commandes clients', 'description' => 'Suivi des commandes et sorties de stock', 'status' => 'Disponible', 'route' => 'app_sales_orders'],
                 ['name' => 'Factures clients', 'description' => 'Émission, PDF et suivi des règlements', 'status' => 'Disponible', 'route' => 'app_sales_invoices'],
+                ['name' => 'Relances clients', 'description' => 'Suivi des échéances et préparation des e-mails de relance', 'status' => 'Disponible', 'route' => 'app_sales_payment_reminders'],
                 ['name' => 'Commandes fournisseurs', 'description' => 'Approvisionnement et réceptions partielles', 'status' => 'Disponible', 'route' => 'app_purchase_orders'],
                 ['name' => 'Factures fournisseurs', 'description' => 'Validation des factures et règlements sortants', 'status' => 'Disponible', 'route' => 'app_supplier_invoices'],
                 ['name' => 'Reporting financier', 'description' => 'Créances, dettes et flux de trésorerie', 'status' => 'Disponible', 'route' => 'app_financial_report'],
