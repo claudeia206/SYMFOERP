@@ -119,7 +119,7 @@ final class SupplierInvoiceController extends AbstractController
         }
 
         $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-        $errors = \\DateTimeImmutable::getLastErrors();
+        $errors = \DateTimeImmutable::getLastErrors();
         if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) || $date->format('Y-m-d') !== $value) {
             throw new InvalidArgumentException($label.' : date calendrier invalide.');
         }
