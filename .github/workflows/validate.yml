@@ -36,6 +36,9 @@ jobs:
         run: |
           docker run --rm symfoerp-symfony:ci sh -lc 'find src config public migrations tests -type f -name "*.php" -print0 | xargs -0 -r -n1 php -l'
 
+      - name: Check local installation script syntax
+        run: bash -n bin/install-symfony-local.sh
+
       - name: Test third-party entity invariants
         run: docker run --rm symfoerp-symfony:ci php tests/third_party_entity_smoke.php
 
