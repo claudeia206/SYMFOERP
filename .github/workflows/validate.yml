@@ -48,6 +48,9 @@ jobs:
       - name: Test partial customer deliveries and stock movements
         run: docker run --rm symfoerp-symfony:ci php tests/sales_delivery_entity_smoke.php
 
+      - name: Test customer returns and stock reintegration
+        run: docker run --rm symfoerp-symfony:ci php tests/sales_return_entity_smoke.php
+
       - name: Test product catalogue and stock invariants
         run: docker run --rm symfoerp-symfony:ci php tests/product_entity_smoke.php
 
