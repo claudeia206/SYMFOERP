@@ -132,6 +132,8 @@ jobs:
           sales_page = client.open(base + "/sales/quotes")
           sales_html = sales_page.read().decode()
           assert "Devis" in sales_html, "Authenticated user could not open the sales quotes module"
+          report_html = client.open(base + "/reports/finance").read().decode()
+          assert "Reporting financier" in report_html, "Authenticated user could not open financial reporting"
           settings_page = client.open(base + "/settings/company").read().decode()
           settings_parser = TokenParser()
           settings_parser.feed(settings_page)
