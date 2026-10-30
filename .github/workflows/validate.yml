@@ -144,6 +144,8 @@ jobs:
           assert "Rapprochement bancaire" in bank_html, "Authenticated user could not open bank reconciliation"
           cash_flow_html = client.open(base + "/reports/cash-flow").read().decode()
           assert "Prévision de trésorerie" in cash_flow_html, "Authenticated user could not open cash flow forecast"
+          reminders_html = client.open(base + "/sales/payment-reminders").read().decode()
+          assert "Relances clients" in reminders_html, "Authenticated user could not open payment reminders"
           settings_page = client.open(base + "/settings/company").read().decode()
           settings_parser = TokenParser()
           settings_parser.feed(settings_page)
