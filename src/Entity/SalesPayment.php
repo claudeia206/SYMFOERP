@@ -44,7 +44,7 @@ class SalesPayment
 
     public function __construct(SalesInvoice $invoice, string $amount, DateTimeImmutable $paidAt, string $method, ?string $reference = null, ?string $note = null)
     {
-        if (!is_numeric($amount) || (float) $amount <= 0 || (float) $amount > 9999999999.99) {
+        if (!preg_match('/^(?:0|[1-9][0-9]{0,9})(?:\\.[0-9]{1,2})?$/D', $amount) || (float) $amount <= 0) {
             throw new InvalidArgumentException('Payment amount must be greater than zero.');
         }
         if (!in_array($method, self::METHODS, true)) {
