@@ -56,14 +56,14 @@ final class SalesInvoiceController extends AbstractController
 
 
     #[Route('/{id}/issue', name: 'app_sales_invoice_issue', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function issue(Request $request, SalesInvoice $invoice, EntityManagerInterface $entityManager): Response
+    public function issue(Request $request, SalesInvoice $invoice, EntityManagerInterface $entityManager, AccountingAutoPostingService $accounting): Response
     {
         if (!$this->isCsrfTokenValid('sales_invoice_issue_'.$invoice->getId(), (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Jeton de sécurité invalide.');
         }
 
         try {
-            $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice): void {
+            $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice, $accounting): void {
                 $entityManager->lock($invoice, LockMode::PESSIMISTIC_WRITE);
                 $profile = $entityManager->find(CompanyProfile::class, 1);
                 if (!$profile instanceof CompanyProfile) {
@@ -96,6 +96,7 @@ final class SalesInvoiceController extends AbstractController
                 $dueDate = $issuedAt->modify(sprintf('+%d days', $profile->getPaymentDelayDays()));
                 $invoice->issue(sprintf('FAC-%d-%06d', $year, $sequence), $issuedAt, $dueDate, $profile->toInvoiceSnapshot(), $customerSnapshot);
                 $entityManager->flush();
+                $accounting->postSalesInvoice($invoice);
             });
             $this->addFlash('success', 'La facture a été émise et numérotée.');
         } catch (InvalidArgumentException $exception) {
@@ -135,7 +136,7 @@ final class SalesInvoiceController extends AbstractController
     }
 
     #[Route('/{id}/payments', name: 'app_sales_invoice_payment', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function addPayment(Request $request, SalesInvoice $invoice, EntityManagerInterface $entityManager): Response
+    public function addPayment(Request $request, SalesInvoice $invoice, EntityManagerInterface $entityManager, AccountingAutoPostingService $accounting): Response
     {
         if (!$this->isCsrfTokenValid('sales_invoice_payment_'.$invoice->getId(), (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Jeton de sécurité invalide.');
@@ -148,12 +149,13 @@ final class SalesInvoiceController extends AbstractController
             $reference = (string) $request->request->get('reference', '');
             $note = (string) $request->request->get('note', '');
 
-            $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice, $amount, $date, $method, $reference, $note): void {
+            $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice, $amount, $date, $method, $reference, $note, $accounting): void {
                 $entityManager->lock($invoice, LockMode::PESSIMISTIC_WRITE);
                 $payment = new SalesPayment($invoice, $amount, $date, $method, $reference, $note);
                 $invoice->addPayment($payment);
                 $entityManager->persist($payment);
                 $entityManager->flush();
+                $accounting->postSalesPayment($payment);
             });
             $this->addFlash('success', 'Le règlement a été enregistré.');
         } catch (InvalidArgumentException $exception) {
