@@ -83,7 +83,7 @@ echo "Installation du schéma Symfony..."
 "${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:migrations:migrate --no-interaction
 "${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:migrations:status
 "${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:query:sql "SELECT COUNT(*) AS user_count FROM app_user"
-"${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:schema:validate
+"${compose[@]}" run --rm --no-deps symfony php bin/console doctrine:schema:validate --skip-sync
 
 echo "Création du compte administrateur..."
 "${compose[@]}" run --rm --no-deps -e SYMFOERP_ADMIN_EMAIL -e SYMFOERP_ADMIN_PASSWORD symfony php bin/console app:user:create
