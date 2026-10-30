@@ -36,7 +36,7 @@ class ProductStockMovement
 
     public function __construct(Product $product, string $quantity, string $reason, ?string $note = null)
     {
-        if (!is_numeric($quantity) || (float) $quantity == 0.0) {
+        if (!preg_match('/^-?\\d+(?:\\.\\d{1,3})?$/D', $quantity) || (float) $quantity == 0.0) {
             throw new InvalidArgumentException('La quantité du mouvement doit être non nulle.');
         }
         $reason = trim($reason);
