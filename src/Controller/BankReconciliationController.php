@@ -34,7 +34,7 @@ final class BankReconciliationController extends AbstractController
             rewind($handle); $headers=fgetcsv($handle,0,$delimiter);
             if(!$headers) throw new \InvalidArgumentException('En-tête CSV manquant.');
             $headers=array_map(static fn($v)=>strtolower(trim((string)$v)), $headers);
-            if(count($headers)!==count(array_unique($headers))||count($headers)>20) throw new \\InvalidArgumentException('En-têtes CSV dupliqués ou trop nombreux.');
+            if(count($headers)!==count(array_unique($headers))||count($headers)>20) throw new \InvalidArgumentException('En-têtes CSV dupliqués ou trop nombreux.');
             foreach(['date','label','amount'] as $required) if(!in_array($required,$headers,true)) throw new \InvalidArgumentException('Colonnes obligatoires : date, label, amount. Référence facultative : reference.');
             $inserted=0;$duplicates=0;$invalid=0;
             $db->beginTransaction();
