@@ -1,16 +1,19 @@
 # SYMFOERP
 
-Projet ERP dont l'objectif est de faire évoluer progressivement Dolibarr vers une architecture Symfony. **La priorité actuelle est une installation neuve et fonctionnelle de Dolibarr 24.0.2.** La reprise des données et la migration d'anciennes installations sont reportées.
+SYMFOERP est un ERP natif construit sur Symfony 7.4 et MariaDB. **Symfony constitue le cœur métier autonome** : authentification, tiers, ventes, achats, stocks et comptabilité vivent dans leur propre application et leur propre base. Dolibarr est facultatif et n'est ni une bibliothèque, ni un service requis au démarrage de SYMFOERP.
+
+La première étape est une installation locale neuve de Symfony, vérifiée par migrations et parcours HTTP. La reprise de données historiques reste hors périmètre de cette première installation.
 
 ## État actuel
 
-- Symfony 7.4 : socle applicatif initial.
-- Dolibarr 24.0.2 : code source officiel référencé dans le sous-module Git `dolibarr/`.
-- Docker Compose : installation neuve de Dolibarr avec sa propre base MariaDB et volumes persistants.
-- GitHub Actions : validation de Compose, construction et vérification de Symfony, et démarrage HTTP des deux applications.
-- Aucune ancienne base n'est importée ou modifiée.
+- Symfony 7.4 : application ERP autonome avec authentification.
+- MariaDB dédiée : schéma créé exclusivement par les migrations Doctrine.
+- Modules métier : tiers, produits, ventes, achats, trésorerie et comptabilité en cours de consolidation.
+- Docker Compose : démarrage indépendant du service Symfony et de sa base.
+- Dolibarr 24.0.2 : environnement facultatif de comparaison, avec base et réseau séparés.
+- GitHub Actions : contrôles PHP, invariants métier, installation Symfony neuve et tests HTTP authentifiés.
 
-Pendant cette première phase, Dolibarr démarre avec son runtime officiel dans un conteneur dédié. Cela permet de valider une installation propre avant de porter progressivement ses fonctions dans Symfony. Le code Dolibarr n'est pas chargé directement comme un bundle Symfony.
+Aucun code Dolibarr n'est chargé dans le runtime Symfony et aucune donnée Dolibarr n'est nécessaire à son fonctionnement.
 
 ## Prérequis
 
