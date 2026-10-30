@@ -56,12 +56,12 @@
             <p class="muted">Aucun bon de livraison enregistré pour cette commande.</p>
         {% else %}
             <div class="table-scroll"><table class="data-table">
-                <thead><tr><th>Numéro</th><th>Date</th><th>Désignation</th><th>Quantité livrée</th><th>Observations</th></tr></thead>
+                <thead><tr><th>Numéro</th><th>Date</th><th>Désignation</th><th>Quantité livrée</th><th>Observations</th><th>Document</th></tr></thead>
                 <tbody>{% for delivery in deliveries %}
                     {% for line in delivery.lines %}
                     <tr>
                         <td>{{ delivery.number }}</td><td>{{ delivery.deliveryDate|date('d/m/Y') }}</td>
-                        <td>{{ line.description }}</td><td>{{ line.quantity }}</td><td>{{ delivery.notes ?: '—' }}</td>
+                        <td>{{ line.description }}</td><td>{{ line.quantity }}</td><td>{{ delivery.notes ?: '—' }}</td><td><a href="{{ path('app_sales_delivery_pdf', {id: order.id, deliveryId: delivery.id}) }}">Télécharger le PDF</a></td>
                     </tr>
                     {% endfor %}
                 {% endfor %}</tbody>
