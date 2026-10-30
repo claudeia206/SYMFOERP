@@ -53,6 +53,8 @@ jobs:
 
       - name: Test supplier invoice and outgoing payment rules
         run: docker run --rm symfoerp-symfony:ci php tests/supplier_invoice_entity_smoke.php
+      - name: Test accounting domain invariants
+        run: docker run --rm symfoerp-symfony:ci php tests/accounting_domain_smoke.php
 
       - name: Smoke test Symfony HTTP application
         run: |
@@ -231,7 +233,48 @@ jobs:
           invoice_pdf_content = invoice_pdf.read()
           assert invoice_pdf.headers.get_content_type() == "application/pdf", "Invoice PDF route returned the wrong content type"
           assert invoice_pdf_content.startswith(b"%PDF-"), "Invoice PDF route did not return a valid PDF"
-          print("Symfony authentication, third-party registry, quote creation, VAT totals, acceptance, idempotent order conversion, order completion and PDF export passed.")
+          accounting_page = client.open(base + "/accounting")
+          accounting_html = accounting_page.read().decode()
+          assert "Comptabilité générale" in accounting_html, "Accounting dashboard did not render"
+          assert "Balance générale" in accounting_html, "Trial balance link is missing"
+          trial_page = client.open(base + "/accounting/trial-balance")
+          assert "Balance générale" in trial_page.read().decode(), "Trial balance report did not render"
+          entry_form = client.open(base + "/accounting/entries/new").read().decode()
+          assert "Nouvelle écriture comptable" in entry_form, "Manual accounting entry form did not render"
+          entry_parser = TokenParser()
+          entry_parser.feed(entry_form)
+          assert entry_parser.token, "Accounting entry CSRF token is missing"
+          bank_match = re.search(r'<option value="(\d+)"[^>]*>512 — Banque</option>', entry_form)
+          sales_match = re.search(r'<option value="(\d+)"[^>]*>707 — Ventes de marchandises</option>', entry_form)
+          journal_match = re.search(r'<option value="(\d+)"[^>]*>VE — Ventes</option>', entry_form)
+          year_match = re.search(r'<option value="(\d+)"[^>]*>2026 ', entry_form)
+          assert bank_match and sales_match and journal_match and year_match, "Seeded accounting chart/journal/year are missing"
+          entry_payload = {
+              "_token": entry_parser.token,
+              "entry_date": date.today().isoformat(),
+              "journal_id": journal_match.group(1),
+              "fiscal_year_id": year_match.group(1),
+              "label": "Écriture de validation CI",
+              "lines[0][account_id]": bank_match.group(1),
+              "lines[0][label]": "Encaissement CI",
+              "lines[0][debit]": "1250.00",
+              "lines[0][credit]": "0.00",
+              "lines[1][account_id]": sales_match.group(1),
+              "lines[1][label]": "Vente CI",
+              "lines[1][debit]": "0.00",
+              "lines[1][credit]": "1250.00",
+          }
+          accounting_response = client.open(urllib.request.Request(base + "/accounting/entries/new", data=urllib.parse.urlencode(entry_payload).encode()))
+          accounting_result = accounting_response.read().decode()
+          assert "VE-2026-000001" in accounting_result, "Manual accounting entry was not created"
+          assert "posted" in accounting_result, "Manual accounting entry was not posted"
+          trial_html = client.open(base + "/accounting/trial-balance").read().decode()
+          assert "1 250,00 €" in trial_html, "Trial balance did not include the posted accounting entry"
+          ledger_match = re.search(r'href="/accounting/ledger/(\d+)', trial_html)
+          assert ledger_match, "Trial balance does not link to the general ledger"
+          ledger_html = client.open(base + "/accounting/ledger/" + ledger_match.group(1)).read().decode()
+          assert "Grand livre" in ledger_html, "General ledger report did not render"
+          print("Symfony authentication, sales workflow, accounting migrations, journal entry posting, trial balance and general ledger passed.")
           PY
 
       - name: Smoke test fresh Dolibarr installation
