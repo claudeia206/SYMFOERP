@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\AccountingAutoPostingService;
 use App\Entity\PurchaseOrder;
 use App\Entity\SupplierInvoice;
 use App\Entity\SupplierPayment;
