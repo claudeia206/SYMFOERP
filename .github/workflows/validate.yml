@@ -367,6 +367,12 @@ jobs:
           print("Symfony authentication, third-party registry, quote creation, VAT totals, acceptance, idempotent order conversion, order completion and PDF export passed.")
           PY
 
+      - name: Dump Symfony logs after authenticated HTTP failure
+        if: failure()
+        run: |
+          docker compose --env-file .env.docker logs --no-color --tail=500 symfony || true
+          docker compose --env-file .env.docker exec --no-TTY symfony sh -lc 'tail -n 300 var/log/dev.log 2>/dev/null || true' || true
+
       - name: Smoke test fresh Dolibarr installation
         run: |
           set -eu
