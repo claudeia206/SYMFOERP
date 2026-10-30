@@ -17,7 +17,7 @@ class BankTransaction
     #[ORM\Column(length:255)] private string $label;
     #[ORM\Column(type:'decimal',precision:12,scale:2)] private string $amount;
     #[ORM\Column(length:120,nullable:true)] private ?string $reference;
-    #[ORM\Column(length:64,unique:true)] private string $fingerprint;
+    #[ORM\Column(length:64)] private string $fingerprint;
     #[ORM\ManyToOne(targetEntity:SalesPayment::class)] #[ORM\JoinColumn(name:'matched_sales_payment_id',nullable:true,onDelete:'RESTRICT')] private ?SalesPayment $salesPayment=null;
     #[ORM\ManyToOne(targetEntity:SupplierPayment::class)] #[ORM\JoinColumn(name:'matched_supplier_payment_id',nullable:true,onDelete:'RESTRICT')] private ?SupplierPayment $supplierPayment=null;
     #[ORM\Column(name:'imported_at',type:'datetime_immutable')] private DateTimeImmutable $importedAt;
