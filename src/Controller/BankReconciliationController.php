@@ -50,7 +50,7 @@ final class BankReconciliationController extends AbstractController
                         if(str_contains($rawAmount,',')&&!str_contains($rawAmount,'.'))$rawAmount=str_replace(',','.',$rawAmount);
                         if(!preg_match('/^-?\d{1,10}(?:\.\d{1,2})?$/D',$rawAmount)) throw new \InvalidArgumentException('Ligne CSV invalide.');
                         $label=mb_substr(trim($values['label']??''),0,255);$amountCents=$this->toCents($rawAmount);
-                        if($label===''||$amountCents===0) throw new \\InvalidArgumentException('Ligne CSV invalide.');
+                        if($label===''||$amountCents===0) throw new \u005cInvalidArgumentException('Ligne CSV invalide.');
                         $amount=$this->fromCents($amountCents);
                         $reference=mb_substr(trim($values['reference']??''),0,120);
                         $fingerprint=hash('sha256',$date->format('Y-m-d')."|".$label."|".$amount."|".$reference);
