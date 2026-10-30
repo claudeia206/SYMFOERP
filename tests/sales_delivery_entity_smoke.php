@@ -39,5 +39,5 @@ expectDelivery($product->getStockQuantity()==='4.000','Stock must only decrease 
 foreach(['0','-1','0.0004'] as $invalid) {
     try { new SalesDeliveryLine($orderLine,$invalid); throw new RuntimeException('Invalid delivery quantity was accepted.'); } catch(InvalidArgumentException) {}
 }
-try { new SalesDelivery($order,'Commande close')->addLine(new SalesDeliveryLine($orderLine,'1')); throw new RuntimeException('Unexpected delivery accepted.'); } catch(InvalidArgumentException) {}
+try { (new SalesDelivery($order,'Commande close'))->addLine(new SalesDeliveryLine($orderLine,'1')); throw new RuntimeException('Unexpected delivery accepted.'); } catch(InvalidArgumentException) {}
 echo "Customer delivery partial-quantity and stock invariants passed.\n";
