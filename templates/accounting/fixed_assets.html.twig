@@ -25,6 +25,13 @@
       <div class="col-12"><button class="btn btn-primary">Enregistrer</button></div>
     </form>
   </div></div>
+  <form method="get" action="{{ path('app_fixed_assets') }}" class="row g-2 mb-3">
+    <div class="col-md-5"><label class="form-label" for="asset-search">Recherche</label><input id="asset-search" class="form-control" type="search" name="q" value="{{ search }}" placeholder="Code ou désignation"></div>
+    <div class="col-md-3"><label class="form-label" for="asset-status">Statut</label><select id="asset-status" class="form-select" name="status"><option value="all" {{ status == 'all' ? 'selected' : '' }}>Tous</option><option value="active" {{ status == 'active' ? 'selected' : '' }}>Actives</option><option value="disposed" {{ status == 'disposed' ? 'selected' : '' }}>Sorties</option><option value="archived" {{ status == 'archived' ? 'selected' : '' }}>Archivées</option></select></div>
+    <div class="col-md-2 d-flex align-items-end"><button class="btn btn-outline-primary w-100">Filtrer</button></div>
+    <div class="col-md-2 d-flex align-items-end"><a class="btn btn-outline-secondary w-100" href="{{ path('app_fixed_assets') }}">Réinitialiser</a></div>
+    <input type="hidden" name="as_of" value="{{ as_of }}">
+  </form>
   <div class="card"><div class="card-header">Registre et plan prévisionnel</div><div class="table-responsive"><table class="table table-striped mb-0">
     <thead><tr><th>Code</th><th>Immobilisation</th><th>Coût</th><th>Durée</th><th>Année</th><th>Dotation</th><th>Amorti cumulé</th><th>VNC</th><th>Comptabilisation</th><th>Statut</th><th></th></tr></thead><tbody>
     {% for asset in assets %}
