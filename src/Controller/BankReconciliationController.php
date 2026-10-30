@@ -33,6 +33,8 @@ final class BankReconciliationController extends AbstractController
             $delimiter=substr_count($first,';')>=substr_count($first,',')?';':',';
             rewind($handle); $headers=fgetcsv($handle,0,$delimiter);
             if(!$headers) throw new \InvalidArgumentException('En-tête CSV manquant.');
+            // Excel and many banking portals prefix UTF-8 CSV files with a BOM.
+            if(isset($headers[0])) $headers[0]=preg_replace('/^\xEF\xBB\xBF/','',(string)$headers[0]);
             $headers=array_map(static fn($v)=>strtolower(trim((string)$v)), $headers);
             if(count($headers)!==count(array_unique($headers))||count($headers)>20) throw new \InvalidArgumentException('En-têtes CSV dupliqués ou trop nombreux.');
             foreach(['date','label','amount'] as $required) if(!in_array($required,$headers,true)) throw new \InvalidArgumentException('Colonnes obligatoires : date, label, amount. Référence facultative : reference.');
