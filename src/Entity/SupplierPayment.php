@@ -42,7 +42,7 @@ class SupplierPayment
 
     public function __construct(SupplierInvoice $invoice, string $amount, DateTimeImmutable $paidAt, string $method, ?string $reference = null, ?string $note = null)
     {
-        if (!is_numeric($amount) || (float) $amount <= 0 || (float) $amount > 9999999999.99 || !in_array($method, self::METHODS, true)) {
+        if ( !preg_match('/^(?:0|[1-9][0-9]{0,9})(?:\\.[0-9]{1,2})?$/D', $amount) || (float) $amount <= 0 || !in_array($method, self::METHODS, true)) {
             throw new InvalidArgumentException('Montant ou moyen de règlement fournisseur invalide.');
         }
         $reference = $reference !== null ? trim($reference) : null;
