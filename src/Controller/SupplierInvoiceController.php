@@ -30,7 +30,7 @@ final class SupplierInvoiceController extends AbstractController
         // latest 100 invoices can otherwise re-offer older orders and hit the
         // one-invoice-per-order unique constraint.
         $billableOrders = $em->createQueryBuilder()
-            ->select('DISTINCT order')
+            ->select('DISTINCT po')
             ->from(PurchaseOrder::class, 'po')
             ->innerJoin('po.lines', 'line')
             ->leftJoin(SupplierInvoice::class, 'invoice', 'WITH', 'invoice.purchaseOrder = po')
