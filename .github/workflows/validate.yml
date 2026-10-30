@@ -101,7 +101,7 @@ jobs:
           set -eux
           # Provision the database before starting the HTTP process. This keeps the
           # first web request from racing schema creation on a brand-new install.
-          docker compose --env-file .env.docker up --detach db_symfony
+          docker compose --env-file .env.docker up --detach --wait db_symfony
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:sync-metadata-storage
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:migrate --no-interaction
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:status --show-versions
