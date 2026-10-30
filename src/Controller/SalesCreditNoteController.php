@@ -22,14 +22,14 @@ use Symfony\Component\Routing\Attribute\Route;
 final class SalesCreditNoteController extends AbstractController
 {
     #[Route('', name: 'app_sales_credit_note_create', requirements: ['id' => '\d+'], methods: ['POST'])]
-    public function create(Request $request, SalesInvoice $invoice, EntityManagerInterface $em): Response
+    public function create(Request $request, SalesInvoice $invoice, EntityManagerInterface $em, AccountingPostingService $posting): Response
     {
         if (!$this->isCsrfTokenValid('sales_credit_note_'.$invoice->getId(), (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Jeton de sécurité invalide.');
         }
 
         try {
-            $creditNote = $em->getConnection()->transactional(function () use ($request, $invoice, $em): SalesCreditNote {
+            $creditNote = $em->getConnection()->transactional(function () use ($request, $invoice, $em, $posting): SalesCreditNote {
                 $em->lock($invoice, LockMode::PESSIMISTIC_WRITE);
                 $em->refresh($invoice);
                 if ($invoice->getSellerSnapshot() === null || $invoice->getCustomerSnapshot() === null) {
@@ -67,9 +67,10 @@ final class SalesCreditNoteController extends AbstractController
                 $sequence = (int) $connection->fetchOne('SELECT last_number FROM app_credit_note_sequence WHERE fiscal_year = ? FOR UPDATE', [$year]);
                 $note->assignNumber(sprintf('AV-%d-%06d', $year, $sequence));
                 $em->flush();
+                $posting->postSalesCreditNote((int) $note->getId());
                 return $note;
             });
-            $this->addFlash('success', 'L’avoir '.$creditNote->getNumber().' a été émis.');
+            $this->addFlash('success', 'L’avoir '.$creditNote->getNumber().' a été émis et comptabilisé.');
         } catch (InvalidArgumentException $e) {
             $this->addFlash('error', $e->getMessage());
         } catch (\Throwable) {
