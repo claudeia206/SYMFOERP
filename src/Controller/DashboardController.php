@@ -22,6 +22,7 @@ final class DashboardController extends AbstractController
                 ['name' => 'Factures clients', 'description' => 'Émission, PDF et suivi des règlements', 'status' => 'Disponible', 'route' => 'app_sales_invoices'],
                 ['name' => 'Commandes fournisseurs', 'description' => 'Approvisionnement et réceptions partielles', 'status' => 'Disponible', 'route' => 'app_purchase_orders'],
                 ['name' => 'Factures fournisseurs', 'description' => 'Validation des factures et règlements sortants', 'status' => 'Disponible', 'route' => 'app_supplier_invoices'],
+                ['name' => 'Reporting financier', 'description' => 'Créances, dettes et flux de trésorerie', 'status' => 'Disponible', 'route' => 'app_financial_report'],
             ],
         ]);
     }
