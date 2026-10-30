@@ -34,7 +34,7 @@ final class DepreciationCalculator
             $remaining = round($base - $accumulated, 2);
             // Absorb intermediate cent rounding in the final period so the
             // schedule always reaches the exact depreciable base at term end.
-            $amount = $next >= $end
+            $amount = $periodEnd >= $end
                 ? $remaining
                 : min($remaining, round($daily * $days, 2));
             if ($amount > 0) {
