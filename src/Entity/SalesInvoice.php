@@ -72,8 +72,8 @@ class SalesInvoice
     private Collection $lines;
 
     /** @var Collection<int, SalesCreditNote> */
-    #[ORM\\OneToMany(mappedBy: 'invoice', targetEntity: SalesCreditNote::class, cascade: ['persist'], orphanRemoval: true)]
-    #[ORM\\OrderBy(['creditDate' => 'DESC', 'id' => 'DESC'])]
+    #[ORM\OneToMany(mappedBy: 'invoice', targetEntity: SalesCreditNote::class, cascade: ['persist'], orphanRemoval: true)]
+    #[ORM\OrderBy(['creditDate' => 'DESC', 'id' => 'DESC'])]
     private Collection $creditNotes;
 
     /** @var Collection<int, SalesPayment> */
@@ -121,7 +121,7 @@ class SalesInvoice
         if ($this->status !== self::STATUS_DRAFT || $this->number !== null) {
             throw new InvalidArgumentException('Only a draft invoice can be issued once.');
         }
-        if (!preg_match('/^FAC-\\d{4}-\\d{6}$/', $number)) {
+        if (!preg_match('/^FAC-\d{4}-\d{6}$/', $number)) {
             throw new InvalidArgumentException('Invalid invoice number format.');
         }
         if (trim((string) ($customerSnapshot['name'] ?? '')) === '' || trim((string) ($customerSnapshot['address'] ?? '')) === '' || trim((string) ($customerSnapshot['postal_code'] ?? '')) === '' || trim((string) ($customerSnapshot['city'] ?? '')) === '') {
