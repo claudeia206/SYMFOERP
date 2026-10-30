@@ -38,9 +38,9 @@ final class FiscalClosingController extends AbstractController
         $unbalanced = (int) $db->fetchOne(
             'SELECT COUNT(*) FROM (
                 SELECT e.id FROM app_journal_entry e
-                INNER JOIN app_journal_entry_line l ON l.entry_id=e.id
+                LEFT JOIN app_journal_entry_line l ON l.entry_id=e.id
                 WHERE e.status=? AND e.entry_date BETWEEN ? AND ?
-                GROUP BY e.id HAVING ABS(SUM(l.debit)-SUM(l.credit))>0.005
+                GROUP BY e.id HAVING COUNT(l.id)=0 OR ABS(COALESCE(SUM(l.debit),0)-COALESCE(SUM(l.credit),0))>0.005
              ) unbalanced_entries',
             ['posted', $from, $to]
         );
@@ -80,16 +80,16 @@ final class FiscalClosingController extends AbstractController
         $unbalancedCount = (int) $db->fetchOne(
             'SELECT COUNT(*) FROM (
                 SELECT e.id FROM app_journal_entry e
-                INNER JOIN app_journal_entry_line l ON l.entry_id = e.id
+                LEFT JOIN app_journal_entry_line l ON l.entry_id = e.id
                 WHERE e.status = ? AND e.entry_date BETWEEN ? AND ?
-                GROUP BY e.id HAVING ABS(SUM(l.debit) - SUM(l.credit)) > 0.005
+                GROUP BY e.id HAVING COUNT(l.id) = 0 OR ABS(COALESCE(SUM(l.debit),0) - COALESCE(SUM(l.credit),0)) > 0.005
             ) unbalanced_entries',
             ['posted', $from, $to]
         );
         $totals = $db->fetchAssociative(
             'SELECT COALESCE(SUM(l.debit), 0) AS debit, COALESCE(SUM(l.credit), 0) AS credit
              FROM app_journal_entry e
-             INNER JOIN app_journal_entry_line l ON l.entry_id = e.id
+             LEFT JOIN app_journal_entry_line l ON l.entry_id = e.id
              WHERE e.status = ? AND e.entry_date BETWEEN ? AND ?',
             ['posted', $from, $to]
         ) ?: [];
@@ -105,7 +105,7 @@ final class FiscalClosingController extends AbstractController
                     e.reference, e.description, l.label, l.debit, l.credit
              FROM app_journal_entry e
              INNER JOIN app_accounting_journal j ON j.id=e.journal_id
-             INNER JOIN app_journal_entry_line l ON l.entry_id=e.id
+             LEFT JOIN app_journal_entry_line l ON l.entry_id=e.id
              INNER JOIN app_accounting_account a ON a.id=l.account_id
              WHERE e.status=? AND e.entry_date BETWEEN ? AND ?
              ORDER BY e.entry_date, j.code, e.entry_number, l.id',
@@ -175,9 +175,9 @@ final class FiscalClosingController extends AbstractController
             $unbalancedCount = (int) $db->fetchOne(
                 'SELECT COUNT(*) FROM (
                     SELECT e.id FROM app_journal_entry e
-                    INNER JOIN app_journal_entry_line l ON l.entry_id = e.id
+                    LEFT JOIN app_journal_entry_line l ON l.entry_id = e.id
                     WHERE e.status = ? AND e.entry_date BETWEEN ? AND ?
-                    GROUP BY e.id HAVING ABS(SUM(l.debit) - SUM(l.credit)) > 0.005
+                    GROUP BY e.id HAVING COUNT(l.id) = 0 OR ABS(COALESCE(SUM(l.debit),0) - COALESCE(SUM(l.credit),0)) > 0.005
                 ) unbalanced_entries',
                 ['posted', $from, $to]
             );
