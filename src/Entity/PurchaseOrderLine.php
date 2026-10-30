@@ -66,6 +66,7 @@ class PurchaseOrderLine
     public function getRemainingQuantity(): string { return number_format(max(0, (float) $this->quantity - (float) $this->receivedQuantity), 3, '.', ''); }
     public function getUnitPrice(): string { return $this->unitPrice; }
     public function getVatRate(): string { return $this->vatRate; }
+    public function getPosition(): int { return $this->position; }
     public function getTotalExcludingTax(): float { return (float) $this->quantity * (float) $this->unitPrice; }
     public function getTotalIncludingTax(): float { return $this->getTotalExcludingTax() * (1 + (float) $this->vatRate / 100); }
     public function receive(string $quantity): self
