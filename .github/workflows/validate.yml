@@ -103,6 +103,10 @@ jobs:
           # first web request from racing schema creation on a brand-new install.
           docker compose --env-file .env.docker up --detach --wait db_symfony
           docker compose --env-file .env.docker run --rm --no-deps symfony sh -lc 'printf "Migration files: "; find migrations -maxdepth 1 -name "Version*.php" | wc -l; php -r '\''$url = getenv("DATABASE_URL") ?: ""; $parts = parse_url($url); printf("Symfony CLI database target: %s/%s\\n", $parts["host"] ?? "unset", ltrim($parts["path"] ?? "", "/"));'\'''
+          docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console --version 2>&1 | tee /tmp/symfoerp-console-version.log
+          docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console list --raw 2>&1 | tee /tmp/symfoerp-console-commands.log
+          grep -q '^doctrine:migrations:migrate' /tmp/symfoerp-console-commands.log
+          grep -q '^app:user:create' /tmp/symfoerp-console-commands.log
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:sync-metadata-storage -vvv 2>&1 | tee /tmp/symfoerp-migration-storage.log
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:migrate --no-interaction -vvv 2>&1 | tee /tmp/symfoerp-migrate.log
           docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:status --show-versions -vvv 2>&1 | tee /tmp/symfoerp-migration-status.log
