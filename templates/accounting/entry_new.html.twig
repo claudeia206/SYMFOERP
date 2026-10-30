@@ -24,6 +24,7 @@
   <div class="entry-table-scroll"><table class="entry-lines"><thead><tr><th style="width:22%">Compte</th><th style="width:30%">Libellé de ligne</th><th style="width:18%">Débit (€)</th><th style="width:18%">Crédit (€)</th><th></th></tr></thead><tbody id="entry-lines">
   {% for i in 0..1 %}<tr class="entry-line"><td><select class="account" name="lines[{{ i }}][account_id]" required><option value="">Choisir un compte</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.number }} — {{ account.label }}</option>{% endfor %}</select></td><td><input name="lines[{{ i }}][label]" maxlength="255" placeholder="Libellé (facultatif)"></td><td><input name="lines[{{ i }}][debit]" inputmode="decimal" value="0.00" pattern="[0-9]+([.,][0-9]{1,2})?" required></td><td><input name="lines[{{ i }}][credit]" inputmode="decimal" value="0.00" pattern="[0-9]+([.,][0-9]{1,2})?" required></td><td><button type="button" class="entry-button entry-danger remove-line" aria-label="Supprimer la ligne">×</button></td></tr>{% endfor %}
   </tbody></table></div>
+  <template id="account-options"><select class="account" required><option value="">Choisir un compte</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.number }} — {{ account.label }}</option>{% endfor %}</select></template>
   <div class="entry-actions"><button type="button" class="entry-button entry-secondary" id="add-line">+ Ajouter une ligne</button><button type="submit" class="entry-button entry-primary">Contrôler et comptabiliser</button></div>
  </form>
  {% endif %}
@@ -31,13 +32,12 @@
 <script>
 (function(){
  const body=document.getElementById('entry-lines');if(!body)return;
- const accounts={{ accounts|map(a => {'id':a.id,'label':a.number ~ ' — ' ~ a.label})|json_encode|raw }};
+ const accountOptions=document.getElementById('account-options');
  function renumber(){[...body.querySelectorAll('tr')].forEach((row,i)=>row.querySelectorAll('[name]').forEach(input=>input.name=input.name.replace(/lines\[\d+\]/,'lines['+i+']')));body.querySelectorAll('.remove-line').forEach(button=>button.disabled=body.children.length<=2);}
  document.getElementById('add-line').addEventListener('click',()=>{
   if(body.children.length>=100)return;
   const i=body.children.length,row=document.createElement('tr');row.className='entry-line';
-  const select=document.createElement('select');select.className='account';select.required=true;select.name='lines['+i+'][account_id]';const empty=document.createElement('option');empty.value='';empty.textContent='Choisir un compte';select.append(empty);
-  accounts.forEach(a=>{const o=document.createElement('option');o.value=a.id;o.textContent=a.label;select.append(o);});
+  const select=accountOptions.content.querySelector('select').cloneNode(true);select.name='lines['+i+'][account_id]';
   const cells=[document.createElement('td'),document.createElement('td'),document.createElement('td'),document.createElement('td'),document.createElement('td')];cells[0].append(select);
   [['label','text',''],['debit','text','0.00'],['credit','text','0.00']].forEach(([key,type,value],j)=>{const input=document.createElement('input');input.type=type;input.name='lines['+i+']['+key+']';input.value=value;input.placeholder=key==='label'?'Libellé (facultatif)':'';input.required=key!=='label';if(key!=='label'){input.inputMode='decimal';input.pattern='[0-9]+([.,][0-9]{1,2})?';}cells[j+1].append(input);});
   const remove=document.createElement('button');remove.type='button';remove.className='entry-button entry-danger remove-line';remove.textContent='×';remove.setAttribute('aria-label','Supprimer la ligne');cells[4].append(remove);cells.forEach(td=>row.append(td));body.append(row);renumber();
