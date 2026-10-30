@@ -19,7 +19,7 @@ CREATE TABLE app_accounting_account (
  UNIQUE INDEX uniq_accounting_account_code (code),
  INDEX idx_accounting_account_class (account_class),
  PRIMARY KEY(id)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE \`utf8mb4_unicode_ci\` ENGINE = InnoDB
+) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
 SQL);
         $this->addSql(<<<'SQL'
 CREATE TABLE app_accounting_journal (
@@ -28,7 +28,7 @@ CREATE TABLE app_accounting_journal (
  name VARCHAR(120) NOT NULL,
  UNIQUE INDEX uniq_accounting_journal_code (code),
  PRIMARY KEY(id)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE \`utf8mb4_unicode_ci\` ENGINE = InnoDB
+) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
 SQL);
         $this->addSql(<<<'SQL'
 CREATE TABLE app_journal_entry (
@@ -44,7 +44,7 @@ CREATE TABLE app_journal_entry (
  INDEX idx_journal_entry_date (entry_date),
  INDEX idx_journal_entry_status_date (status, entry_date),
  PRIMARY KEY(id)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE \`utf8mb4_unicode_ci\` ENGINE = InnoDB
+) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
 SQL);
         $this->addSql(<<<'SQL'
 CREATE TABLE app_journal_entry_line (
@@ -59,7 +59,7 @@ CREATE TABLE app_journal_entry_line (
  PRIMARY KEY(id),
  CONSTRAINT chk_journal_line_nonnegative CHECK (debit >= 0 AND credit >= 0),
  CONSTRAINT chk_journal_line_one_side CHECK ((debit > 0 AND credit = 0) OR (credit > 0 AND debit = 0))
-) DEFAULT CHARACTER SET utf8mb4 COLLATE \`utf8mb4_unicode_ci\` ENGINE = InnoDB
+) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
 SQL);
         $this->addSql('ALTER TABLE app_journal_entry ADD CONSTRAINT fk_journal_entry_journal FOREIGN KEY (journal_id) REFERENCES app_accounting_journal (id) ON DELETE RESTRICT');
         $this->addSql('ALTER TABLE app_journal_entry_line ADD CONSTRAINT fk_journal_line_entry FOREIGN KEY (entry_id) REFERENCES app_journal_entry (id) ON DELETE RESTRICT');
