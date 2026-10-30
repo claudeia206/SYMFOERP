@@ -86,6 +86,17 @@ try {
     // Fully settled invoices reject further payments.
 }
 
+$boundaryInvoice = new SalesInvoice($order);
+$boundaryInvoice->issue('FAC-2026-000002', new DateTimeImmutable('2026-10-30 12:00:00'), new DateTimeImmutable('2026-11-29 12:00:00'), $profile->toInvoiceSnapshot(), $customerSnapshot);
+$boundaryInvoice->addPayment(new SalesPayment($boundaryInvoice, '119.99', new DateTimeImmutable('2026-10-30'), 'bank_transfer'));
+expectInvoice($boundaryInvoice->getRemainingAmount() === 0.01, 'A one-cent customer balance must remain outstanding exactly.');
+try {
+    $boundaryInvoice->addPayment(new SalesPayment($boundaryInvoice, '0.02', new DateTimeImmutable('2026-10-30'), 'cash'));
+    throw new RuntimeException('A customer payment one cent above the balance was accepted.');
+} catch (InvalidArgumentException) {
+    // Integer-cent comparisons must reject even a one-cent overpayment.
+}
+
 $order->setStatus(SalesOrder::STATUS_CANCELLED);
 try {
     new SalesInvoice($order);
