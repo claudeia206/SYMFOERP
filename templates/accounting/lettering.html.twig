@@ -1,0 +1,35 @@
+{% extends 'base.html.twig' %}
+{% block title %}Lettrage auxiliaire · SYMFOERP{% endblock %}
+{% block stylesheets %}
+<style>
+.lettering-panel{background:#fff;border:1px solid #e5eaf1;border-radius:12px;margin:20px 0;overflow:hidden}.lettering-panel h2{font-size:18px;padding:16px 18px;margin:0;border-bottom:1px solid #e5eaf1}.lettering-inner{padding:16px 18px}.lettering-table{width:100%;border-collapse:collapse}.lettering-table th,.lettering-table td{padding:10px;border-bottom:1px solid #e5eaf1;text-align:left}.lettering-table th{font-size:13px;color:#64748b}.num{text-align:right!important;font-variant-numeric:tabular-nums}.lettering-button{padding:10px 15px;border:0;border-radius:7px;background:#174ea6;color:white;cursor:pointer}.lettering-flash{padding:10px 14px;border-radius:8px;background:#e8f5ed;color:#17663a;margin:10px 0}.lettering-error{background:#fff1f2;color:#9f1239}
+</style>
+{% endblock %}
+{% block body %}
+<p><a href="{{ path('app_accounting') }}">← Comptabilité</a></p>
+<h1>Lettrage des comptes auxiliaires</h1>
+<p class="muted">Sélectionnez des lignes d’un même compte tiers. Le total débit doit être égal au total crédit. Le lettrage est définitif dans cette première version.</p>
+{% for message in app.flashes('success') %}<p class="lettering-flash">{{ message }}</p>{% endfor %}
+{% for message in app.flashes('error') %}<p class="lettering-flash lettering-error">{{ message }}</p>{% endfor %}
+{% for group in groups %}
+<section class="lettering-panel">
+<h2>{{ group.account.number }} — {{ group.account.label }}</h2>
+<form method="post">
+<input type="hidden" name="_token" value="{{ csrf_token('accounting_lettering') }}">
+<div style="overflow-x:auto"><table class="lettering-table">
+<thead><tr><th>Sélection</th><th>Date</th><th>Journal</th><th>Écriture</th><th>Libellé</th><th class="num">Débit</th><th class="num">Crédit</th></tr></thead>
+<tbody>
+{% for line in group.lines %}{% set entry=line.entry %}
+<tr>
+<td><input type="checkbox" name="line_ids[]" value="{{ line.id }}" aria-label="Sélectionner la ligne {{ line.id }}"></td>
+<td>{{ entry.entryDate|date('d/m/Y') }}</td><td>{{ entry.journal.code }}</td><td>{{ entry.number }}</td><td>{{ line.label }}</td>
+<td class="num">{{ (line.debitCents / 100)|number_format(2,',',' ') }} €</td><td class="num">{{ (line.creditCents / 100)|number_format(2,',',' ') }} €</td>
+</tr>{% endfor %}
+</tbody></table></div>
+<div class="lettering-inner"><button class="lettering-button" type="submit">Lettrer les lignes sélectionnées</button></div>
+</form>
+</section>
+{% else %}
+<section class="lettering-panel"><div class="lettering-inner">Aucune ligne non lettrée disponible sur les comptes de tiers 4xx.</div></section>
+{% endfor %}
+{% endblock %}
