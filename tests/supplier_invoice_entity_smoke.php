@@ -51,6 +51,17 @@ expectSupplierInvoice($invoice->getStatus() === SupplierInvoice::STATUS_PARTIALL
 expectSupplierInvoice($invoice->getPaidAmount() === 30.0 && $invoice->getRemainingAmount() === 60.0, 'Supplier payment balance is incorrect.');
 $invoice->addPayment(new SupplierPayment($invoice, '60.00', new DateTimeImmutable('2026-10-15'), 'bank_transfer'));
 expectSupplierInvoice($invoice->getStatus() === SupplierInvoice::STATUS_PAID, 'Fully paid supplier invoice must be marked paid.');
+$boundaryInvoice = new SupplierInvoice($order, 'F-2026-002');
+$boundaryInvoice->receive(new DateTimeImmutable('2026-10-01'), new DateTimeImmutable('2026-10-31'));
+$boundaryInvoice->addPayment(new SupplierPayment($boundaryInvoice, '89.99', new DateTimeImmutable('2026-10-10'), 'bank_transfer'));
+expectSupplierInvoice($boundaryInvoice->getRemainingAmount() === 0.01, 'A one-cent supplier balance must remain outstanding exactly.');
+try {
+    $boundaryInvoice->addPayment(new SupplierPayment($boundaryInvoice, '0.02', new DateTimeImmutable('2026-10-10'), 'cash'));
+    throw new RuntimeException('A supplier payment one cent above the balance was accepted.');
+} catch (InvalidArgumentException) {
+    // Integer-cent comparisons must reject even a one-cent overpayment.
+}
+
 foreach ([
     fn () => new SupplierInvoice($order, ''),
     fn () => new SupplierPayment($invoice, '0', new DateTimeImmutable('today'), 'cash'),
