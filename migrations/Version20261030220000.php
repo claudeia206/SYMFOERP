@@ -1,0 +1,20 @@
+<?php
+declare(strict_types=1);
+namespace DoctrineMigrations;
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\Migrations\AbstractMigration;
+final class Version20261030220000 extends AbstractMigration {
+ public function getDescription():string{return 'Create general ledger accounts, journals, fiscal years and balanced journal entries.';}
+ public function up(Schema $schema):void{
+  $this->addSql("CREATE TABLE app_accounting_account (id INT AUTO_INCREMENT NOT NULL, number VARCHAR(12) NOT NULL, label VARCHAR(180) NOT NULL, class VARCHAR(1) NOT NULL, active TINYINT(1) DEFAULT 1 NOT NULL, UNIQUE INDEX uniq_accounting_account_number (number), INDEX idx_accounting_account_class (class, active), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB");
+  $this->addSql("CREATE TABLE app_accounting_journal (id INT AUTO_INCREMENT NOT NULL, code VARCHAR(8) NOT NULL, label VARCHAR(120) NOT NULL, active TINYINT(1) DEFAULT 1 NOT NULL, UNIQUE INDEX uniq_accounting_journal_code (code), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB");
+  $this->addSql("CREATE TABLE app_accounting_fiscal_year (id INT AUTO_INCREMENT NOT NULL, code VARCHAR(9) NOT NULL, starts_on DATE NOT NULL COMMENT '(DC2Type:date_immutable)', ends_on DATE NOT NULL COMMENT '(DC2Type:date_immutable)', closed TINYINT(1) DEFAULT 0 NOT NULL, UNIQUE INDEX uniq_accounting_fiscal_year_code (code), INDEX idx_accounting_fiscal_year_dates (starts_on, ends_on, closed), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB");
+  $this->addSql("CREATE TABLE app_accounting_entry (id INT AUTO_INCREMENT NOT NULL, journal_id INT NOT NULL, fiscal_year_id INT NOT NULL, number VARCHAR(32) NOT NULL, entry_date DATE NOT NULL COMMENT '(DC2Type:date_immutable)', label VARCHAR(255) NOT NULL, status VARCHAR(20) NOT NULL, source_type VARCHAR(40) DEFAULT NULL, source_id INT DEFAULT NULL, created_at DATETIME NOT NULL COMMENT '(DC2Type:datetime_immutable)', UNIQUE INDEX uniq_accounting_entry_journal_number (journal_id, number), INDEX idx_accounting_entry_date (entry_date, fiscal_year_id), INDEX IDX_ACCOUNTING_ENTRY_JOURNAL (journal_id), INDEX IDX_ACCOUNTING_ENTRY_YEAR (fiscal_year_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB");
+  $this->addSql("CREATE TABLE app_accounting_entry_line (id INT AUTO_INCREMENT NOT NULL, entry_id INT NOT NULL, account_id INT NOT NULL, label VARCHAR(255) NOT NULL, debit NUMERIC(14, 2) NOT NULL, credit NUMERIC(14, 2) NOT NULL, position INT NOT NULL, INDEX idx_accounting_entry_line_account (account_id), INDEX IDX_ACCOUNTING_ENTRY_LINE_ENTRY (entry_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB");
+  $this->addSql('ALTER TABLE app_accounting_entry ADD CONSTRAINT fk_accounting_entry_journal FOREIGN KEY (journal_id) REFERENCES app_accounting_journal (id) ON DELETE RESTRICT');
+  $this->addSql('ALTER TABLE app_accounting_entry ADD CONSTRAINT fk_accounting_entry_year FOREIGN KEY (fiscal_year_id) REFERENCES app_accounting_fiscal_year (id) ON DELETE RESTRICT');
+  $this->addSql('ALTER TABLE app_accounting_entry_line ADD CONSTRAINT fk_accounting_entry_line_entry FOREIGN KEY (entry_id) REFERENCES app_accounting_entry (id) ON DELETE CASCADE');
+  $this->addSql('ALTER TABLE app_accounting_entry_line ADD CONSTRAINT fk_accounting_entry_line_account FOREIGN KEY (account_id) REFERENCES app_accounting_account (id) ON DELETE RESTRICT');
+ }
+ public function down(Schema $schema):void{$this->addSql('DROP TABLE app_accounting_entry_line');$this->addSql('DROP TABLE app_accounting_entry');$this->addSql('DROP TABLE app_accounting_fiscal_year');$this->addSql('DROP TABLE app_accounting_journal');$this->addSql('DROP TABLE app_accounting_account');}
+}
