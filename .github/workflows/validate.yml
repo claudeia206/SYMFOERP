@@ -256,6 +256,29 @@ jobs:
           invoice_pdf_content = invoice_pdf.read()
           assert invoice_pdf.headers.get_content_type() == "application/pdf", "Invoice PDF route returned the wrong content type"
           assert invoice_pdf_content.startswith(b"%PDF-"), "Invoice PDF route did not return a valid PDF"
+          payment_token = re.search(r'<form method="post" action="/sales/invoices/' + invoice_id_match.group(1) + r'/payments">.*?name="_token" value="([^"]+)"', issued_html, re.S)
+          assert payment_token, "Customer payment form token is missing after invoice issue"
+          payment_response = client.open(urllib.request.Request(base + "/sales/invoices/" + invoice_id_match.group(1) + "/payments", data=urllib.parse.urlencode({
+              "_token": payment_token.group(1), "amount": "20.00", "paid_at": date.today().isoformat(),
+              "method": "bank_transfer", "reference": "CI-VIR-001",
+          }).encode()))
+          payment_html = payment_response.read().decode()
+          assert "enregistré et comptabilisé" in payment_html, "Customer payment was not automatically posted"
+          credit_form = re.search(r'<form method="post" action="/sales/invoices/' + invoice_id_match.group(1) + r'/credit-notes">.*?</form>', payment_html, re.S)
+          assert credit_form, "Customer credit note form is missing"
+          credit_token = re.search(r'name="_token" value="([^"]+)"', credit_form.group(0))
+          credit_line = re.search(r'name="quantities\[(\d+)\]"', credit_form.group(0))
+          assert credit_token and credit_line, "Customer credit note fields are missing"
+          credit_response = client.open(urllib.request.Request(base + "/sales/invoices/" + invoice_id_match.group(1) + "/credit-notes", data=urllib.parse.urlencode({
+              "_token": credit_token.group(1), "reason": "CI automatic accounting posting", "quantities[" + credit_line.group(1) + "]": "0.500",
+          }).encode()))
+          credit_html = credit_response.read().decode()
+          assert "a été émis et comptabilisé" in credit_html, "Customer credit note was not automatically posted"
+          ledger_after_sales = client.open(base + "/accounting").read().decode()
+          assert "Facture client FAC-" in ledger_after_sales, "Issued sales invoice accounting entry is missing"
+          assert "Règlement facture FAC-" in ledger_after_sales, "Customer payment accounting entry is missing"
+          assert "Avoir client AV-" in ledger_after_sales, "Customer credit note accounting entry is missing"
+          print("Automatic general ledger postings for sales invoices, payments and credit notes passed.")
           print("Symfony authentication, third-party registry, quote creation, VAT totals, acceptance, idempotent order conversion, order completion and PDF export passed.")
           PY
 
