@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controller;
-use App\\Service\\BankStatementValueParser;
+use App\Service\BankStatementValueParser;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -47,10 +47,9 @@ final class BankReconciliationController extends AbstractController
                     try {
                         $rawDate=$values['date']??'';
                         $date=$parser->parseDate($rawDate);
-                        $rawAmount=str_replace([' ','€',chr(194).chr(160)],'',$values['amount']??'');
-                        if(str_contains($rawAmount,',')&&!str_contains($rawAmount,'.'))$rawAmount=str_replace(',','.',$rawAmount);
-                        if(!preg_match('/^-?\d{1,10}(?:\.\d{1,2})?$/D',$rawAmount)) throw new \InvalidArgumentException('Ligne CSV invalide.');
-                        $label=mb_substr(trim($values['label']??''),0,255);$amountCents=$this->toCents($rawAmount);
+                        $rawAmount=(string)($values['amount']??'');
+                        $label=mb_substr(trim($values['label']??''),0,255);
+                        $amountCents=$parser->parseAmountToCents($rawAmount);
                         if($label===''||$amountCents===0) throw new \InvalidArgumentException('Ligne CSV invalide.');
                         $amount=$parser->formatCents($amountCents);
                         $reference=mb_substr(trim($values['reference']??''),0,120);
