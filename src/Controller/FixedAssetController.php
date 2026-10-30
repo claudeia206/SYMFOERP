@@ -156,15 +156,15 @@ final class FixedAssetController extends AbstractController
         $code=trim((string)$request->request->get('code')); $name=trim((string)$request->request->get('name'));
         $cost = $this->parseMoney($request->request->get('acquisition_cost'));
         $residual = $this->parseMoney($request->request->get('residual_value'));
-        $years=(int)$request->request->get('useful_life_years');
+        $years = $this->parsePositiveInt($request->request->get('useful_life_years'));
         $acquisitionDate=(string)$request->request->get('acquisition_date');
         $serviceDate=(string)$request->request->get('in_service_date');
         $parsedAcquisition=DateTimeImmutable::createFromFormat('!Y-m-d',$acquisitionDate);
         $parsedService=DateTimeImmutable::createFromFormat('!Y-m-d',$serviceDate);
-        $assetAccount=(int)$request->request->get('asset_account_id'); $accumAccount=(int)$request->request->get('accumulated_account_id');
-        $expenseAccount=(int)$request->request->get('expense_account_id'); $journal=(int)$request->request->get('journal_id');
-        $bankAccount=(int)$request->request->get('disposal_bank_account_id'); $gainAccount=(int)$request->request->get('disposal_gain_account_id'); $lossAccount=(int)$request->request->get('disposal_loss_account_id');
-        if ($code==='' || mb_strlen($code)>64 || $name==='' || mb_strlen($name)>255 || !$parsedAcquisition || $parsedAcquisition->format('Y-m-d')!==$acquisitionDate || !$parsedService || $parsedService->format('Y-m-d')!==$serviceDate || $parsedAcquisition>$parsedService || $cost===null || $residual===null || $cost<=0 || $residual<0 || $residual>=$cost || $years<1 || $years>100 || min($assetAccount,$accumAccount,$expenseAccount,$journal,$bankAccount,$gainAccount,$lossAccount)<=0 || count(array_unique([$assetAccount,$accumAccount,$expenseAccount,$bankAccount,$gainAccount,$lossAccount]))!==6) {
+        $assetAccount = $this->parsePositiveInt($request->request->get('asset_account_id')); $accumAccount = $this->parsePositiveInt($request->request->get('accumulated_account_id'));
+        $expenseAccount = $this->parsePositiveInt($request->request->get('expense_account_id')); $journal = $this->parsePositiveInt($request->request->get('journal_id'));
+        $bankAccount = $this->parsePositiveInt($request->request->get('disposal_bank_account_id')); $gainAccount = $this->parsePositiveInt($request->request->get('disposal_gain_account_id')); $lossAccount = $this->parsePositiveInt($request->request->get('disposal_loss_account_id'));
+        if ($years === null || $assetAccount === null || $accumAccount === null || $expenseAccount === null || $journal === null || $bankAccount === null || $gainAccount === null || $lossAccount === null || $code==='' || mb_strlen($code)>64 || $name==='' || mb_strlen($name)>255 || !$parsedAcquisition || $parsedAcquisition->format('Y-m-d')!==$acquisitionDate || !$parsedService || $parsedService->format('Y-m-d')!==$serviceDate || $parsedAcquisition>$parsedService || $cost===null || $residual===null || $cost<=0 || $residual<0 || $residual>=$cost || $years<1 || $years>100 || min($assetAccount,$accumAccount,$expenseAccount,$journal,$bankAccount,$gainAccount,$lossAccount)<=0 || count(array_unique([$assetAccount,$accumAccount,$expenseAccount,$bankAccount,$gainAccount,$lossAccount]))!==6) {
             $this->addFlash('error','Vérifiez les données, les comptes doivent être distincts et le journal renseigné.');
             return $this->redirectToRoute('app_fixed_assets');
         }
@@ -310,6 +310,23 @@ final class FixedAssetController extends AbstractController
         }
 
         return $this->redirectToRoute('app_fixed_assets');
+    }
+
+    /**
+     * Accept only a positive base-10 integer from a form field.
+     */
+    private function parsePositiveInt(mixed $value): ?int
+    {
+        if (!is_string($value) && !is_int($value)) {
+            return null;
+        }
+
+        $raw = trim((string) $value);
+        if (preg_match('/^[1-9]\\d{0,8}$/D', $raw) !== 1) {
+            return null;
+        }
+
+        return (int) $raw;
     }
 
     /**
