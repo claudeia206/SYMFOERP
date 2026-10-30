@@ -39,6 +39,27 @@ final class AccountingPostingService
         $lines[]=['account'=>'411000','label'=>'Avoir client '.$note['number'],'debit'=>0,'credit'=>$totalNet+$totalTax];
         $this->post('sales_credit_note',$creditNoteId,'VE',$note['credit_date'],$note['number'],'Avoir client '.$note['number'].' sur '.$note['invoice_number'],$lines);
     }
+    public function postSupplierInvoice(int $invoiceId): void
+    {
+        if($this->alreadyPosted('supplier_invoice',$invoiceId))return;
+        $invoice=$this->db->fetchAssociative('SELECT supplier_invoice_number,invoice_date FROM app_supplier_invoice WHERE id=? AND status IN (?,?)',[$invoiceId,'received','partially_paid']);
+        if(!$invoice)throw new RuntimeException('Facture fournisseur reçue introuvable pour comptabilisation.');
+        $groups=$this->db->fetchAllAssociative('SELECT vat_rate,SUM(ROUND(quantity*unit_price,2)) AS net,SUM(ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS tax FROM app_supplier_invoice_line WHERE invoice_id=? GROUP BY vat_rate ORDER BY vat_rate',[$invoiceId]);
+        $lines=[];$totalNet=0;$totalTax=0;
+        foreach($groups as $group){$net=$this->cents($group['net']);$tax=$this->cents($group['tax']);if($net>0)$lines[]=['account'=>'607000','label'=>'Achat HT – TVA '.$group['vat_rate'].'%','debit'=>$net,'credit'=>0];if($tax>0)$lines[]=['account'=>'445660','label'=>'TVA déductible – '.$group['vat_rate'].'%','debit'=>$tax,'credit'=>0];$totalNet+=$net;$totalTax+=$tax;}
+        if($totalNet+$totalTax<=0)throw new RuntimeException('La facture fournisseur ne comporte aucun montant comptabilisable.');
+        $lines[]=['account'=>'401000','label'=>'Fournisseur '.$invoice['supplier_invoice_number'],'debit'=>0,'credit'=>$totalNet+$totalTax];
+        $this->post('supplier_invoice',$invoiceId,'AC',$invoice['invoice_date'],$invoice['supplier_invoice_number'],'Facture fournisseur '.$invoice['supplier_invoice_number'],$lines);
+    }
+    public function postSupplierPayment(int $paymentId): void
+    {
+        if($this->alreadyPosted('supplier_payment',$paymentId))return;
+        $payment=$this->db->fetchAssociative('SELECT p.amount,p.paid_at,p.method,p.reference,i.supplier_invoice_number FROM app_supplier_payment p INNER JOIN app_supplier_invoice i ON i.id=p.invoice_id WHERE p.id=?',[$paymentId]);
+        if(!$payment)throw new RuntimeException('Règlement fournisseur introuvable pour comptabilisation.');
+        $amount=$this->cents($payment['amount']);$isCash=$payment['method']==='cash';$account=$isCash?'530000':'512000';$label='Règlement fournisseur '.$payment['supplier_invoice_number'];
+        $this->post('supplier_payment',$paymentId,$isCash?'CA':'BQ',$payment['paid_at'],$payment['reference']?:$payment['supplier_invoice_number'],$label,[['account'=>'401000','label'=>$label,'debit'=>$amount,'credit'=>0],['account'=>$account,'label'=>$label,'debit'=>0,'credit'=>$amount]]);
+    }
+
     private function alreadyPosted(string $type,int $id):bool { return (bool)$this->db->fetchOne('SELECT 1 FROM app_accounting_source_posting WHERE source_type=? AND source_id=?',[$type,$id]); }
     private function post(string $type,int $sourceId,string $journalCode,string $date,?string $reference,string $description,array $lines):void
     {
