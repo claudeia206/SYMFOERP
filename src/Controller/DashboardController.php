@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Repository\ProductRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -9,9 +10,10 @@ use Symfony\Component\Routing\Attribute\Route;
 final class DashboardController extends AbstractController
 {
     #[Route('/', name: 'app_dashboard', methods: ['GET'])]
-    public function index(): Response
+    public function index(ProductRepository $products): Response
     {
         return $this->render('dashboard/index.html.twig', [
+            'low_stock_count' => $products->countLowStock(),
             'modules' => [
                 ['name' => 'Tiers & CRM', 'description' => 'Clients, prospects et fournisseurs', 'status' => 'Disponible', 'route' => 'app_third_parties'],
                 ['name' => 'Catalogue produits', 'description' => 'Références, tarifs et niveaux de stock', 'status' => 'Disponible', 'route' => 'app_products'],
