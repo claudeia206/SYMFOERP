@@ -95,13 +95,19 @@ jobs:
 
       - name: Apply migrations and test authenticated third-party access
         run: |
-          set -eu
+          set -eux
+          # Provision the database before starting the HTTP process. This keeps the
+          # first web request from racing schema creation on a brand-new install.
+          docker compose --env-file .env.docker up --detach db_symfony
+          docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:sync-metadata-storage
+          docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:migrate --no-interaction
+          docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:migrations:status --show-versions
+          # A SELECT is intentional: unlike SHOW TABLES, it fails the job if the
+          # application schema is missing or the command points at the wrong DB.
+          docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:query:sql "SELECT COUNT(*) AS user_count FROM app_user"
+          docker compose --env-file .env.docker run --rm --no-deps symfony php bin/console doctrine:schema:validate
+          docker compose --env-file .env.docker run --rm --no-deps -e SYMFOERP_ADMIN_EMAIL=ci-admin@example.test -e SYMFOERP_ADMIN_PASSWORD=CI-Only-Password-2026 symfony php bin/console app:user:create
           docker compose --env-file .env.docker up --detach symfony
-          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:migrate --no-interaction
-          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:status --show-versions
-          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:query:sql "SHOW TABLES LIKE 'app_user'"
-          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:schema:validate
-          docker compose --env-file .env.docker exec --no-TTY -e SYMFOERP_ADMIN_EMAIL=ci-admin@example.test -e SYMFOERP_ADMIN_PASSWORD=CI-Only-Password-2026 symfony php bin/console app:user:create
           python3 - <<'PY'
           import http.cookiejar
           import urllib.parse
