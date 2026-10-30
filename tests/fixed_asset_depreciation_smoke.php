@@ -23,6 +23,11 @@ expectDepreciation($partial[1]['period'] === '2025', 'The second period must use
 expectDepreciation($partial[0]['amount'] < $partial[1]['amount'], 'The first partial year must be prorated.');
 expectDepreciation($partial[1]['net_book_value'] >= 100.00, 'The schedule must not depreciate below residual value.');
 
+$latePartial = $calculator->straightLine(1000.00, 100.00, 3, $start, new DateTimeImmutable('2027-01-01'));
+$lateAccumulated = array_sum(array_column($latePartial, 'amount'));
+expectDepreciation($lateAccumulated < 900.00, 'A cutoff before the useful-life end must not trigger the final catch-up amount.');
+expectDepreciation($latePartial[array_key_last($latePartial)]['net_book_value'] > 100.00, 'A partial final year must remain above residual value.');
+
 $complete = $calculator->straightLine(1000.00, 100.00, 3, $start, new DateTimeImmutable('2030-12-31'));
 $sum = array_sum(array_column($complete, 'amount'));
 $last = $complete[array_key_last($complete)];
