@@ -37,6 +37,9 @@ class SalesInvoiceLine
     #[ORM\Column(name: 'vat_rate', type: 'decimal', precision: 5, scale: 2)]
     private string $vatRate;
 
+    #[ORM\Column(name: 'credited_quantity', type: 'decimal', precision: 10, scale: 3, options: ['default' => '0.000'])]
+    private string $creditedQuantity = '0.000';
+
     #[ORM\Column]
     private int $position;
 
