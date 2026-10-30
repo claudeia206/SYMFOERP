@@ -45,10 +45,10 @@ final class BankReconciliationController extends AbstractController
                     $values=[];foreach($headers as $i=>$key)$values[$key]=trim((string)($row[$i]??''));
                     try {
                         $rawDate=$values['date']??'';
-                        $date=DateTimeImmutable::createFromFormat('!Y-m-d',$rawDate) ?: DateTimeImmutable::createFromFormat('!d/m/Y',$rawDate);
-                        $rawAmount=str_replace([' ','€',"\u{00A0}"],'',$values['amount']??'');
+                        $date=$this->parseStatementDate($rawDate);
+                        $rawAmount=str_replace([' ','€',chr(194).chr(160)],'',$values['amount']??'');
                         if(str_contains($rawAmount,',')&&!str_contains($rawAmount,'.'))$rawAmount=str_replace(',','.',$rawAmount);
-                        if(!$date||!is_numeric($rawAmount)) throw new \InvalidArgumentException('Ligne CSV invalide.');
+                        if(!preg_match('/^-?\d{1,10}(?:\.\d{1,2})?$/D',$rawAmount)) throw new \InvalidArgumentException('Ligne CSV invalide.');
                         $label=trim($values['label']??'');$amount=number_format((float)$rawAmount,2,'.','');
                         if($label===''||abs((float)$amount)<0.005) throw new \InvalidArgumentException('Ligne CSV invalide.');
                         $reference=trim($values['reference']??'');
