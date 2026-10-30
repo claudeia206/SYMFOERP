@@ -4,7 +4,7 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-for command in docker openssl; do
+for command in docker openssl curl; do
     if ! command -v "$command" >/dev/null 2>&1; then
         echo "Prérequis manquant : $command" >&2
         exit 1
