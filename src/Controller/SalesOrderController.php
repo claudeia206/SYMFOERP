@@ -84,7 +84,7 @@ final class SalesOrderController extends AbstractController
                 $em->lock($product,LockMode::PESSIMISTIC_WRITE);
                 $out=number_format(-(float)$quantity,3,'.','');
                 $product->adjustStock($out);
-                $em->persist(new ProductStockMovement($product,$out,'sale',sprintf('Bon de livraison %s · commande %s · ligne %d',$delivery->getNumber()??'en préparation',$order->getNumber()??('#'.$order->getId()),$line->getId())));
+                $em->persist(new ProductStockMovement($product,$out,'sale',sprintf('Livraison commande %s · ligne %d',$order->getNumber()??('#'.$order->getId()),$line->getId())));
             }
             $line->recordDelivery($quantity); $delivery->addLine($deliveryLine); ++$count;
         }
@@ -97,9 +97,10 @@ final class SalesOrderController extends AbstractController
     }
 
     #[Route('/{id}/deliveries/{deliveryId}/pdf', name: 'app_sales_delivery_pdf', requirements: ['id' => '\\d+', 'deliveryId' => '\\d+'], methods: ['GET'])]
-    public function deliveryPdf(SalesOrder $order, SalesDelivery $delivery): Response
+    public function deliveryPdf(SalesOrder $order, int $deliveryId, EntityManagerInterface $em): Response
     {
-        if ($delivery->getOrder()->getId() !== $order->getId()) {
+        $delivery = $em->find(SalesDelivery::class, $deliveryId);
+        if (!$delivery instanceof SalesDelivery || $delivery->getOrder()->getId() !== $order->getId()) {
             throw $this->createNotFoundException('Ce bon de livraison ne correspond pas à cette commande.');
         }
         $options = new Options();
