@@ -22,7 +22,7 @@ final class AccountingAutoPostingService
 
  public function postSalesInvoice(SalesInvoice $invoice): void
  {
-  if ($invoice->getId() === null || $invoice->getNumber() === null || $invoice->getStatus() === SalesInvoice::STATUS_DRAFT) throw new InvalidArgumentException('La facture client doit être émise avant comptabilisation.');
+  if ($invoice->getId() === null || $invoice->getNumber() === null || !in_array($invoice->getStatus(), [SalesInvoice::STATUS_ISSUED, SalesInvoice::STATUS_PARTIALLY_PAID, SalesInvoice::STATUS_PAID], true)) throw new InvalidArgumentException('La facture client doit être émise et non annulée avant comptabilisation.');
   $net=[];$tax=0;
   foreach($invoice->getLines() as $line){
    $cents=self::cents($line->getTotalExcludingTax());
@@ -39,7 +39,7 @@ final class AccountingAutoPostingService
 
  public function postSupplierInvoice(SupplierInvoice $invoice): void
  {
-  if ($invoice->getId() === null || $invoice->getStatus() === SupplierInvoice::STATUS_DRAFT) throw new InvalidArgumentException('La facture fournisseur doit être validée avant comptabilisation.');
+  if ($invoice->getId() === null || !in_array($invoice->getStatus(), [SupplierInvoice::STATUS_RECEIVED, SupplierInvoice::STATUS_PARTIALLY_PAID, SupplierInvoice::STATUS_PAID], true)) throw new InvalidArgumentException('La facture fournisseur doit être reçue et non annulée avant comptabilisation.');
   $net=0;$tax=0;
   foreach($invoice->getLines() as $line){$net+=self::cents($line->getTotalExcludingTax());$tax+=self::cents($line->getTotalTax());}
   $this->post('supplier_invoice',$invoice->getId(),'AC',$invoice->getInvoiceDate(),'Facture fournisseur '.$invoice->getSupplierInvoiceNumber(),function(AccountingEntry $entry)use($net,$tax,$invoice):void{
