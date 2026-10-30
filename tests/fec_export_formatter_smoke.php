@@ -36,7 +36,7 @@ foreach (['', ' ', '-1.00', '+1.00', '1,00', '1.001', '1e3', '10000000000000.00'
 }
 
 $fields = array_fill(0, 18, '');
-$fields[10] = "Libellé | avec\r\nretour";
+$fields[10] = "Libellé | avec\r\nretour\\tfin";
 $fields[11] = '120.00';
 $line = $formatter->formatRow($fields);
 expectFec(substr_count($line, '|') === 17, 'FEC row does not contain exactly 18 columns.');
