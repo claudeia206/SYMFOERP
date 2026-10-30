@@ -1,0 +1,19 @@
+{% extends 'base.html.twig' %}
+{% block title %}Comptabilité générale · SYMFOERP{% endblock %}
+{% block body %}
+<div class="container py-4">
+ <div class="d-flex justify-content-between align-items-center mb-4"><div><h1>Comptabilité générale</h1><p class="text-muted mb-0">Plan comptable, journaux, exercices et écritures.</p></div><span class="badge bg-primary">Module initial</span></div>
+ <div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card card-body"><small class="text-muted">Comptes actifs</small><strong class="fs-3">{{ accounts|length }}</strong></div></div>
+  <div class="col-md-3"><div class="card card-body"><small class="text-muted">Journaux actifs</small><strong class="fs-3">{{ journals|length }}</strong></div></div>
+  <div class="col-md-3"><div class="card card-body"><small class="text-muted">Exercices</small><strong class="fs-3">{{ years|length }}</strong></div></div>
+  <div class="col-md-3"><div class="card card-body"><small class="text-muted">Écritures affichées</small><strong class="fs-3">{{ entries|length }}</strong></div></div>
+ </div>
+ <div class="card mb-4"><div class="card-header">Écritures récentes</div><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Date</th><th>Journal</th><th>N° écriture</th><th>Libellé</th><th>Statut</th><th class="text-end">Débit</th><th class="text-end">Crédit</th></tr></thead><tbody>
+ {% for entry in entries %}{% set t=entry.totals %}<tr><td>{{ entry.entryDate|date('d/m/Y') }}</td><td>{{ entry.journal.code }}</td><td>{{ entry.number }}</td><td>{{ entry.label }}</td><td><span class="badge {{ entry.status == 'posted' ? 'bg-success' : 'bg-secondary' }}">{{ entry.status }}</span></td><td class="text-end">{{ (t.debit / 100)|number_format(2,',',' ') }} €</td><td class="text-end">{{ (t.credit / 100)|number_format(2,',',' ') }} €</td></tr>{% else %}<tr><td colspan="7" class="text-center text-muted py-4">Aucune écriture. Le socle comptable est installé, le paramétrage du plan et la saisie arrivent ensuite.</td></tr>{% endfor %}
+ </tbody></table></div></div>
+ <div class="row g-3"><div class="col-lg-6"><div class="card"><div class="card-header">Plan comptable</div><div class="card-body">{% for account in accounts %}<div class="d-flex justify-content-between border-bottom py-2"><strong>{{ account.number }}</strong><span>{{ account.label }}</span></div>{% else %}<p class="text-muted mb-0">Aucun compte configuré.</p>{% endfor %}</div></div></div>
+ <div class="col-lg-3"><div class="card"><div class="card-header">Journaux</div><div class="card-body">{% for journal in journals %}<p class="mb-2"><strong>{{ journal.code }}</strong> — {{ journal.label }}</p>{% else %}<p class="text-muted">Aucun journal.</p>{% endfor %}</div></div></div>
+ <div class="col-lg-3"><div class="card"><div class="card-header">Exercices</div><div class="card-body">{% for year in years %}<p class="mb-2"><strong>{{ year.code }}</strong><br><small>{{ year.startsOn|date('d/m/Y') }} – {{ year.endsOn|date('d/m/Y') }}</small> {% if year.closed %}<span class="badge bg-secondary">Clôturé</span>{% else %}<span class="badge bg-success">Ouvert</span>{% endif %}</p>{% else %}<p class="text-muted">Aucun exercice.</p>{% endfor %}</div></div></div></div>
+</div>
+{% endblock %}
