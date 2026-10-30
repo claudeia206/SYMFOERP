@@ -52,7 +52,7 @@ final class AccountingAutoPostingService
  public function postSalesPayment(SalesPayment $payment): void
  {
   if($payment->getId()===null)throw new InvalidArgumentException('Le règlement client doit être enregistré avant comptabilisation.');
-  $invoice=$payment->getInvoice();[$journal,$account,$methodLabel]=$this->paymentDestination($payment->getMethod());
+  $invoice=$payment->getInvoice();[$journal,$account,$methodLabel]=$this->paymentDestination($payment->getMethod(),true);
   $this->post('sales_payment',$payment->getId(),$journal,$payment->getPaidAt(),'Règlement client '.$invoice->getNumber(),function(AccountingEntry $entry)use($payment,$invoice,$account,$methodLabel):void{
    $amount=self::cents($payment->getAmount());
    $this->line($entry,$account,'Encaissement '.$methodLabel.' client '.$invoice->getNumber(),$amount,0);
@@ -63,7 +63,7 @@ final class AccountingAutoPostingService
  public function postSupplierPayment(SupplierPayment $payment): void
  {
   if($payment->getId()===null)throw new InvalidArgumentException('Le règlement fournisseur doit être enregistré avant comptabilisation.');
-  $invoice=$payment->getInvoice();[$journal,$account,$methodLabel]=$this->paymentDestination($payment->getMethod());
+  $invoice=$payment->getInvoice();[$journal,$account,$methodLabel]=$this->paymentDestination($payment->getMethod(),false);
   $this->post('supplier_payment',$payment->getId(),$journal,$payment->getPaidAt(),'Règlement fournisseur '.$invoice->getSupplierInvoiceNumber(),function(AccountingEntry $entry)use($payment,$invoice,$account,$methodLabel):void{
    $amount=self::cents($payment->getAmount());
    $this->line($entry,'401','Fournisseur '.$invoice->getSupplierInvoiceNumber(),$amount,0);
@@ -91,12 +91,12 @@ final class AccountingAutoPostingService
   $this->em->persist($entry);$this->em->flush();
  }
 
- private function paymentDestination(string $method):array
+ private function paymentDestination(string $method,bool $incoming):array
  {
   return match($method){
    'cash'=>['CA','530','espèces'],
-   'check'=>['BQ','5112','chèque'],
-   'card'=>['BQ','5115','carte'],
+   'check'=>$incoming?['BQ','5112','chèque']:['BQ','512','chèque'],
+   'card'=>$incoming?['BQ','5115','carte']:['BQ','512','carte'],
    'bank_transfer'=>['BQ','512','virement'],
    'other'=>['OD','471','à affecter'],
    default=>throw new InvalidArgumentException('Moyen de règlement non pris en charge en comptabilité.')
