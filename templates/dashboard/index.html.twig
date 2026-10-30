@@ -5,7 +5,19 @@
 {% block body %}
     <p class="muted">ESPACE DE TRAVAIL</p>
     <h1>Tableau de bord</h1>
-    <p class="muted">Les modules disponibles sont accessibles depuis cet espace. Les autres seront développés progressivement.</p>
+    <p class="muted">Accédez aux modules opérationnels et surveillez les points nécessitant une action.</p>
+
+    <section class="card" aria-labelledby="stock-alert-title">
+        <h2 id="stock-alert-title">Alertes de stock</h2>
+        {% if low_stock_count > 0 %}
+            <p><strong>{{ low_stock_count }}</strong> produit(s) actif(s) ont atteint leur seuil d’alerte ou sont en rupture.</p>
+            <a class="button" href="{{ path('app_products', {stock: 'low', active: '1'}) }}">Voir les produits à réapprovisionner</a>
+        {% else %}
+            <p class="muted">Aucun produit actif suivi en stock n’a atteint son seuil d’alerte.</p>
+            <a class="button" href="{{ path('app_products') }}">Consulter le catalogue</a>
+        {% endif %}
+    </section>
+
     <section class="grid" aria-label="Modules ERP">
         {% for module in modules %}
             <article class="card">
