@@ -69,9 +69,6 @@ class SupplierInvoice
 
     public function __construct(PurchaseOrder $order, string $supplierInvoiceNumber)
     {
-        if (!in_array($order->getStatus(), [PurchaseOrder::STATUS_PARTIALLY_RECEIVED, PurchaseOrder::STATUS_RECEIVED], true)) {
-            throw new InvalidArgumentException('Une facture fournisseur ne peut être créée qu’après une réception.');
-        }
         $reference = trim($supplierInvoiceNumber);
         if ($reference === '' || mb_strlen($reference) > 120) {
             throw new InvalidArgumentException('La référence de facture fournisseur est obligatoire (120 caractères maximum).');
