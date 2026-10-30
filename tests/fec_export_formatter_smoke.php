@@ -40,7 +40,7 @@ $fields[10] = "Libellé | avec\r\nretour";
 $fields[11] = '120.00';
 $line = $formatter->formatRow($fields);
 expectFec(substr_count($line, '|') === 17, 'FEC row does not contain exactly 18 columns.');
-expectFec(str_contains($line, 'Libellé / avec  retour'), 'FEC text field was not sanitized.');
+expectFec(str_contains($line, 'Libellé / avec  retour fin'), 'FEC text field was not sanitized.');
 
 $rejected = false;
 try {
