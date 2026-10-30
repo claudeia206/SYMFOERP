@@ -6,7 +6,7 @@ use Doctrine\DBAL\Connection;
 use RuntimeException;
 final class AccountingPostingService
 {
-    public function __construct(private readonly Connection $db) {}
+    public function __construct(private readonly Connection $db, private readonly AccountingPeriodGuard $periodGuard) {}
     public function postSalesInvoice(int $invoiceId): void
     {
         if ($this->alreadyPosted('sales_invoice',$invoiceId)) return;
@@ -67,6 +67,7 @@ final class AccountingPostingService
             if($sourceId<=0)throw new RuntimeException('Identifiant de pièce comptable invalide.');
             if($db->fetchOne('SELECT 1 FROM app_accounting_source_posting WHERE source_type=? AND source_id=?',[$type,$sourceId]))return;
             $date=$this->validatedDate($date);
+            $this->periodGuard->assertOpenDate($db, $date);
             if(!preg_match('/^[A-Z]{2}$/D',$journalCode))throw new RuntimeException('Code journal invalide.');
             $journal=$db->fetchAssociative('SELECT id,code FROM app_accounting_journal WHERE code=? FOR UPDATE',[$journalCode]);
             if(!$journal)throw new RuntimeException('Journal '.$journalCode.' non configuré.');
