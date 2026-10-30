@@ -390,7 +390,7 @@ jobs:
           ledger_after_purchases = client.open(base + "/accounting").read().decode()
           assert "Facture fournisseur CI-FOUR-001" in ledger_after_purchases, "Supplier invoice accounting entry is missing"
           assert "Règlement fournisseur CI-FOUR-001" in ledger_after_purchases, "Supplier payment accounting entry is missing"
-          fec_response = client.open(base + "/accounting/fec/export?year=" + date.today().year)
+          fec_response = client.open(base + "/accounting/fec/export?year=" + str(date.today().year))
           fec_content = fec_response.read()
           assert fec_response.headers.get_content_type() == "text/plain", "FEC export returned the wrong content type"
           assert fec_content.startswith("JournalCode|JournalLib|EcritureNum|EcritureDate|".encode()), "FEC export is missing its standard column header"
