@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\\Service\\DepreciationCalculator;
+use App\Service\\DepreciationCalculator;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
@@ -37,4 +37,4 @@ expectDepreciation($last['period'] === '2027', 'The schedule must stop in the fi
 expectDepreciation(abs($last['net_book_value'] - 100.00) < 0.001, 'The final net book value must equal the residual value.');
 expectDepreciation(count($complete) === 4, 'The schedule must contain the first and final prorated calendar years.');
 
-echo "Fixed asset straight-line depreciation schedule smoke tests passed.\\n";
+echo "Fixed asset straight-line depreciation schedule smoke tests passed.\n";
