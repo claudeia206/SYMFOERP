@@ -18,39 +18,49 @@ Pendant cette première phase, Dolibarr démarre avec son runtime officiel dans 
 - Docker Compose v2
 - Git
 
-## Installation neuve
+## Première installation locale Symfony (sans Dolibarr)
+
+Prérequis : Docker Engine, Docker Compose v2, Git, Python 3 et OpenSSL.
 
 ```bash
 git clone https://github.com/claudeia206/SYMFOERP.git
 cd SYMFOERP
-git submodule update --init --recursive
-cp .env.docker.example .env.docker
+bash bin/install-symfony-local.sh
 ```
 
-Éditez `.env.docker` et remplacez impérativement tous les secrets d'exemple, notamment le mot de passe administrateur Dolibarr et les mots de passe MariaDB. Vous pouvez générer des valeurs aléatoires avec `openssl rand -hex 32`. Pour éviter d'exposer une instance de développement sur le réseau local, les ports HTTP sont liés à `127.0.0.1` : ils sont accessibles uniquement depuis la machine hôte. Puis lancez :
+Le script construit l'image Symfony, génère les secrets Symfony manquants dans `.env.docker`, démarre uniquement MariaDB Symfony, applique et vérifie les migrations, crée le premier administrateur puis démarre l'application. Il demande l'adresse e-mail et le mot de passe administrateur de façon interactive. **Dolibarr n'est ni démarré ni nécessaire.**
+
+Ouvrez ensuite http://127.0.0.1:8000/login. L'application et sa base sont accessibles uniquement en local. Pour consulter les journaux :
 
 ```bash
-docker compose --env-file .env.docker config
-docker compose --env-file .env.docker pull
-docker compose --env-file .env.docker up -d --build
-docker compose --env-file .env.docker ps
-docker compose --env-file .env.docker logs -f dolibarr
+docker compose --env-file .env.docker logs -f symfony
 ```
 
-Accès :
+Pour arrêter les services sans supprimer les données :
 
-- Dolibarr 24.0.2 : http://localhost:8080
-- Symfony : http://localhost:8000
+```bash
+docker compose --env-file .env.docker down
+```
+
+Pour une réinitialisation complète de la base Symfony (destruction irréversible des données locales) :
+
+```bash
+docker compose --env-file .env.docker down --volumes
+```
+
+## Dolibarr (environnement séparé et facultatif)
+
+Dolibarr reste disponible pour des essais de comparaison, mais il n'est pas une dépendance de SYMFOERP et son démarrage n'est pas requis. Pour démarrer son instance neuve séparée, configurez d'abord les variables `DOLI_*` dans `.env.docker`, puis lancez :
+
+```bash
+docker compose --env-file .env.docker up --detach db_dolibarr dolibarr
+```
+
+Accès Dolibarr : http://127.0.0.1:8080. Les deux applications utilisent des bases et des réseaux Docker distincts ; aucune donnée Dolibarr n'est importée dans Symfony.
 
 Cette configuration est destinée au développement local, pas à une exposition directe sur Internet. Pour un déploiement public, prévoir un reverse proxy HTTPS, des secrets gérés hors du dépôt, des sauvegardes testées et une configuration Symfony en production.
 
-**Sécurité Symfony :** les routes applicatives exigent désormais une session authentifiée (`ROLE_USER`). La connexion utilise le hachage de mots de passe Symfony, un jeton CSRF, une limitation à cinq tentatives par période de quinze minutes et une entité utilisateur distincte des comptes Dolibarr. La création du premier administrateur se fait exclusivement en ligne de commande ; aucune inscription publique n'est exposée. Le port 8000 reste réservé au développement local : une mise en production nécessite encore un reverse proxy HTTPS, une gestion des secrets hors du dépôt, des sauvegardes testées et une revue de sécurité.
-
-L'image officielle Dolibarr est configurée pour initialiser automatiquement une nouvelle instance au premier démarrage. Les paramètres `DOLI_ADMIN_LOGIN` et `DOLI_ADMIN_PASSWORD` définissent le compte administrateur initial. Le chargement des données de démonstration est désactivé.
-
-## Intégration continue
-
-Le workflow [Validate application](.github/workflows/validate.yml) s'exécute sur chaque push de branche, sur les Pull Requests vers `main` et manuellement. Il vérifie la configuration Compose, construit l'image Symfony, contrôle la syntaxe PHP et les invariants métier, applique les migrations, crée un administrateur temporaire, vérifie la connexion avec session et CSRF ainsi que la protection des routes, puis démarre MariaDB et Dolibarr pour contrôler la réponse HTTP d'une instance neuve.
+**Sécurité Symfony :** les routes applicatives exigent une session authentifiée (`ROLE_USER`). La connexion utilise le hachage de mots de passe Symfony, un jeton CSRF, une limitation à cinq tentatives par période de quinze minutes et une entité utilisateur distincte des comptes Dolibarr. La création du premier administrateur se fait exclusivement en ligne de commande ; aucune inscription publique n'est exposée.
 
 ## Premier modèle métier Symfony
 
