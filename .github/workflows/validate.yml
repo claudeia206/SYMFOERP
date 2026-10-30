@@ -45,6 +45,18 @@ jobs:
       - name: Test sales invoice payment rules
         run: docker run --rm symfoerp-symfony:ci php tests/sales_invoice_entity_smoke.php
 
+      - name: Test partial customer deliveries and stock movements
+        run: docker run --rm symfoerp-symfony:ci php tests/sales_delivery_entity_smoke.php
+
+      - name: Test customer returns and stock reintegration
+        run: docker run --rm symfoerp-symfony:ci php tests/sales_return_entity_smoke.php
+
+      - name: Test customer credit notes and receivables
+        run: docker run --rm symfoerp-symfony:ci php tests/sales_credit_note_entity_smoke.php
+
+      - name: Test bank transaction reconciliation
+        run: docker run --rm symfoerp-symfony:ci php tests/bank_transaction_entity_smoke.php
+
       - name: Test product catalogue and stock invariants
         run: docker run --rm symfoerp-symfony:ci php tests/product_entity_smoke.php
 
@@ -126,6 +138,20 @@ jobs:
           sales_page = client.open(base + "/sales/quotes")
           sales_html = sales_page.read().decode()
           assert "Devis" in sales_html, "Authenticated user could not open the sales quotes module"
+          report_html = client.open(base + "/reports/finance").read().decode()
+          assert "Reporting financier" in report_html, "Authenticated user could not open financial reporting"
+          bank_html = client.open(base + "/finance/bank").read().decode()
+          assert "Rapprochement bancaire" in bank_html, "Authenticated user could not open bank reconciliation"
+          cash_flow_html = client.open(base + "/reports/cash-flow").read().decode()
+          assert "Prévision de trésorerie" in cash_flow_html, "Authenticated user could not open cash flow forecast"
+          ledger_html = client.open(base + "/accounting").read().decode()
+          assert "Comptabilité générale" in ledger_html, "Authenticated user could not open general ledger"
+          vat_html = client.open(base + "/accounting/vat").read().decode()
+          assert "Préparation de la déclaration de TVA" in vat_html, "Authenticated user could not open VAT declaration report"
+          aging_html = client.open(base + "/accounting/aging").read().decode()
+          assert "Balance âgée clients et fournisseurs" in aging_html, "Authenticated user could not open receivables and payables aging report"
+          vat_csv = client.open(base + "/accounting/vat/export.csv").read()
+          assert b"TVA collect" in vat_csv, "VAT CSV export did not return its expected headers"
           settings_page = client.open(base + "/settings/company").read().decode()
           settings_parser = TokenParser()
           settings_parser.feed(settings_page)
@@ -160,6 +186,11 @@ jobs:
           from datetime import date, timedelta
           customer_match = re.search(r'<option value="(\d+)"[^>]*>Client CI</option>', quote_form)
           assert customer_match, "New customer was not available in the quote form"
+          statement_html = client.open(base + "/third-parties/" + customer_match.group(1) + "/account-statement").read().decode()
+          assert "Relevé de compte client" in statement_html, "Customer account statement did not render"
+          statement_pdf = client.open(base + "/third-parties/" + customer_match.group(1) + "/account-statement/pdf")
+          assert statement_pdf.headers.get_content_type() == "application/pdf", "Customer account statement PDF returned the wrong content type"
+          assert statement_pdf.read().startswith(b"%PDF-"), "Customer account statement PDF is invalid"
           quote_payload = {
               "customer_id": customer_match.group(1),
               "valid_until": (date.today() + timedelta(days=30)).isoformat(),
@@ -231,6 +262,103 @@ jobs:
           invoice_pdf_content = invoice_pdf.read()
           assert invoice_pdf.headers.get_content_type() == "application/pdf", "Invoice PDF route returned the wrong content type"
           assert invoice_pdf_content.startswith(b"%PDF-"), "Invoice PDF route did not return a valid PDF"
+          payment_token = re.search(r'<form method="post" action="/sales/invoices/' + invoice_id_match.group(1) + r'/payments">.*?name="_token" value="([^"]+)"', issued_html, re.S)
+          assert payment_token, "Customer payment form token is missing after invoice issue"
+          payment_response = client.open(urllib.request.Request(base + "/sales/invoices/" + invoice_id_match.group(1) + "/payments", data=urllib.parse.urlencode({
+              "_token": payment_token.group(1), "amount": "20.00", "paid_at": date.today().isoformat(),
+              "method": "bank_transfer", "reference": "CI-VIR-001",
+          }).encode()))
+          payment_html = payment_response.read().decode()
+          assert "enregistré et comptabilisé" in payment_html, "Customer payment was not automatically posted"
+          credit_form = re.search(r'<form method="post" action="/sales/invoices/' + invoice_id_match.group(1) + r'/credit-notes">.*?</form>', payment_html, re.S)
+          assert credit_form, "Customer credit note form is missing"
+          credit_token = re.search(r'name="_token" value="([^"]+)"', credit_form.group(0))
+          credit_line = re.search(r'name="quantities\[(\d+)\]"', credit_form.group(0))
+          assert credit_token and credit_line, "Customer credit note fields are missing"
+          credit_response = client.open(urllib.request.Request(base + "/sales/invoices/" + invoice_id_match.group(1) + "/credit-notes", data=urllib.parse.urlencode({
+              "_token": credit_token.group(1), "reason": "CI automatic accounting posting", "quantities[" + credit_line.group(1) + "]": "0.500",
+          }).encode()))
+          credit_html = credit_response.read().decode()
+          assert "a été émis et comptabilisé" in credit_html, "Customer credit note was not automatically posted"
+          ledger_after_sales = client.open(base + "/accounting").read().decode()
+          assert "Facture client FAC-" in ledger_after_sales, "Issued sales invoice accounting entry is missing"
+          assert "Règlement facture FAC-" in ledger_after_sales, "Customer payment accounting entry is missing"
+          assert "Avoir client AV-" in ledger_after_sales, "Customer credit note accounting entry is missing"
+          supplier_form = client.open(base + "/third-parties/new").read().decode()
+          supplier_parser = TokenParser()
+          supplier_parser.feed(supplier_form)
+          client.open(urllib.request.Request(base + "/third-parties/new", data=urllib.parse.urlencode({
+              "name": "Fournisseur CI", "category": "supplier", "email": "fournisseur-ci@example.test",
+              "phone": "", "address": "3 rue Fournisseur", "postal_code": "17000",
+              "city": "La Rochelle", "country": "France", "_token": supplier_parser.token,
+          }).encode()))
+          product_form = client.open(base + "/products/new").read().decode()
+          product_parser = TokenParser()
+          product_parser.feed(product_form)
+          client.open(urllib.request.Request(base + "/products/new", data=urllib.parse.urlencode({
+              "sku": "CI-ACH-001", "name": "Produit achat CI", "unit": "pièce",
+              "purchase_price": "50.00", "sale_price": "80.00", "vat_rate": "20.00",
+              "stock_alert_threshold": "0", "stock_tracked": "1", "active": "1",
+              "_token": product_parser.token,
+          }).encode()))
+          purchase_form = client.open(base + "/purchases/new").read().decode()
+          purchase_parser = TokenParser()
+          purchase_parser.feed(purchase_form)
+          supplier_match = re.search(r'<option value="(\d+)"[^>]*>Fournisseur CI</option>', purchase_form)
+          product_match = re.search(r'<option value="(\d+)"[^>]*>CI-ACH-001', purchase_form)
+          assert supplier_match and product_match, "Supplier or product missing from purchase order form"
+          purchase_response = client.open(urllib.request.Request(base + "/purchases/new", data=urllib.parse.urlencode({
+              "supplier_id": supplier_match.group(1), "notes": "CI purchase",
+              "_token": purchase_parser.token, "lines[0][product_id]": product_match.group(1),
+              "lines[0][quantity]": "2",
+          }).encode()))
+          purchase_html = purchase_response.read().decode()
+          purchase_id = re.search(r"/purchases/(\d+)", purchase_response.geturl())
+          assert purchase_id, "Purchase order was not created"
+          purchase_parser = TokenParser()
+          purchase_parser.feed(purchase_html)
+          receive_token = re.search(r'<form method="post" action="/purchases/' + purchase_id.group(1) + r'/receive">.*?name="_token" value="([^"]+)"', purchase_html, re.S)
+          assert receive_token, "Purchase receipt CSRF token missing"
+          received_line = re.search(r'name="received\[(\d+)\]"', purchase_html)
+          assert received_line, "Purchase order receipt quantity input missing"
+          received_html = client.open(urllib.request.Request(base + "/purchases/" + purchase_id.group(1) + "/receive", data=urllib.parse.urlencode({
+              "_token": receive_token.group(1), "received[" + received_line.group(1) + "]": "2",
+          }).encode())).read().decode()
+          assert "réceptionnées" in received_html, "Purchase order receipt failed"
+          supplier_invoice_index = client.open(base + "/purchases/invoices").read().decode()
+          create_supplier_form = re.search(r'<form method="post" action="/purchases/invoices/from-order/' + purchase_id.group(1) + r'">.*?</form>', supplier_invoice_index, re.S)
+          assert create_supplier_form, "Supplier invoice creation form missing after receipt"
+          supplier_invoice_token = re.search(r'name="_token" value="([^"]+)"', create_supplier_form.group(0))
+          assert supplier_invoice_token, "Supplier invoice creation CSRF token missing"
+          supplier_invoice_html = client.open(urllib.request.Request(base + "/purchases/invoices/from-order/" + purchase_id.group(1), data=urllib.parse.urlencode({
+              "_token": supplier_invoice_token.group(1), "supplier_invoice_number": "CI-FOUR-001",
+          }).encode())).read().decode()
+          supplier_invoice_id = re.search(r'href="/purchases/invoices/(\d+)"', supplier_invoice_html)
+          assert supplier_invoice_id, "Supplier invoice draft was not created"
+          supplier_detail = client.open(base + "/purchases/invoices/" + supplier_invoice_id.group(1)).read().decode()
+          supplier_receive_form = re.search(r'<form method="post" action="/purchases/invoices/' + supplier_invoice_id.group(1) + r'/receive">.*?</form>', supplier_detail, re.S)
+          assert supplier_receive_form, "Supplier invoice validation form missing"
+          supplier_receive_token = re.search(r'name="_token" value="([^"]+)"', supplier_receive_form.group(0))
+          assert supplier_receive_token, "Supplier invoice validation CSRF token missing"
+          supplier_received = client.open(urllib.request.Request(base + "/purchases/invoices/" + supplier_invoice_id.group(1) + "/receive", data=urllib.parse.urlencode({
+              "_token": supplier_receive_token.group(1), "invoice_date": date.today().isoformat(),
+              "due_date": (date.today() + timedelta(days=30)).isoformat(),
+          }).encode())).read().decode()
+          assert "validée et comptabilisée" in supplier_received, "Supplier invoice was not automatically posted"
+          supplier_payment_form = re.search(r'<form method="post" action="/purchases/invoices/' + supplier_invoice_id.group(1) + r'/payments">.*?</form>', supplier_received, re.S)
+          assert supplier_payment_form, "Supplier payment form missing after validation"
+          supplier_payment_token = re.search(r'name="_token" value="([^"]+)"', supplier_payment_form.group(0))
+          assert supplier_payment_token, "Supplier payment CSRF token missing"
+          supplier_paid = client.open(urllib.request.Request(base + "/purchases/invoices/" + supplier_invoice_id.group(1) + "/payments", data=urllib.parse.urlencode({
+              "_token": supplier_payment_token.group(1), "amount": "10.00", "paid_at": date.today().isoformat(),
+              "method": "bank_transfer", "reference": "CI-ACH-VIR-001",
+          }).encode())).read().decode()
+          assert "enregistré et comptabilisé" in supplier_paid, "Supplier payment was not automatically posted"
+          ledger_after_purchases = client.open(base + "/accounting").read().decode()
+          assert "Facture fournisseur CI-FOUR-001" in ledger_after_purchases, "Supplier invoice accounting entry is missing"
+          assert "Règlement fournisseur CI-FOUR-001" in ledger_after_purchases, "Supplier payment accounting entry is missing"
+          print("Automatic general ledger postings for supplier invoices and payments passed.")
+          print("Automatic general ledger postings for sales invoices, payments and credit notes passed.")
           print("Symfony authentication, third-party registry, quote creation, VAT totals, acceptance, idempotent order conversion, order completion and PDF export passed.")
           PY
 

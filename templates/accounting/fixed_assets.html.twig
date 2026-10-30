@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+{% block title %}Immobilisations{% endblock %}
+{% block body %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4"><h1>Immobilisations & amortissements</h1><span class="text-muted">Simulation au {{ as_of }}</span></div>
+  {% for message in app.flashes('error') %}<div class="alert alert-danger">{{ message }}</div>{% endfor %}
+  <div class="card mb-4"><div class="card-header">Nouvelle immobilisation</div><div class="card-body">
+    <form method="post" action="{{ path('app_fixed_assets_create') }}" class="row g-3">
+      <input type="hidden" name="_token" value="{{ csrf_token('fixed_asset_create') }}">
+      <div class="col-md-2"><label class="form-label">Code</label><input class="form-control" name="code" required maxlength="64"></div>
+      <div class="col-md-4"><label class="form-label">Désignation</label><input class="form-control" name="name" required maxlength="255"></div>
+      <div class="col-md-2"><label class="form-label">Coût (€)</label><input class="form-control" name="acquisition_cost" type="number" min="0.01" step="0.01" required></div>
+      <div class="col-md-2"><label class="form-label">Valeur résiduelle (€)</label><input class="form-control" name="residual_value" type="number" min="0" step="0.01" value="0" required></div>
+      <div class="col-md-2"><label class="form-label">Durée (années)</label><input class="form-control" name="useful_life_years" type="number" min="1" max="100" required></div>
+      <div class="col-md-3"><label class="form-label">Mise en service</label><input class="form-control" name="in_service_date" type="date" required></div>
+      <div class="col-12"><button class="btn btn-primary">Enregistrer</button></div>
+    </form>
+  </div></div>
+  <div class="card"><div class="card-header">Registre et plan prévisionnel</div><div class="table-responsive"><table class="table table-striped mb-0">
+    <thead><tr><th>Code</th><th>Immobilisation</th><th>Coût</th><th>Durée</th><th>Année</th><th>Dotation</th><th>Amorti cumulé</th><th>VNC</th><th>Statut</th><th></th></tr></thead><tbody>
+    {% for asset in assets %}
+      {% set plan = plans[asset.id] %}
+      {% if plan is empty %}<tr><td>{{ asset.code }}</td><td>{{ asset.name }}</td><td>{{ asset.acquisition_cost|number_format(2, ',', ' ') }} €</td><td>{{ asset.useful_life_years }} ans</td><td colspan="4">Aucune dotation à la date choisie</td><td>{{ asset.status }}</td><td></td></tr>
+      {% else %}{% for line in plan %}<tr><td>{{ asset.code }}</td><td>{{ asset.name }}</td><td>{{ asset.acquisition_cost|number_format(2, ',', ' ') }} €</td><td>{{ asset.useful_life_years }} ans</td><td>{{ line.period }}</td><td>{{ line.amount|number_format(2, ',', ' ') }} €</td><td>{{ line.accumulated|number_format(2, ',', ' ') }} €</td><td>{{ line.net_book_value|number_format(2, ',', ' ') }} €</td><td>{{ asset.status }}</td><td>{% if asset.status == 'active' and loop.last %}<form method="post" action="{{ path('app_fixed_assets_archive', {id:asset.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('fixed_asset_archive_' ~ asset.id) }}"><button class="btn btn-sm btn-outline-secondary">Archiver</button></form>{% endif %}</td></tr>{% endfor %}{% endif %}
+    {% else %}<tr><td colspan="10" class="text-center text-muted">Aucune immobilisation enregistrée.</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  <p class="text-muted small mt-3">Calcul linéaire indicatif au prorata temporis. Les dotations sont prévisionnelles : aucune écriture comptable n’est générée ni validée automatiquement.</p>
+</div>
+{% endblock %}

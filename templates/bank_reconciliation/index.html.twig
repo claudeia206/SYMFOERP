@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+{% block title %}Rapprochement bancaire · SYMFOERP{% endblock %}
+{% block body %}
+<p class="muted">FINANCE / TRÉSORERIE</p><h1>Rapprochement bancaire</h1>
+<p>Importez un relevé CSV puis associez chaque opération aux règlements clients ou fournisseurs. Le rapprochement ne crée ni ne modifie les paiements comptabilisés.</p>
+{% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
+{% for message in app.flashes('error') %}<p class="card" role="alert">{{ message }}</p>{% endfor %}
+<section class="card">
+<h2>Importer un relevé CSV</h2>
+<p>Colonnes obligatoires : <code>date,label,amount</code>. Colonne facultative : <code>reference</code>. Dates au format AAAA-MM-JJ ou JJ/MM/AAAA. Montants positifs pour les encaissements, négatifs pour les décaissements. Séparateur virgule ou point-virgule.</p>
+<form method="post" enctype="multipart/form-data" action="{{ path('app_bank_reconciliation_import') }}">
+<input type="hidden" name="_token" value="{{ csrf_token('bank_statement_import') }}">
+<label for="statement">Fichier CSV (5 Mo maximum)</label><input id="statement" type="file" name="statement" accept=".csv,text/csv" required>
+<button type="submit">Importer le relevé</button>
+</form>
+</section>
+<section class="card">
+<h2>Opérations bancaires récentes</h2>
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Date</th><th>Libellé</th><th>Référence</th><th>Montant</th><th>État / rapprochement</th></tr></thead><tbody>
+{% for transaction in transactions %}
+<tr>
+<td>{{ transaction.transaction_date|date('d/m/Y') }}</td><td>{{ transaction.label }}</td><td>{{ transaction.reference ?: '—' }}</td>
+<td>{{ transaction.amount|number_format(2,',',' ') }} €</td>
+<td>
+{% if transaction.matched_sales_payment_id %}<span>Règlement client #{{ transaction.matched_sales_payment_id }}</span>
+{% elseif transaction.matched_supplier_payment_id %}<span>Règlement fournisseur #{{ transaction.matched_supplier_payment_id }}</span>
+{% else %}
+<form method="post" action="{{ path('app_bank_reconciliation_match',{id:transaction.id}) }}">
+<input type="hidden" name="_token" value="{{ csrf_token('bank_match_' ~ transaction.id) }}">
+{% if transaction.amount > 0 %}
+<label for="sales-{{ transaction.id }}">Règlement client correspondant</label>
+<select id="sales-{{ transaction.id }}" name="payment_id" required><option value="">Choisir…</option>
+{% for payment in sales_payments %}{% if payment.amount == transaction.amount %}<option value="{{ payment.id }}">{{ payment.paid_at|date('d/m/Y') }} · {{ payment.counterparty }} · {{ payment.number }} · {{ payment.amount }} € · {{ payment.reference ?: 'sans réf.' }}</option>{% endif %}{% endfor %}
+</select><input type="hidden" name="payment_type" value="sales">
+{% else %}
+<label for="supplier-{{ transaction.id }}">Règlement fournisseur correspondant</label>
+<select id="supplier-{{ transaction.id }}" name="payment_id" required><option value="">Choisir…</option>
+{% for payment in supplier_payments %}{% if payment.amount == -transaction.amount %}<option value="{{ payment.id }}">{{ payment.paid_at|date('d/m/Y') }} · {{ payment.counterparty }} · {{ payment.number }} · {{ payment.amount }} € · {{ payment.reference ?: 'sans réf.' }}</option>{% endif %}{% endfor %}
+</select><input type="hidden" name="payment_type" value="supplier">
+{% endif %}
+<button type="submit">Rapprocher</button></form>
+{% endif %}
+</td></tr>
+{% else %}<tr><td colspan="5">Aucune opération importée.</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+<p class="muted">Les doublons exacts sont ignorés à l’import. Les opérations restent non rapprochées lorsqu’aucun paiement de même montant et de même sens n’est disponible. Les virements groupés ou frais bancaires nécessitent un traitement manuel ultérieur.</p>
+{% endblock %}

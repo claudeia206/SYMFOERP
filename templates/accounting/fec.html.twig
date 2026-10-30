@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+{% block title %}Clôture annuelle et FEC · SYMFOERP{% endblock %}
+{% block body %}
+<p class="muted">COMPTABILITÉ / CONTRÔLE DE CLÔTURE</p>
+<h1>Préparation de clôture et export FEC</h1>
+<form method="get" class="card">
+    <label>Exercice <input type="number" name="year" min="2000" max="2100" value="{{ year }}"></label>
+    <button type="submit">Analyser l’exercice</button>
+</form>
+<section class="grid">
+    <article class="card"><p class="muted">Écritures comptabilisées</p><h2>{{ summary.entries }}</h2></article>
+    <article class="card"><p class="muted">Lignes exportables</p><h2>{{ summary.lines }}</h2></article>
+    <article class="card"><p class="muted">Total débit</p><h2>{{ summary.debit|number_format(2,',',' ') }} €</h2></article>
+    <article class="card"><p class="muted">Total crédit</p><h2>{{ summary.credit|number_format(2,',',' ') }} €</h2></article>
+</section>
+<section class="card">
+    <h2>Contrôles avant clôture</h2>
+    <p>{% if summary.difference is defined and summary.difference == 0 %}✓{% else %}⚠{% endif %} Équilibre global : {{ summary.difference|number_format(2,',',' ') }} € d’écart</p>
+    <p>{% if unbalanced_count == 0 %}✓{% else %}⚠{% endif %} Écritures déséquilibrées : {{ unbalanced_count }}</p>
+    <p>{% if draft_count == 0 %}✓{% else %}⚠{% endif %} Écritures non comptabilisées : {{ draft_count }}</p>
+    {% if ready %}
+        <p class="status">Contrôles techniques réussis — validation humaine toujours requise</p>
+    {% else %}
+        <p class="status">Des anomalies doivent être corrigées avant la clôture</p>
+    {% endif %}
+    <p><a href="{{ path('app_accounting_fec_export', {year: year}) }}">Télécharger le FEC {{ year }}</a></p>
+</section>
+<p class="muted">L’export contient les 18 colonnes du format FEC et les écritures au statut « posted ». Les auxiliaires, lettrages et montants en devise restent vides car ils ne sont pas disponibles dans le modèle actuel. Cette page prépare les contrôles : elle ne verrouille pas l’exercice, ne génère pas les à-nouveaux et ne passe aucune écriture de clôture. Faites valider le fichier par votre expert-comptable avant dépôt.</p>
+{% endblock %}

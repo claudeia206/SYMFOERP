@@ -37,6 +37,9 @@ class SalesInvoiceLine
     #[ORM\Column(name: 'vat_rate', type: 'decimal', precision: 5, scale: 2)]
     private string $vatRate;
 
+    #[ORM\Column(name: 'credited_quantity', type: 'decimal', precision: 10, scale: 3, options: ['default' => '0.000'])]
+    private string $creditedQuantity = '0.000';
+
     #[ORM\Column]
     private int $position;
 
@@ -71,6 +74,16 @@ class SalesInvoiceLine
     public function getUnitPrice(): string { return $this->unitPrice; }
     public function getVatRate(): string { return $this->vatRate; }
     public function getPosition(): int { return $this->position; }
+    public function getCreditedQuantity(): string { return $this->creditedQuantity; }
+    public function getCreditEligibleQuantity(): string { return number_format(max(0.0, (float) $this->quantity - (float) $this->creditedQuantity), 3, '.', ''); }
+    public function recordCredit(string $quantity): self
+    {
+        if (!is_numeric($quantity) || round((float) $quantity, 3) <= 0 || (float) $quantity > (float) $this->getCreditEligibleQuantity() + 0.000001) {
+            throw new InvalidArgumentException('La quantité de l’avoir dépasse la quantité encore facturable sur cette ligne.');
+        }
+        $this->creditedQuantity = number_format((float) $this->creditedQuantity + (float) $quantity, 3, '.', '');
+        return $this;
+    }
     public function getTotalExcludingTax(): float { return round((float) $this->quantity * (float) $this->unitPrice, 2); }
     public function getTotalTax(): float { return round($this->getTotalExcludingTax() * (float) $this->vatRate / 100, 2); }
     public function getTotalIncludingTax(): float { return $this->getTotalExcludingTax() + $this->getTotalTax(); }

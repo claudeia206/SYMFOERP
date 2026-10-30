@@ -1,0 +1,31 @@
+{% extends 'base.html.twig' %}
+{% block title %}Relances clients · SYMFOERP{% endblock %}
+{% block body %}
+<p class="muted">VENTES / SUIVI DES ENCAISSEMENTS</p>
+<h1>Relances des factures clients</h1>
+<p>Factures échues et échéances des sept prochains jours. Les messages proposés sont des brouillons à vérifier avant envoi.</p>
+<section class="grid" aria-label="Indicateurs de relance">
+<article class="card"><p class="muted">Créances échues</p><h2>{{ overdue_total|number_format(2,',',' ') }} €</h2></article>
+<article class="card"><p class="muted">Échéances à venir</p><h2>{{ upcoming_total|number_format(2,',',' ') }} €</h2></article>
+<article class="card"><p class="muted">Factures à traiter</p><h2>{{ reminders|length }}</h2></article>
+</section>
+<section class="card">
+<h2>Actions de relance</h2>
+{% if reminders is empty %}<p class="muted">Aucune facture échue ou à échéance dans les sept prochains jours.</p>{% else %}
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Facture</th><th>Client</th><th>Échéance</th><th>Retard</th><th>Solde dû</th><th>Étape</th><th>Action</th></tr></thead><tbody>
+{% for item in reminders %}
+<tr>
+<td><a href="{{ path('app_sales_invoice_show',{id:item.id}) }}">{{ item.number }}</a></td>
+<td>{{ item.customer_name }}{% if item.email %}<small>{{ item.email }}</small>{% else %}<small>Adresse e-mail manquante</small>{% endif %}</td>
+<td>{{ item.due_date|date('d/m/Y') }}</td>
+<td>{% if item.days_late>0 %}{{ item.days_late }} jour(s){% else %}À venir{% endif %}</td>
+<td>{{ item.remaining|number_format(2,',',' ') }} €</td>
+<td>{{ item.stage }}</td>
+<td>{% if item.mailto %}<a href="{{ item.mailto }}">Préparer l’e-mail</a>{% else %}<span class="muted">Compléter l’e-mail client</span>{% endif %}</td>
+</tr>
+{% endfor %}
+</tbody></table></div>{% endif %}
+</section>
+<p class="muted">Aucun e-mail n’est envoyé automatiquement et aucun règlement n’est modifié. Le lien ouvre le logiciel de messagerie avec un texte prérempli ; vérifiez la situation du compte et le message avant envoi. Les étapes proposées sont indicatives et ne constituent pas une procédure de recouvrement juridique.</p>
+<p><a href="{{ path('app_financial_report') }}">Retour au reporting financier</a></p>
+{% endblock %}

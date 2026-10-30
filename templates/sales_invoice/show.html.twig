@@ -88,4 +88,32 @@
         <h3>Client</h3><p>{{ invoice.customerSnapshot.name }}<br>{{ invoice.customerSnapshot.address }}<br>{{ invoice.customerSnapshot.postal_code }} {{ invoice.customerSnapshot.city }} · {{ invoice.customerSnapshot.country }}</p>
     </section>
     {% endif %}
+    <section class="card">
+        <h2>Avoirs clients</h2>
+        <p><strong>Total des avoirs émis :</strong> {{ invoice.creditedAmount|number_format(2, ',', ' ') }} €</p>
+        {% if invoice.creditNotes is not empty %}
+            <div class="table-scroll"><table class="data-table"><thead><tr><th>Numéro</th><th>Date</th><th>Motif</th><th>Montant TTC</th><th>Document</th></tr></thead><tbody>
+            {% for credit_note in invoice.creditNotes %}
+                <tr><td>{{ credit_note.number }}</td><td>{{ credit_note.creditDate|date('d/m/Y') }}</td><td>{{ credit_note.reason }}</td><td>{{ credit_note.totalIncludingTax|number_format(2, ',', ' ') }} €</td><td><a href="{{ path('app_sales_credit_note_pdf', {id: invoice.id, creditNoteId: credit_note.id}) }}">PDF de l’avoir</a></td></tr>
+            {% endfor %}
+            </tbody></table></div>
+        {% endif %}
+        {% if invoice.status in ['issued', 'partially_paid', 'paid'] %}
+            <h3>Émettre un nouvel avoir</h3>
+            <p>Les quantités déjà créditées sont déduites du maximum disponible. L’émission est définitive et numérotée.</p>
+            <form method="post" action="{{ path('app_sales_credit_note_create', {id: invoice.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('sales_credit_note_' ~ invoice.id) }}">
+                <p><label for="credit-reason">Motif de l’avoir</label><textarea id="credit-reason" name="reason" maxlength="2000" required></textarea></p>
+                <div class="table-scroll"><table class="data-table"><thead><tr><th>Ligne facturée</th><th>Qté facturée</th><th>Déjà créditée</th><th>Qté à créditer</th></tr></thead><tbody>
+                {% for line in invoice.lines %}
+                    {% if line.creditEligibleQuantity > 0 %}
+                    <tr><td>{{ line.description }}</td><td>{{ line.quantity }}</td><td>{{ line.creditedQuantity }}</td><td><input type="number" name="quantities[{{ line.id }}]" min="0.001" max="{{ line.creditEligibleQuantity }}" step="0.001"></td></tr>
+                    {% endif %}
+                {% endfor %}
+                </tbody></table></div>
+                <button type="submit">Émettre l’avoir</button>
+            </form>
+        {% endif %}
+    </section>
+
 {% endblock %}

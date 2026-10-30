@@ -9,6 +9,7 @@
     {% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
 
     {% set category_labels = {'customer': 'Client', 'prospect': 'Prospect', 'supplier': 'Fournisseur'} %}
+    {% if third_party.category == 'customer' %}<p><a href="{{ path('app_customer_account_statement', {id: third_party.id}) }}">Consulter le relevé de compte client</a></p>{% endif %}
     <section class="card">
         <dl>
             <dt>Catégorie</dt><dd>{{ category_labels[third_party.category] ?? third_party.category }}</dd>

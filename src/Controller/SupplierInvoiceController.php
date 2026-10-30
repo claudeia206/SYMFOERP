@@ -9,6 +9,7 @@ use App\Entity\SupplierInvoice;
 use App\Entity\SupplierPayment;
 use App\Repository\PurchaseOrderRepository;
 use App\Entity\ThirdParty;
+use App\Service\AccountingPostingService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\LockMode;
 use InvalidArgumentException;
@@ -60,7 +61,7 @@ final class SupplierInvoiceController extends AbstractController
     }
 
     #[Route('/{id}/receive', name: 'app_supplier_invoice_receive', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function receive(Request $request, SupplierInvoice $invoice, EntityManagerInterface $em): Response
+    public function receive(Request $request, SupplierInvoice $invoice, EntityManagerInterface $em, AccountingPostingService $posting): Response
     {
         if (!$this->isCsrfTokenValid('supplier_invoice_receive_'.$invoice->getId(), (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
@@ -68,13 +69,14 @@ final class SupplierInvoiceController extends AbstractController
         try {
             $date = new \DateTimeImmutable((string) $request->request->get('invoice_date', ''));
             $due = new \DateTimeImmutable((string) $request->request->get('due_date', ''));
-            $em->getConnection()->transactional(function () use ($em, $invoice, $date, $due): void {
+            $em->getConnection()->transactional(function () use ($em, $invoice, $date, $due, $posting): void {
                 $em->lock($invoice, LockMode::PESSIMISTIC_WRITE);
                 $em->refresh($invoice);
                 $invoice->receive($date, $due);
                 $em->flush();
+                $posting->postSupplierInvoice((int) $invoice->getId());
             });
-            $this->addFlash('success', 'La facture fournisseur a été validée.');
+            $this->addFlash('success', 'La facture fournisseur a été validée et comptabilisée.');
         } catch (InvalidArgumentException $e) {
             $this->addFlash('error', $e->getMessage());
         } catch (\Throwable) {
@@ -84,7 +86,7 @@ final class SupplierInvoiceController extends AbstractController
     }
 
     #[Route('/{id}/payments', name: 'app_supplier_invoice_payment', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function addPayment(Request $request, SupplierInvoice $invoice, EntityManagerInterface $em): Response
+    public function addPayment(Request $request, SupplierInvoice $invoice, EntityManagerInterface $em, AccountingPostingService $posting): Response
     {
         if (!$this->isCsrfTokenValid('supplier_invoice_payment_'.$invoice->getId(), (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
@@ -95,15 +97,16 @@ final class SupplierInvoiceController extends AbstractController
             $method = (string) $request->request->get('method', '');
             $reference = (string) $request->request->get('reference', '');
             $note = (string) $request->request->get('note', '');
-            $em->getConnection()->transactional(function () use ($em, $invoice, $amount, $date, $method, $reference, $note): void {
+            $em->getConnection()->transactional(function () use ($em, $invoice, $amount, $date, $method, $reference, $note, $posting): void {
                 $em->lock($invoice, LockMode::PESSIMISTIC_WRITE);
                 $em->refresh($invoice);
                 $payment = new SupplierPayment($invoice, $amount, $date, $method, $reference, $note);
                 $invoice->addPayment($payment);
                 $em->persist($payment);
                 $em->flush();
+                $posting->postSupplierPayment((int) $payment->getId());
             });
-            $this->addFlash('success', 'Le règlement fournisseur a été enregistré.');
+            $this->addFlash('success', 'Le règlement fournisseur a été enregistré et comptabilisé.');
         } catch (InvalidArgumentException $e) {
             $this->addFlash('error', $e->getMessage());
         } catch (\Throwable) {

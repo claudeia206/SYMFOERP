@@ -1,0 +1,52 @@
+{% extends 'base.html.twig' %}
+{% block title %}Comptabilité générale · SYMFOERP{% endblock %}
+{% block body %}
+<p class="muted">FINANCE / COMPTABILITÉ</p>
+<h1>Comptabilité générale</h1>
+<p>Plan de comptes initial inspiré du Plan comptable général français, journaux et saisie d’écritures équilibrées.</p>
+<section class="card">
+<h2>Balance générale</h2>
+<form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+<label>Du <input type="date" name="from" value="{{ from }}" required></label>
+<label>Au <input type="date" name="to" value="{{ to }}" required></label>
+<button type="submit">Actualiser</button>
+</form>
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Compte</th><th>Intitulé</th><th>Classe</th><th>Débit</th><th>Crédit</th><th>Solde D/C</th></tr></thead><tbody>
+{% for account in accounts %}<tr>
+<td><a href="{{ path('app_general_ledger_account',{id:account.id,from:from,to:to}) }}">{{ account.code }}</a></td><td>{{ account.name }}</td><td>{{ account.account_class }}</td>
+<td>{{ account.debit|number_format(2,',',' ') }} €</td><td>{{ account.credit|number_format(2,',',' ') }} €</td>
+<td>{{ account.balance|abs|number_format(2,',',' ') }} € {{ account.balance>0?'D':(account.balance<0?'C':'—') }}</td>
+</tr>{% endfor %}
+</tbody><tfoot><tr><th colspan="3">Totaux de la période</th><th>{{ debit_total|number_format(2,',',' ') }} €</th><th>{{ credit_total|number_format(2,',',' ') }} €</th><th>{{ (debit_total-credit_total)|abs|number_format(2,',',' ') }} €</th></tr></tfoot></table></div>
+<p class="muted">Les soldes affichés sont les mouvements nets de la période sélectionnée, pas les à-nouveaux d’ouverture.</p>
+</section>
+<section class="card">
+<h2>Saisir une écriture comptable</h2>
+<form method="post" action="{{ path('app_general_ledger_entry_create') }}">
+<input type="hidden" name="_token" value="{{ csrf_token('general_ledger_entry') }}">
+<div class="grid">
+<label>Journal<select name="journal_id" required>{% for journal in journals %}<option value="{{ journal.id }}">{{ journal.code }} — {{ journal.name }}</option>{% endfor %}</select></label>
+<label>Date<input type="date" name="entry_date" value="{{ 'now'|date('Y-m-d') }}" required></label>
+<label>Référence<input name="reference" maxlength="120"></label>
+<label>Libellé<input name="description" maxlength="255" required></label>
+</div>
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Compte</th><th>Libellé de ligne</th><th>Débit (€)</th><th>Crédit (€)</th></tr></thead><tbody>
+{% for row in 0..3 %}<tr>
+<td><select name="lines[{{ row }}][account_id]" {{ row < 2 ? "required" : "" }}><option value="">Choisir…</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} — {{ account.name }}</option>{% endfor %}</select></td>
+<td><input name="lines[{{ row }}][label]" maxlength="255" placeholder="Libellé"></td>
+<td><input name="lines[{{ row }}][debit]" inputmode="decimal" value="0.00"></td>
+<td><input name="lines[{{ row }}][credit]" inputmode="decimal" value="0.00"></td>
+</tr>{% endfor %}
+</tbody></table></div>
+<button type="submit">Enregistrer l’écriture équilibrée</button>
+</form>
+<p class="muted">Une écriture validée est enregistrée comme définitive dans cette première version. Débit et crédit doivent être égaux au centime. Les corrections ultérieures devront passer par une écriture de contrepassation.</p>
+</section>
+<section class="card">
+<h2>Dernières écritures comptabilisées</h2>
+{% if entries is empty %}<p class="muted">Aucune écriture dans cette période.</p>{% else %}
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Date</th><th>Journal</th><th>N°</th><th>Référence</th><th>Libellé</th><th>Débit</th><th>Crédit</th></tr></thead><tbody>
+{% for entry in entries %}<tr><td>{{ entry.entry_date|date('d/m/Y') }}</td><td>{{ entry.journal_code }}</td><td>{{ '%06d'|format(entry.entry_number) }}</td><td>{{ entry.reference ?: '—' }}</td><td>{{ entry.description }}</td><td>{{ entry.debit|number_format(2,',',' ') }} €</td><td>{{ entry.credit|number_format(2,',',' ') }} €</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+</section>
+{% endblock %}
