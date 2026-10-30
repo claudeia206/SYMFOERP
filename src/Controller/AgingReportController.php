@@ -20,10 +20,9 @@ SELECT i.id,i.number AS reference,i.invoice_date,i.due_date,t.name AS third_part
        GREATEST(0,ROUND(COALESCE(lines.total,0)-COALESCE(payments.paid,0)-COALESCE(credits.credited,0),2)) AS remaining
 FROM app_sales_invoice i
 INNER JOIN app_third_party t ON t.id=i.third_party_id
-LEFT JOIN (SELECT invoice_id,SUM(ROUND(ROUND(quantity*unit_price,2)*(1+vat_rate/100),2)) AS total FROM app_sales_invoice_line GROUP BY invoice_id) lines ON lines.invoice_id=i.id
+LEFT JOIN (SELECT invoice_id,SUM(ROUND(quantity*unit_price,2)+ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS total FROM app_sales_invoice_line GROUP BY invoice_id) lines ON lines.invoice_id=i.id
 LEFT JOIN (SELECT invoice_id,SUM(amount) AS paid FROM app_sales_payment GROUP BY invoice_id) payments ON payments.invoice_id=i.id
-LEFT JOIN (SELECT credit_note_id,SUM(ROUND(ROUND(quantity*unit_price,2)*(1+vat_rate/100),2)) AS credited FROM app_sales_credit_note_line GROUP BY credit_note_id) credit_lines ON 1=0
-LEFT JOIN (SELECT n.invoice_id,SUM(cl.amount) AS credited FROM app_sales_credit_note n INNER JOIN (SELECT credit_note_id,SUM(ROUND(ROUND(quantity*unit_price,2)*(1+vat_rate/100),2)) AS amount FROM app_sales_credit_note_line GROUP BY credit_note_id) cl ON cl.credit_note_id=n.id GROUP BY n.invoice_id) credits ON credits.invoice_id=i.id
+LEFT JOIN (SELECT n.invoice_id,SUM(cl.amount) AS credited FROM app_sales_credit_note n INNER JOIN (SELECT credit_note_id,SUM(ROUND(quantity*unit_price,2)+ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS amount FROM app_sales_credit_note_line GROUP BY credit_note_id) cl ON cl.credit_note_id=n.id GROUP BY n.invoice_id) credits ON credits.invoice_id=i.id
 WHERE i.number IS NOT NULL AND i.status IN ('issued','partially_paid','overdue')
 HAVING remaining>0
 ORDER BY i.due_date,i.id
