@@ -46,14 +46,13 @@ foreach ([
     null,
     true,
 ] as $invalid) {
+    $rejected = false;
     try {
         $cents->invoke($service, $invalid);
-        throw new RuntimeException('Invalid monetary input was accepted: '.var_export($invalid, true));
-    } catch (ReflectionException $exception) {
-        throw $exception;
-    } catch (Throwable $exception) {
-        expectPostingValidation($exception instanceof RuntimeException, 'Unexpected exception for invalid monetary input.');
+    } catch (RuntimeException) {
+        $rejected = true;
     }
+    expectPostingValidation($rejected, 'Invalid monetary input was accepted: '.var_export($invalid, true));
 }
 
 foreach (['2026-01-01', '2000-02-29', '2024-12-31'] as $validDate) {
@@ -61,14 +60,13 @@ foreach (['2026-01-01', '2000-02-29', '2024-12-31'] as $validDate) {
 }
 
 foreach (['2026-02-29', '2026-04-31', '2026-13-01', '01-01-2026', '2026-1-01', ''] as $invalidDate) {
+    $rejected = false;
     try {
         $date->invoke($service, $invalidDate);
-        throw new RuntimeException('Invalid accounting date was accepted: '.$invalidDate);
-    } catch (ReflectionException $exception) {
-        throw $exception;
-    } catch (Throwable $exception) {
-        expectPostingValidation($exception instanceof RuntimeException, 'Unexpected exception for invalid accounting date.');
+    } catch (RuntimeException) {
+        $rejected = true;
     }
+    expectPostingValidation($rejected, 'Invalid accounting date was accepted: '.$invalidDate);
 }
 
 echo "Accounting posting amount and date validation smoke tests passed.\n";
