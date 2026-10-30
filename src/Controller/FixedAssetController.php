@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\AccountingPeriodGuard;
 use App\Service\DepreciationCalculator;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -185,12 +186,13 @@ final class FixedAssetController extends AbstractController
     }
 
     #[Route('/{id}/depreciation/{year}/post', name: 'app_fixed_assets_depreciation_post', requirements: ['id'=>'\d+','year'=>'\d{4}'], methods: ['POST'])]
-    public function postDepreciation(int $id, int $year, Connection $db, Request $request, DepreciationCalculator $calculator): Response
+    public function postDepreciation(int $id, int $year, Connection $db, Request $request, DepreciationCalculator $calculator, AccountingPeriodGuard $periodGuard): Response
     {
         if (!$this->isCsrfTokenValid('fixed_asset_depreciation_'.$id.'_'.$year,(string)$request->request->get('_token'))) throw $this->createAccessDeniedException();
         if($year<2000||$year>2100)throw $this->createNotFoundException();
         try {
             $db->beginTransaction();
+            $periodGuard->assertOpenDate($db, $year.'-12-31');
             $asset=$db->fetchAssociative('SELECT * FROM app_fixed_asset WHERE id=? AND status=? FOR UPDATE',[$id,'active']);
             if(!$asset)throw new \InvalidArgumentException('Immobilisation active introuvable.');
             if($db->fetchOne('SELECT id FROM app_fixed_asset_depreciation WHERE asset_id=? AND fiscal_year=?',[$id,$year]))throw new \InvalidArgumentException('Dotation déjà comptabilisée pour cet exercice.');
@@ -224,7 +226,7 @@ final class FixedAssetController extends AbstractController
     }
 
     #[Route('/{id}/dispose', name: 'app_fixed_assets_dispose', requirements: ['id'=>'\d+'], methods: ['POST'])]
-    public function dispose(int $id, Connection $db, Request $request, DepreciationCalculator $calculator): Response
+    public function dispose(int $id, Connection $db, Request $request, DepreciationCalculator $calculator, AccountingPeriodGuard $periodGuard): Response
     {
         if(!$this->isCsrfTokenValid('fixed_asset_dispose_'.$id,(string)$request->request->get('_token')))throw $this->createAccessDeniedException();
         $date=(string)$request->request->get('disposal_date','');$parsed=DateTimeImmutable::createFromFormat('!Y-m-d',$date);
@@ -235,6 +237,7 @@ final class FixedAssetController extends AbstractController
         }
         try{
             $db->beginTransaction();
+            $periodGuard->assertOpenDate($db, $date);
             $asset=$db->fetchAssociative('SELECT * FROM app_fixed_asset WHERE id=? AND status=? FOR UPDATE',[$id,'active']);
             if(!$asset)throw new \InvalidArgumentException('Immobilisation active introuvable.');
             foreach(['asset_account_id','accumulated_account_id','disposal_bank_account_id','disposal_gain_account_id','disposal_loss_account_id','journal_id'] as $field)
