@@ -93,7 +93,7 @@ final class AccountingPostingService
     {
         if(!is_string($amount)&&!is_int($amount))throw new RuntimeException('Montant source invalide.');
         $value=trim((string)$amount);
-        if(!preg_match('/^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,2})?$/D',$value))throw new RuntimeException('Montant source invalide : 12 chiffres et deux décimales maximum.');
+        if(!preg_match('/^(?:0|[1-9]\d{0,11})(?:\.\d{1,2})?$/D',$value))throw new RuntimeException('Montant source invalide : 12 chiffres et deux décimales maximum.');
         [$whole,$fraction]=array_pad(explode('.',$value,2),2,'');
         return ((int)$whole)*100+(int)str_pad($fraction,2,'0');
     }
