@@ -2,7 +2,7 @@ name: Validate application
 
 on:
   push:
-    branches: ['**']
+    branches: [main, debug/authenticated-http-500]
   pull_request:
     branches: ['**']
   workflow_dispatch:
