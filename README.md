@@ -10,7 +10,7 @@ La première étape est une installation locale neuve de Symfony, vérifiée par
 - MariaDB dédiée : schéma créé exclusivement par les migrations Doctrine.
 - Modules métier : tiers, produits, ventes, achats, trésorerie et comptabilité en cours de consolidation.
 - Docker Compose : démarrage indépendant du service Symfony et de sa base.
-- Dolibarr 24.0.2 : environnement facultatif de comparaison, avec base et réseau séparés.
+- Dolibarr 24.0.2 : environnement facultatif de comparaison, activé uniquement avec le profil `comparison`, base et réseau séparés. Les anciennes versions ne sont pas une cible de compatibilité prioritaire.
 - GitHub Actions : contrôles PHP, invariants métier, installation Symfony neuve et tests HTTP authentifiés.
 
 Aucun code Dolibarr n'est chargé dans le runtime Symfony et aucune donnée Dolibarr n'est nécessaire à son fonctionnement.
@@ -53,10 +53,10 @@ docker compose --env-file .env.docker down --volumes
 
 ## Dolibarr (environnement séparé et facultatif)
 
-Dolibarr reste disponible pour des essais de comparaison, mais il n'est pas une dépendance de SYMFOERP et son démarrage n'est pas requis. Pour démarrer son instance neuve séparée, configurez d'abord les variables `DOLI_*` dans `.env.docker`, puis lancez :
+Dolibarr reste disponible pour des essais de comparaison, mais il n'est pas une dépendance de SYMFOERP et son démarrage n'est pas requis. Pour démarrer l’instance de comparaison neuve (version de référence 24.0.2 uniquement), configurez d’abord les variables `DOLI_*` dans `.env.docker`, puis activez explicitement le profil facultatif :
 
 ```bash
-docker compose --env-file .env.docker up --detach db_dolibarr dolibarr
+docker compose --profile comparison --env-file .env.docker up --detach db_dolibarr dolibarr
 ```
 
 Accès Dolibarr : http://127.0.0.1:8080. Les deux applications utilisent des bases et des réseaux Docker distincts ; aucune donnée Dolibarr n'est importée dans Symfony.
@@ -155,10 +155,10 @@ Le compteur évoluera uniquement lorsqu'un nouvel axe sera effectivement implém
 
 ## Feuille de route
 
-1. Démarrer et valider l'installation neuve Dolibarr 24.0.2.
-2. Vérifier les modules natifs, les permissions, les documents et les tâches planifiées.
-3. Faire évoluer progressivement l'interface et les services métier dans Symfony, module par module.
-4. Organiser ultérieurement la reprise des données des anciennes versions, après sauvegardes et tests dédiés.
+1. Stabiliser l’installation neuve et la première mise en service locale de SYMFOERP.
+2. Consolider les modules natifs Symfony : comptabilité, ventes, achats, stocks et trésorerie.
+3. Maintenir Dolibarr 24.0.2 uniquement comme environnement facultatif de comparaison, sans en faire une dépendance.
+4. Reporter la compatibilité et la reprise des données des anciennes versions de Dolibarr : elles ne sont pas prioritaires et feront l’objet d’un chantier distinct si nécessaire.
 
 ## Licence
 
