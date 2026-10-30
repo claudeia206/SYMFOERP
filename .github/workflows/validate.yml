@@ -142,6 +142,8 @@ jobs:
           assert "Reporting financier" in report_html, "Authenticated user could not open financial reporting"
           bank_html = client.open(base + "/finance/bank").read().decode()
           assert "Rapprochement bancaire" in bank_html, "Authenticated user could not open bank reconciliation"
+          cash_flow_html = client.open(base + "/reports/cash-flow").read().decode()
+          assert "Prévision de trésorerie" in cash_flow_html, "Authenticated user could not open cash flow forecast"
           settings_page = client.open(base + "/settings/company").read().decode()
           settings_parser = TokenParser()
           settings_parser.feed(settings_page)
