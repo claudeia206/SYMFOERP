@@ -34,6 +34,16 @@ expectSupplierInvoice($invoice->getLines()->count() === 1, 'Received quantities 
 expectSupplierInvoice($invoice->getLines()->first()->getQuantity() === '3.000', 'Only received quantity may be invoiced.');
 expectSupplierInvoice($invoice->getTotalExcludingTax() === 75.0, 'Supplier invoice must snapshot purchase prices.');
 expectSupplierInvoice($invoice->getTotalIncludingTax() === 90.0, 'Supplier invoice VAT total must be calculated.');
+$normalizedPayment = new SupplierPayment($invoice, '0.5', new DateTimeImmutable('2026-10-10'), 'cash');
+expectSupplierInvoice($normalizedPayment->getAmount() === '0.50', 'Supplier payment amounts must be normalized exactly.');
+foreach (['0', '-1.00', '+1.00', '01.00', '1,00', '1.001', '1e2', '10000000000.00'] as $invalidAmount) {
+    try {
+        new SupplierPayment($invoice, $invalidAmount, new DateTimeImmutable('2026-10-10'), 'cash');
+        throw new RuntimeException('Invalid supplier payment amount was accepted: '.$invalidAmount);
+    } catch (InvalidArgumentException) {
+        // Supplier payments require a positive bounded decimal amount.
+    }
+}
 $invoice->receive(new DateTimeImmutable('2026-10-01'), new DateTimeImmutable('2026-10-31'));
 $payment = new SupplierPayment($invoice, '30.00', new DateTimeImmutable('2026-10-10'), 'bank_transfer', 'VIR-001');
 $invoice->addPayment($payment);
