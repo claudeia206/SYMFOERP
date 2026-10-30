@@ -1,6 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}{{ invoice.number ?? ('Brouillon #' ~ invoice.id) }} · SYMFOERP
-
+{% block title %}{{ invoice.number ?? ('Brouillon #' ~ invoice.id) }} · SYMFOERP{% endblock %}
 {% block body %}
     <p class="muted">GESTION COMMERCIALE / FACTURATION</p>
     <p><a href="{{ path('app_sales_invoices') }}">← Toutes les factures</a></p>
