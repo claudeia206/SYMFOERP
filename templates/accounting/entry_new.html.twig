@@ -1,0 +1,49 @@
+{% extends 'base.html.twig' %}
+{% block title %}Nouvelle écriture · SYMFOERP{% endblock %}
+{% block stylesheets %}<style>
+.entry-form{background:#fff;border:1px solid #e5eaf1;border-radius:12px;padding:22px}.entry-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.entry-field label{display:block;font-weight:600;font-size:13px;margin-bottom:6px}.entry-field input,.entry-field select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;background:white}.entry-lines{width:100%;border-collapse:collapse;margin-top:20px}.entry-lines th,.entry-lines td{padding:9px 7px;border-bottom:1px solid #e5eaf1;text-align:left}.entry-lines input,.entry-lines select{width:100%;min-width:90px;padding:9px;border:1px solid #cbd5e1;border-radius:6px}.entry-lines .account{min-width:180px}.entry-actions{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:20px}.entry-button{border:0;border-radius:7px;padding:10px 16px;cursor:pointer;font-weight:600}.entry-primary{background:#174ea6;color:white}.entry-secondary{background:#eef2f7;color:#172033}.entry-danger{background:#fff0f0;color:#a11}.entry-alert{padding:12px 15px;border-radius:8px;margin-bottom:14px;background:#fff0f0;color:#8a1c1c}.entry-alert.success{background:#e8f5ed;color:#17663a}@media(max-width:760px){.entry-grid{grid-template-columns:1fr}.entry-lines{min-width:760px}.entry-table-scroll{overflow-x:auto}}
+</style>{% endblock %}
+{% block body %}
+<div>
+ <p><a href="{{ path('app_accounting') }}">← Retour à la comptabilité</a></p>
+ <h1>Nouvelle écriture comptable</h1>
+ <p class="muted">Saisie en partie double. L’écriture sera contrôlée puis comptabilisée à l’enregistrement.</p>
+ {% for message in app.flashes('error') %}<div class="entry-alert">{{ message }}</div>{% endfor %}
+ {% for message in app.flashes('success') %}<div class="entry-alert success">{{ message }}</div>{% endfor %}
+ {% if journals is empty or years is empty or accounts|length < 2 %}
+ <div class="entry-alert">Il faut au moins deux comptes actifs, un journal actif et un exercice ouvert pour saisir une écriture.</div>
+ {% else %}
+ <form class="entry-form" method="post" action="{{ path('app_accounting_entry_new') }}" id="accounting-entry-form">
+  <input type="hidden" name="_token" value="{{ csrf_token('accounting_entry_new') }}">
+  <div class="entry-grid">
+   <div class="entry-field"><label for="entry_date">Date comptable</label><input id="entry_date" name="entry_date" type="date" value="{{ 'now'|date('Y-m-d') }}" required></div>
+   <div class="entry-field"><label for="journal_id">Journal</label><select id="journal_id" name="journal_id" required>{% for journal in journals %}<option value="{{ journal.id }}">{{ journal.code }} — {{ journal.label }}</option>{% endfor %}</select></div>
+   <div class="entry-field"><label for="fiscal_year_id">Exercice</label><select id="fiscal_year_id" name="fiscal_year_id" required>{% for year in years %}<option value="{{ year.id }}" data-start="{{ year.startsOn|date('Y-m-d') }}" data-end="{{ year.endsOn|date('Y-m-d') }}">{{ year.code }} ({{ year.startsOn|date('d/m/Y') }} – {{ year.endsOn|date('d/m/Y') }})</option>{% endfor %}</select></div>
+   <div class="entry-field" style="grid-column:1/-1"><label for="label">Libellé général</label><input id="label" name="label" maxlength="255" required placeholder="Ex. Facture fournisseur, OD de régularisation…"></div>
+  </div>
+  <div class="entry-table-scroll"><table class="entry-lines"><thead><tr><th style="width:22%">Compte</th><th style="width:30%">Libellé de ligne</th><th style="width:18%">Débit (€)</th><th style="width:18%">Crédit (€)</th><th></th></tr></thead><tbody id="entry-lines">
+  {% for i in 0..1 %}<tr class="entry-line"><td><select class="account" name="lines[{{ i }}][account_id]" required><option value="">Choisir un compte</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.number }} — {{ account.label }}</option>{% endfor %}</select></td><td><input name="lines[{{ i }}][label]" maxlength="255" placeholder="Libellé (facultatif)"></td><td><input name="lines[{{ i }}][debit]" inputmode="decimal" value="0.00" pattern="[0-9]+([.,][0-9]{1,2})?" required></td><td><input name="lines[{{ i }}][credit]" inputmode="decimal" value="0.00" pattern="[0-9]+([.,][0-9]{1,2})?" required></td><td><button type="button" class="entry-button entry-danger remove-line" aria-label="Supprimer la ligne">×</button></td></tr>{% endfor %}
+  </tbody></table></div>
+  <div class="entry-actions"><button type="button" class="entry-button entry-secondary" id="add-line">+ Ajouter une ligne</button><button type="submit" class="entry-button entry-primary">Contrôler et comptabiliser</button></div>
+ </form>
+ {% endif %}
+</div>
+<script>
+(function(){
+ const body=document.getElementById('entry-lines');if(!body)return;
+ const accounts={{ accounts|map(a => {'id':a.id,'label':a.number ~ ' — ' ~ a.label})|json_encode|raw }};
+ function renumber(){[...body.querySelectorAll('tr')].forEach((row,i)=>row.querySelectorAll('[name]').forEach(input=>input.name=input.name.replace(/lines\[\d+\]/,'lines['+i+']')));body.querySelectorAll('.remove-line').forEach(button=>button.disabled=body.children.length<=2);}
+ document.getElementById('add-line').addEventListener('click',()=>{
+  if(body.children.length>=100)return;
+  const i=body.children.length,row=document.createElement('tr');row.className='entry-line';
+  const select=document.createElement('select');select.className='account';select.required=true;select.name='lines['+i+'][account_id]';const empty=document.createElement('option');empty.value='';empty.textContent='Choisir un compte';select.append(empty);
+  accounts.forEach(a=>{const o=document.createElement('option');o.value=a.id;o.textContent=a.label;select.append(o);});
+  const cells=[document.createElement('td'),document.createElement('td'),document.createElement('td'),document.createElement('td'),document.createElement('td')];cells[0].append(select);
+  [['label','text',''],['debit','text','0.00'],['credit','text','0.00']].forEach(([key,type,value],j)=>{const input=document.createElement('input');input.type=type;input.name='lines['+i+']['+key+']';input.value=value;input.placeholder=key==='label'?'Libellé (facultatif)':'';input.required=key!=='label';if(key!=='label'){input.inputMode='decimal';input.pattern='[0-9]+([.,][0-9]{1,2})?';}cells[j+1].append(input);});
+  const remove=document.createElement('button');remove.type='button';remove.className='entry-button entry-danger remove-line';remove.textContent='×';remove.setAttribute('aria-label','Supprimer la ligne');cells[4].append(remove);cells.forEach(td=>row.append(td));body.append(row);renumber();
+ });
+ body.addEventListener('click',event=>{if(event.target.matches('.remove-line')&&body.children.length>2){event.target.closest('tr').remove();renumber();}});
+ renumber();
+})();
+</script>
+{% endblock %}
