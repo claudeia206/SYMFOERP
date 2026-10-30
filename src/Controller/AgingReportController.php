@@ -33,7 +33,7 @@ SELECT i.id,i.supplier_invoice_number AS reference,i.invoice_date,i.due_date,t.n
        GREATEST(0,ROUND(COALESCE(lines.total,0)-COALESCE(payments.paid,0),2)) AS remaining
 FROM app_supplier_invoice i
 INNER JOIN app_third_party t ON t.id=i.supplier_id
-LEFT JOIN (SELECT invoice_id,SUM(ROUND(ROUND(quantity*unit_price,2)*(1+vat_rate/100),2)) AS total FROM app_supplier_invoice_line GROUP BY invoice_id) lines ON lines.invoice_id=i.id
+LEFT JOIN (SELECT invoice_id,SUM(ROUND(quantity*unit_price,2)+ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS total FROM app_supplier_invoice_line GROUP BY invoice_id) lines ON lines.invoice_id=i.id
 LEFT JOIN (SELECT invoice_id,SUM(amount) AS paid FROM app_supplier_payment GROUP BY invoice_id) payments ON payments.invoice_id=i.id
 WHERE i.status IN ('received','partially_paid','overdue')
 HAVING remaining>0
