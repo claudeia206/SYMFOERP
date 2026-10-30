@@ -96,6 +96,7 @@ jobs:
       - name: Apply migrations and test authenticated third-party access
         run: |
           set -eu
+          trap 'docker compose --env-file .env.docker exec --no-TTY symfony sh -lc "tail -n 160 var/log/dev.log" || true' ERR
           docker compose --env-file .env.docker up --detach symfony
           docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:migrate --no-interaction
           docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:schema:validate
