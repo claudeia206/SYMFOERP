@@ -229,6 +229,19 @@ jobs:
           }).encode()))
           issued_html = issue_response.read().decode()
           assert "FAC-" in issued_html, "Invoice was not issued with a final number"
+          payment_parser = TokenParser()
+          payment_parser.feed(issued_html)
+          assert payment_parser.token, "Sales payment CSRF token is missing"
+          payment_response = client.open(urllib.request.Request(base + "/sales/invoices/" + invoice_id_match.group(1) + "/payments", data=urllib.parse.urlencode({
+              "_token": payment_parser.token,
+              "amount": "120.00",
+              "paid_at": date.today().isoformat(),
+              "method": "bank_transfer",
+              "reference": "CI-RECEIPT",
+          }).encode()))
+          payment_html = payment_response.read().decode()
+          assert "Le règlement a été enregistré" in payment_html, "Sales payment was not saved"
+          assert "Payée" in payment_html, "Fully paid invoice did not transition to paid"
           invoice_pdf = client.open(base + "/sales/invoices/" + invoice_id_match.group(1) + "/pdf")
           invoice_pdf_content = invoice_pdf.read()
           assert invoice_pdf.headers.get_content_type() == "application/pdf", "Invoice PDF route returned the wrong content type"
@@ -266,7 +279,7 @@ jobs:
           }
           accounting_response = client.open(urllib.request.Request(base + "/accounting/entries/new", data=urllib.parse.urlencode(entry_payload).encode()))
           accounting_result = accounting_response.read().decode()
-          assert "VE-2026-000001" in accounting_result, "Manual accounting entry was not created"
+          assert "VE-2026-000002" in accounting_result, "Manual accounting entry was not created after automatic invoice posting"
           assert "posted" in accounting_result, "Manual accounting entry was not posted"
           trial_html = client.open(base + "/accounting/trial-balance").read().decode()
           assert "1 250,00 €" in trial_html, "Trial balance did not include the posted accounting entry"
