@@ -44,6 +44,7 @@ final class FiscalClosingController extends AbstractController
              ) unbalanced_entries',
             ['posted', $from, $to]
         );
+        $period = $db->fetchAssociative('SELECT closed_at FROM app_accounting_fiscal_year WHERE fiscal_year = ?', [$year]);
         $debit = (float) ($summary['debit'] ?? 0);
         $credit = (float) ($summary['credit'] ?? 0);
 
@@ -58,7 +59,8 @@ final class FiscalClosingController extends AbstractController
             ],
             'draft_count' => $draftCount,
             'unbalanced_count' => $unbalanced,
-            'ready' => $draftCount === 0 && $unbalanced === 0 && abs($debit - $credit) < 0.005,
+            'ready' => $draftCount === 0 && $unbalanced === 0 && abs($debit - $credit) < 0.005 && ($period['closed_at'] ?? null) === null,
+            'closed_at' => $period['closed_at'] ?? null,
         ]);
     }
 
@@ -112,4 +114,64 @@ final class FiscalClosingController extends AbstractController
         $response->headers->set('Content-Disposition', sprintf('attachment; filename="FEC_%d.txt"', $year));
         return $response;
     }
+
+    #[Route('/fec/close', name: 'app_accounting_fiscal_year_close', methods: ['POST'])]
+    public function closeYear(Connection $db, Request $request): Response
+    {
+        if (!$this->isCsrfTokenValid('accounting_fiscal_year_close', (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $year = filter_var($request->request->get('year'), FILTER_VALIDATE_INT);
+        if ($year === false || $year < 2000 || $year > 2100) {
+            throw $this->createNotFoundException('Exercice invalide.');
+        }
+
+        $from = sprintf('%04d-01-01', $year);
+        $to = sprintf('%04d-12-31', $year);
+        $db->beginTransaction();
+        try {
+            $period = $db->fetchAssociative(
+                'SELECT fiscal_year, closed_at FROM app_accounting_fiscal_year WHERE fiscal_year = ? FOR UPDATE',
+                [$year]
+            );
+            if (!$period) {
+                throw new \RuntimeException('Exercice comptable non initialisé.');
+            }
+            if ($period['closed_at'] !== null) {
+                throw new \RuntimeException('Cet exercice est déjà clôturé.');
+            }
+
+            $draftCount = (int) $db->fetchOne(
+                'SELECT COUNT(*) FROM app_journal_entry WHERE status <> ? AND entry_date BETWEEN ? AND ?',
+                ['posted', $from, $to]
+            );
+            $unbalancedCount = (int) $db->fetchOne(
+                'SELECT COUNT(*) FROM (
+                    SELECT e.id FROM app_journal_entry e
+                    INNER JOIN app_journal_entry_line l ON l.entry_id = e.id
+                    WHERE e.status = ? AND e.entry_date BETWEEN ? AND ?
+                    GROUP BY e.id HAVING ABS(SUM(l.debit) - SUM(l.credit)) > 0.005
+                ) unbalanced_entries',
+                ['posted', $from, $to]
+            );
+            if ($draftCount !== 0 || $unbalancedCount !== 0) {
+                throw new \RuntimeException('Clôture refusée : écritures non validées ou déséquilibrées.');
+            }
+
+            $db->update('app_accounting_fiscal_year', [
+                'closed_at' => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
+            ], ['fiscal_year' => $year]);
+            $db->commit();
+            $this->addFlash('success', sprintf('Exercice %d clôturé. Toute nouvelle écriture est désormais bloquée.', $year));
+        } catch (\Throwable $exception) {
+            if ($db->isTransactionActive()) {
+                $db->rollBack();
+            }
+            $this->addFlash('error', $exception->getMessage());
+        }
+
+        return $this->redirectToRoute('app_accounting_fec', ['year' => $year]);
+    }
+
 }

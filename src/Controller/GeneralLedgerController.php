@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controller;
+use App\Service\AccountingPeriodGuard;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,30 +28,33 @@ final class GeneralLedgerController extends AbstractController
     }
 
     #[Route('/entries',name:'app_general_ledger_entry_create',methods:['POST'])]
-    public function create(Request $request,Connection $db):Response
+    public function create(Request $request,Connection $db, AccountingPeriodGuard $periodGuard):Response
     {
         if(!$this->isCsrfTokenValid('general_ledger_entry',(string)$request->request->get('_token')))throw $this->createAccessDeniedException();
         try{
             $date=(string)$request->request->get('entry_date','');$parsed=DateTimeImmutable::createFromFormat('!Y-m-d',$date);
             if(!$parsed||$parsed->format('Y-m-d')!==$date)throw new \InvalidArgumentException('Date d’écriture invalide.');
-            $journalId=(int)$request->request->get('journal_id');$description=trim((string)$request->request->get('description',''));
+            $journalId=$this->parsePositiveId($request->request->get('journal_id'));$description=trim((string)$request->request->get('description',''));
             $reference=trim((string)$request->request->get('reference',''));
             if($description===''||mb_strlen($description)>255||mb_strlen($reference)>120)throw new \InvalidArgumentException('Libellé obligatoire (255 caractères maximum) et référence limitée à 120 caractères.');
+            if($journalId===null)throw new \InvalidArgumentException('Journal comptable invalide.');
             $journal=$db->fetchAssociative('SELECT id FROM app_accounting_journal WHERE id=?',[$journalId]);
             if(!$journal)throw new \InvalidArgumentException('Journal comptable inconnu.');
             $raw=$request->request->all('lines');
             if(count($raw)<2||count($raw)>30)throw new \InvalidArgumentException('Une écriture doit comporter entre 2 et 30 lignes.');
             $lines=[];$debitCents=0;$creditCents=0;
             foreach($raw as $line){
-                $accountId=(int)($line['account_id']??0);$label=trim((string)($line['label']??''))?:$description;
+                if(!is_array($line))throw new \InvalidArgumentException('Format de ligne comptable invalide.');
+                $accountId=$this->parsePositiveId($line['account_id']??null);$label=trim((string)($line['label']??''))?:$description;
                 $debit=$this->toCents((string)($line['debit']??'0'));$credit=$this->toCents((string)($line['credit']??'0'));
                 if($accountId===0&&$debit===0&&$credit===0&&trim((string)($line['label']??''))==='')continue;
-                if($accountId<=0||$label===''||mb_strlen($label)>255||(($debit>0)===($credit>0)))throw new \InvalidArgumentException('Chaque ligne doit avoir un compte, un libellé et un seul montant au débit ou au crédit.');
+                if($accountId===null||$label===''||mb_strlen($label)>255||(($debit>0)===($credit>0)))throw new \InvalidArgumentException('Chaque ligne doit avoir un compte, un libellé et un seul montant au débit ou au crédit.');
                 $lines[]=['account_id'=>$accountId,'label'=>$label,'debit'=>$debit,'credit'=>$credit];$debitCents+=$debit;$creditCents+=$credit;
             }
             if($debitCents<=0||$debitCents!==$creditCents)throw new \InvalidArgumentException('Écriture déséquilibrée : le total débit doit être égal au total crédit.');
             $db->beginTransaction();
             try{
+                $periodGuard->assertOpenDate($db, $date);
                 foreach(array_unique(array_column($lines,'account_id')) as $accountId){
                     $account=$db->fetchAssociative('SELECT id FROM app_accounting_account WHERE id=? AND is_active=1 FOR UPDATE',[$accountId]);
                     if(!$account)throw new \InvalidArgumentException('Un compte sélectionné est inexistant ou inactif.');
@@ -80,11 +84,19 @@ final class GeneralLedgerController extends AbstractController
         return $this->render('general_ledger/account.html.twig',['account'=>$account,'lines'=>$lines,'from'=>$from,'to'=>$to,'balance'=>$balance]);
     }
 
+    private function parsePositiveId(mixed $value):?int
+    {
+        if(!is_string($value)&&!is_int($value))return null;
+        $raw=trim((string)$value);
+        if(!preg_match('/^[1-9]\d{0,8}$/D',$raw))return null;
+        return (int)$raw;
+    }
+
     private function toCents(string $value):int
     {
         $value=str_replace([' ', chr(194).chr(160)], '',trim($value));
         $value=str_replace(',','.',$value);
-        if(!preg_match('/^\d+(?:\.\d{1,2})?$/',$value))throw new \InvalidArgumentException('Montant invalide : deux décimales maximum.');
+        if(!preg_match('/^\d{1,12}(?:\.\d{1,2})?$/D',$value))throw new \InvalidArgumentException('Montant invalide : 12 chiffres avant la virgule et deux décimales maximum.');
         $parts=explode('.',$value,2);
         return ((int)$parts[0])*100+(int)str_pad($parts[1]??'0',2,'0');
     }

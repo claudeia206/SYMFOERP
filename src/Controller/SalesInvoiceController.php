@@ -66,6 +66,8 @@ final class SalesInvoiceController extends AbstractController
         try {
             $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice, $posting): void {
                 $entityManager->lock($invoice, LockMode::PESSIMISTIC_WRITE);
+                // Reload state after the lock; the route converter may have loaded a stale draft.
+                $entityManager->refresh($invoice);
                 $profile = $entityManager->find(CompanyProfile::class, 1);
                 if (!$profile instanceof CompanyProfile) {
                     throw new InvalidArgumentException('Configurez d’abord l’identité légale de l’entreprise.');
@@ -152,6 +154,9 @@ final class SalesInvoiceController extends AbstractController
 
             $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice, $amount, $date, $method, $reference, $note, $posting): void {
                 $entityManager->lock($invoice, LockMode::PESSIMISTIC_WRITE);
+                // The route converter loaded this entity before the transaction and lock.
+                // Refresh it after acquiring the lock so balance/status checks use current database state.
+                $entityManager->refresh($invoice);
                 $payment = new SalesPayment($invoice, $amount, $date, $method, $reference, $note);
                 $invoice->addPayment($payment);
                 $entityManager->persist($payment);

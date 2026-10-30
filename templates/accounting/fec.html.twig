@@ -18,12 +18,19 @@
     <p>{% if summary.difference is defined and summary.difference == 0 %}✓{% else %}⚠{% endif %} Équilibre global : {{ summary.difference|number_format(2,',',' ') }} € d’écart</p>
     <p>{% if unbalanced_count == 0 %}✓{% else %}⚠{% endif %} Écritures déséquilibrées : {{ unbalanced_count }}</p>
     <p>{% if draft_count == 0 %}✓{% else %}⚠{% endif %} Écritures non comptabilisées : {{ draft_count }}</p>
-    {% if ready %}
+    {% if closed_at %}
+        <p class="status">Exercice clôturé le {{ closed_at|date('d/m/Y H:i') }} — écritures verrouillées</p>
+    {% elseif ready %}
         <p class="status">Contrôles techniques réussis — validation humaine toujours requise</p>
+        <form method="post" action="{{ path('app_accounting_fiscal_year_close') }}" onsubmit="return confirm('Clôturer définitivement cet exercice ? Les nouvelles écritures seront bloquées.');">
+            <input type="hidden" name="_token" value="{{ csrf_token('accounting_fiscal_year_close') }}">
+            <input type="hidden" name="year" value="{{ year }}">
+            <button type="submit">Clôturer l’exercice {{ year }}</button>
+        </form>
     {% else %}
         <p class="status">Des anomalies doivent être corrigées avant la clôture</p>
     {% endif %}
     <p><a href="{{ path('app_accounting_fec_export', {year: year}) }}">Télécharger le FEC {{ year }}</a></p>
 </section>
-<p class="muted">L’export contient les 18 colonnes du format FEC et les écritures au statut « posted ». Les auxiliaires, lettrages et montants en devise restent vides car ils ne sont pas disponibles dans le modèle actuel. Cette page prépare les contrôles : elle ne verrouille pas l’exercice, ne génère pas les à-nouveaux et ne passe aucune écriture de clôture. Faites valider le fichier par votre expert-comptable avant dépôt.</p>
+<p class="muted">L’export contient les 18 colonnes du format FEC et les écritures au statut « posted ». Les auxiliaires, lettrages et montants en devise restent vides car ils ne sont pas disponibles dans le modèle actuel. La clôture verrouille les nouvelles écritures de l’exercice. Les à-nouveaux ne sont pas générés automatiquement. Faites valider le fichier par votre expert-comptable avant dépôt.</p>
 {% endblock %}

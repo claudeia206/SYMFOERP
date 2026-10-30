@@ -57,6 +57,17 @@ try {
 } catch (InvalidArgumentException) {
     // An issued invoice is immutable and cannot receive a second number.
 }
+$normalizedPayment = new SalesPayment($invoice, '0.5', new DateTimeImmutable('2026-10-30'), 'cash');
+expectInvoice($normalizedPayment->getAmount() === '0.50', 'Payment amounts must be normalized without floating-point conversion.');
+foreach (['0', '-1.00', '+1.00', '01.00', '1,00', '1.001', '1e2', '10000000000.00'] as $invalidAmount) {
+    try {
+        new SalesPayment($invoice, $invalidAmount, new DateTimeImmutable('2026-10-30'), 'cash');
+        throw new RuntimeException('Invalid customer payment amount was accepted: '.$invalidAmount);
+    } catch (InvalidArgumentException) {
+        // Payment amounts must use a positive, bounded decimal representation.
+    }
+}
+
 $firstPayment = new SalesPayment($invoice, '40.00', new DateTimeImmutable('2026-10-30'), 'bank_transfer', 'VIR-001');
 $invoice->addPayment($firstPayment);
 expectInvoice($invoice->getStatus() === SalesInvoice::STATUS_PARTIALLY_PAID, 'Partial payment must update invoice status.');
@@ -73,6 +84,17 @@ try {
     throw new RuntimeException('An overpayment was accepted.');
 } catch (InvalidArgumentException) {
     // Fully settled invoices reject further payments.
+}
+
+$boundaryInvoice = new SalesInvoice($order);
+$boundaryInvoice->issue('FAC-2026-000002', new DateTimeImmutable('2026-10-30 12:00:00'), new DateTimeImmutable('2026-11-29 12:00:00'), $profile->toInvoiceSnapshot(), $customerSnapshot);
+$boundaryInvoice->addPayment(new SalesPayment($boundaryInvoice, '119.99', new DateTimeImmutable('2026-10-30'), 'bank_transfer'));
+expectInvoice($boundaryInvoice->getRemainingAmount() === 0.01, 'A one-cent customer balance must remain outstanding exactly.');
+try {
+    $boundaryInvoice->addPayment(new SalesPayment($boundaryInvoice, '0.02', new DateTimeImmutable('2026-10-30'), 'cash'));
+    throw new RuntimeException('A customer payment one cent above the balance was accepted.');
+} catch (InvalidArgumentException) {
+    // Integer-cent comparisons must reject even a one-cent overpayment.
 }
 
 $order->setStatus(SalesOrder::STATUS_CANCELLED);

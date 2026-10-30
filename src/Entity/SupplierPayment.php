@@ -42,13 +42,18 @@ class SupplierPayment
 
     public function __construct(SupplierInvoice $invoice, string $amount, DateTimeImmutable $paidAt, string $method, ?string $reference = null, ?string $note = null)
     {
-        if (!is_numeric($amount) || (float) $amount <= 0 || (float) $amount > 9999999999.99 || !in_array($method, self::METHODS, true)) {
+        if (!preg_match('/^(?:0|[1-9]\\d{0,9})(?:\\.\\d{1,2})?$/D', $amount)) {
+            throw new InvalidArgumentException('Montant de règlement fournisseur invalide.');
+        }
+        [$whole, $fraction] = array_pad(explode('.', $amount, 2), 2, '');
+        $amountInCents = ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
+        if ($amountInCents <= 0 || !in_array($method, self::METHODS, true)) {
             throw new InvalidArgumentException('Montant ou moyen de règlement fournisseur invalide.');
         }
         $reference = $reference !== null ? trim($reference) : null;
         if ($reference !== null && mb_strlen($reference) > 120) { throw new InvalidArgumentException('Référence de règlement trop longue.'); }
         $this->invoice = $invoice;
-        $this->amount = number_format((float) $amount, 2, '.', '');
+        $this->amount = (string) $whole.'.'.str_pad($fraction, 2, '0');
         $this->paidAt = $paidAt;
         $this->method = $method;
         $this->reference = $reference !== '' ? $reference : null;
