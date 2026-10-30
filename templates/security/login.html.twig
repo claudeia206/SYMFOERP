@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion · SYMFOERP{% endblock %}
+
+{% block body %}
+    <section class="card" style="max-width:480px;margin:40px auto">
+        <p class="muted">ACCÈS SÉCURISÉ</p>
+        <h1>Connexion</h1>
+        {% if error %}
+            <p role="alert" class="status">Adresse e-mail ou mot de passe incorrect.</p>
+        {% endif %}
+        <form method="post" action="{{ path('app_login') }}">
+            <p>
+                <label for="email">Adresse e-mail</label>
+                <input id="email" name="email" type="email" autocomplete="username" required autofocus value="{{ last_username }}">
+            </p>
+            <p>
+                <label for="password">Mot de passe</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+            </p>
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+            <button type="submit">Se connecter</button>
+        </form>
+    </section>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+{% block title %}Factures fournisseurs · SYMFOERP{% endblock %}
+{% block body %}
+<h1>Factures fournisseurs</h1>
+<p class="muted">Factures issues des quantités déjà réceptionnées. La réception, et non la facture, met à jour le stock.</p>
+{% for message in app.flashes('success') %}<p class="card">{{ message }}</p>{% endfor %}
+{% for message in app.flashes('error') %}<p class="card">{{ message }}</p>{% endfor %}
+{% if orders %}
+<div class="card"><h2>Créer une facture depuis une commande réceptionnée</h2>
+{% for order in orders %}
+<form method="post" action="{{ path('app_supplier_invoice_from_order', {id: order.id}) }}" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:12px 0">
+<input type="hidden" name="_token" value="{{ csrf_token('supplier_invoice_create_' ~ order.id) }}">
+<label>Commande {{ order.number }} · {{ order.supplier.name }}<input required maxlength="120" name="supplier_invoice_number" placeholder="Référence facture fournisseur"></label>
+<button type="submit">Créer le brouillon</button>
+</form>
+{% endfor %}</div>
+{% endif %}
+<h2>Historique</h2>
+<div class="card table-scroll"><table class="data-table"><thead><tr><th>Référence fournisseur</th><th>Fournisseur</th><th>Commande</th><th>Date</th><th>Échéance</th><th>Statut</th><th>Reste dû</th></tr></thead><tbody>
+{% for invoice in invoices %}<tr><td><a href="{{ path('app_supplier_invoice_show', {id: invoice.id}) }}">{{ invoice.supplierInvoiceNumber }}</a></td><td>{{ invoice.supplier.name }}</td><td>{{ invoice.purchaseOrder.number }}</td><td>{{ invoice.invoiceDate|date('d/m/Y') }}</td><td>{{ invoice.dueDate|date('d/m/Y') }}</td><td>{{ invoice.effectiveStatus }}</td><td>{{ invoice.remainingAmount|number_format(2, ',', ' ') }} €</td></tr>
+{% else %}<tr><td colspan="7">Aucune facture fournisseur enregistrée.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

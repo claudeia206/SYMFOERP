@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+{% block title %}Factures · SYMFOERP{% endblock %}
+{% block body %}
+    <p class="muted">GESTION COMMERCIALE / FACTURATION</p>
+    <h1>Factures</h1>
+    <section class="card">
+        {% if invoices is empty %}
+            <p>Aucune facture brouillon. Créez-en une depuis une commande.</p>
+        {% else %}
+            <div class="table-scroll"><table class="data-table">
+                <thead><tr><th>Référence</th><th>Client</th><th>Commande</th><th>Date</th><th>Échéance</th><th>Total TTC</th><th>Solde</th><th>État</th></tr></thead>
+                <tbody>{% for invoice in invoices %}
+                    <tr>
+                        <td><a href="{{ path('app_sales_invoice_show', {id: invoice.id}) }}">{{ invoice.number ?? ('Brouillon #' ~ invoice.id) }}</a></td>
+                        <td>{{ invoice.customer.name }}</td><td>{{ invoice.order.number }}</td>
+                        <td>{{ invoice.invoiceDate|date('d/m/Y') }}</td><td>{{ invoice.dueDate|date('d/m/Y') }}</td>
+                        <td>{{ invoice.totalIncludingTax|number_format(2, ',', ' ') }} €</td><td>{{ invoice.remainingAmount|number_format(2, ',', ' ') }} € restant</td><td>{{ {'draft':'Brouillon','issued':'Émise','partially_paid':'Partiellement réglée','paid':'Payée','overdue':'En retard','cancelled':'Annulée'}[invoice.effectiveStatus] ?? invoice.effectiveStatus }}</td>
+                    </tr>
+                {% endfor %}</tbody>
+            </table></div>
+        {% endif %}
+    </section>
+{% endblock %}

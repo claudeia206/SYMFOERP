@@ -1,0 +1,91 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ invoice.number ?? ('Brouillon #' ~ invoice.id) }} · SYMFOERP{% endblock %}
+{% block body %}
+    <p class="muted">GESTION COMMERCIALE / FACTURATION</p>
+    <p><a href="{{ path('app_sales_invoices') }}">← Toutes les factures</a></p>
+    {% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
+    {% for message in app.flashes('error') %}<p class="card" role="alert">{{ message }}</p>{% endfor %}
+    <h1>{{ invoice.number ?? ('Facture brouillon #' ~ invoice.id) }}</h1>
+    <section class="card">
+        <p><strong>État :</strong> {{ {'draft':'Brouillon — non émise','issued':'Émise','partially_paid':'Partiellement réglée','paid':'Payée','overdue':'En retard','cancelled':'Annulée'}[invoice.effectiveStatus] ?? invoice.effectiveStatus }}</p>
+        <p><strong>Client :</strong> {{ invoice.customer.name }}</p>
+        {% if invoice.number %}
+            <p><strong>Numéro :</strong> {{ invoice.number }}</p>
+            <p><strong>Date d’émission :</strong> {{ invoice.issuedAt|date('d/m/Y H:i') }}</p>
+            <p><a href="{{ path('app_sales_invoice_pdf', {id: invoice.id}) }}">Ouvrir le PDF de la facture</a></p>
+        {% endif %}
+        <p><strong>Commande source :</strong> <a href="{{ path('app_sales_order_show', {id: invoice.order.id}) }}">{{ invoice.order.number }}</a></p>
+        <p><strong>{{ invoice.number ? 'Date de facture' : 'Date de préparation' }} :</strong> {{ invoice.invoiceDate|date('d/m/Y') }}</p>
+        <p><strong>{{ invoice.number ? 'Échéance' : 'Échéance proposée' }} :</strong> {{ invoice.dueDate|date('d/m/Y') }}</p>
+    </section>
+    <section class="card">
+        <h2>Lignes reprises de la commande</h2>
+        <div class="table-scroll"><table class="data-table">
+            <thead><tr><th>Désignation</th><th>Quantité</th><th>Prix unitaire HT</th><th>TVA</th><th>Total HT</th><th>Total TTC</th></tr></thead>
+            <tbody>{% for line in invoice.lines %}
+                <tr><td>{{ line.description }}</td><td>{{ line.quantity }}</td>
+                <td>{{ line.unitPrice|number_format(2, ',', ' ') }} €</td>
+                <td>{{ line.vatRate|number_format(2, ',', ' ') }} %</td>
+                <td>{{ line.totalExcludingTax|number_format(2, ',', ' ') }} €</td>
+                <td>{{ line.totalIncludingTax|number_format(2, ',', ' ') }} €</td></tr>
+            {% endfor %}</tbody>
+        </table></div>
+        <dl>
+            <dt>Total HT</dt><dd>{{ invoice.totalExcludingTax|number_format(2, ',', ' ') }} €</dd>
+            <dt>Total TVA</dt><dd>{{ invoice.totalTax|number_format(2, ',', ' ') }} €</dd>
+            <dt><strong>Total TTC</strong></dt><dd><strong>{{ invoice.totalIncludingTax|number_format(2, ',', ' ') }} €</strong></dd>
+        </dl>
+        {% if invoice.notes %}<h3>Notes</h3><p>{{ invoice.notes|nl2br }}</p>{% endif %}
+    </section>
+    <section class="card">
+        <h2>Suivi des règlements</h2>
+        <p><strong>Total TTC :</strong> {{ invoice.totalIncludingTax|number_format(2, ',', ' ') }} €</p>
+        <p><strong>Déjà réglé :</strong> {{ invoice.paidAmount|number_format(2, ',', ' ') }} €</p>
+        <p><strong>Reste à payer :</strong> {{ invoice.remainingAmount|number_format(2, ',', ' ') }} €</p>
+        {% if invoice.payments is not empty %}
+            <div class="table-scroll"><table class="data-table"><thead><tr><th>Date</th><th>Mode</th><th>Référence</th><th>Montant</th></tr></thead><tbody>
+            {% for payment in invoice.payments %}
+                <tr><td>{{ payment.paidAt|date('d/m/Y') }}</td><td>{{ {'bank_transfer':'Virement','card':'Carte','cash':'Espèces','check':'Chèque','other':'Autre'}[payment.method] ?? payment.method }}</td><td>{{ payment.reference ?? '—' }}</td><td>{{ payment.amount|number_format(2, ',', ' ') }} €</td></tr>
+            {% endfor %}
+            </tbody></table></div>
+        {% endif %}
+        {% if invoice.status in ['issued', 'partially_paid'] and invoice.remainingAmount > 0 %}
+            <h3>Enregistrer un règlement</h3>
+            <form method="post" action="{{ path('app_sales_invoice_payment', {id: invoice.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('sales_invoice_payment_' ~ invoice.id) }}">
+                <p><label for="payment-amount">Montant (€)</label><input id="payment-amount" type="number" name="amount" min="0.01" max="{{ invoice.remainingAmount|number_format(2, '.', '') }}" step="0.01" required></p>
+                <p><label for="payment-date">Date du paiement</label><input id="payment-date" type="date" name="paid_at" value="{{ 'now'|date('Y-m-d') }}" required></p>
+                <p><label for="payment-method">Mode</label><select id="payment-method" name="method" required><option value="bank_transfer">Virement</option><option value="card">Carte</option><option value="cash">Espèces</option><option value="check">Chèque</option><option value="other">Autre</option></select></p>
+                <p><label for="payment-reference">Référence</label><input id="payment-reference" type="text" name="reference" maxlength="120"></p>
+                <p><label for="payment-note">Note</label><textarea id="payment-note" name="note"></textarea></p>
+                <button type="submit">Enregistrer le règlement</button>
+            </form>
+        {% elseif invoice.status == 'draft' %}
+            <p>Les règlements seront disponibles après émission de la facture.</p>
+        {% endif %}
+    </section>
+    {% if invoice.status == 'draft' %}
+    <section class="card">
+        <h2>Émission de la facture</h2>
+        {% if issue_errors is not empty %}
+            <p>L’émission est bloquée tant que les éléments suivants ne sont pas complétés :</p>
+            <ul>{% for error in issue_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            <p><a href="{{ path('app_company_settings') }}">Configurer l’identité de l’entreprise</a> · <a href="{{ path('app_third_party_edit', {id: invoice.customer.id}) }}">Compléter la fiche client</a></p>
+        {% else %}
+            <p>L’émission figera les coordonnées du vendeur et du client et attribuera le prochain numéro annuel.</p>
+            <form method="post" action="{{ path('app_sales_invoice_issue', {id: invoice.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('sales_invoice_issue_' ~ invoice.id) }}">
+                <button type="submit">Émettre définitivement la facture</button>
+            </form>
+        {% endif %}
+    </section>
+    {% endif %}
+    {% if invoice.sellerSnapshot %}
+    <section class="card">
+        <h2>Identité figée sur la facture</h2>
+        <h3>Vendeur</h3><p>{{ invoice.sellerSnapshot.legal_name }}<br>{{ invoice.sellerSnapshot.address }}<br>{{ invoice.sellerSnapshot.postal_code }} {{ invoice.sellerSnapshot.city }} · {{ invoice.sellerSnapshot.country }}<br>SIREN : {{ invoice.sellerSnapshot.siren }} · SIRET : {{ invoice.sellerSnapshot.siret }}</p>
+        <p><strong>TVA :</strong> {{ invoice.sellerSnapshot.vat_regime_note }}</p><p><strong>Conditions de paiement :</strong> {{ invoice.sellerSnapshot.payment_terms }}</p><p><strong>Pénalités de retard :</strong> {{ invoice.sellerSnapshot.late_penalty_rate }}</p><p><strong>Indemnité de recouvrement :</strong> {{ invoice.sellerSnapshot.recovery_fee }} €</p>
+        <h3>Client</h3><p>{{ invoice.customerSnapshot.name }}<br>{{ invoice.customerSnapshot.address }}<br>{{ invoice.customerSnapshot.postal_code }} {{ invoice.customerSnapshot.city }} · {{ invoice.customerSnapshot.country }}</p>
+    </section>
+    {% endif %}
+{% endblock %}

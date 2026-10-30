@@ -1,0 +1,18 @@
+{% extends 'base.html.twig' %}
+{% block title %}Achats fournisseurs · SYMFOERP{% endblock %}
+{% block body %}
+<h1>Achats fournisseurs</h1>
+<p class="muted">Commandes et suivi des réceptions.</p>
+<p><a href="{{ path('app_purchase_order_new') }}">+ Nouvelle commande fournisseur</a></p>
+{% if orders is empty %}
+    <section class="card">Aucune commande fournisseur enregistrée.</section>
+{% else %}
+<div class="card table-scroll"><table class="data-table"><thead><tr><th>Numéro</th><th>Fournisseur</th><th>Date</th><th>Statut</th><th>Total TTC</th></tr></thead><tbody>
+{% for order in orders %}<tr>
+<td><a href="{{ path('app_purchase_order_show', {id: order.id}) }}">{{ order.number }}</a></td>
+<td>{{ order.supplier.name }}</td><td>{{ order.orderDate|date('d/m/Y') }}</td>
+<td>{{ statuses[order.status] }}</td><td>{{ order.totalIncludingTax|number_format(2, ',', ' ') }} €</td>
+</tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+{% endblock %}

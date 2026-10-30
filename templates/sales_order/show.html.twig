@@ -1,0 +1,34 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ order.number }} · SYMFOERP{% endblock %}
+{% block body %}
+    <p class="muted">GESTION COMMERCIALE / VENTES</p>
+    <p><a href="{{ path('app_sales_orders') }}">← Toutes les commandes</a></p>
+    {% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
+    {% for message in app.flashes('error') %}<p class="card" role="alert">{{ message }}</p>{% endfor %}
+    <h1>{{ order.number }}</h1>
+    <section class="card">
+        <p><strong>Client :</strong> {{ order.customer.name }}</p>
+        <p><strong>Commande créée le :</strong> {{ order.orderDate|date('d/m/Y') }}</p>
+        <p><strong>Devis d'origine :</strong> <a href="{{ path('app_sales_quote_show', {id: order.sourceQuote.id}) }}">{{ order.sourceQuote.number }}</a></p>
+        <p><strong>Statut :</strong> {{ statuses[order.status] ?? order.status }}</p>
+        <p><a href="{{ path('app_sales_invoices') }}">Consulter les factures</a></p>
+        <form method="post" action="{{ path('app_sales_invoice_from_order', {id: order.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('sales_invoice_create_' ~ order.id) }}">
+            <button type="submit">Préparer une facture brouillon</button>
+        </form>
+    </section>
+    <section class="card">
+        <h2>Lignes de commande (copie du devis accepté)</h2>
+        <div class="table-scroll"><table class="data-table">
+            <thead><tr><th>Désignation</th><th>Quantité</th><th>Prix unitaire HT</th><th>TVA</th><th>Total HT</th><th>Total TTC</th></tr></thead>
+            <tbody>{% for line in order.lines %}
+                <tr><td>{{ line.description }}</td><td>{{ line.quantity }}</td><td>{{ line.unitPrice|number_format(2, ',', ' ') }} €</td><td>{{ line.vatRate|number_format(2, ',', ' ') }} %</td><td>{{ line.totalExcludingTax|number_format(2, ',', ' ') }} €</td><td>{{ line.totalIncludingTax|number_format(2, ',', ' ') }} €</td></tr>
+            {% endfor %}</tbody>
+        </table></div>
+        <dl><dt>Total HT</dt><dd>{{ order.totalExcludingTax|number_format(2, ',', ' ') }} €</dd><dt>Total TVA</dt><dd>{{ order.totalTax|number_format(2, ',', ' ') }} €</dd><dt><strong>Total TTC</strong></dt><dd><strong>{{ order.totalIncludingTax|number_format(2, ',', ' ') }} €</strong></dd></dl>
+        {% if order.notes %}<h3>Notes et conditions</h3><p>{{ order.notes|nl2br }}</p>{% endif %}
+    </section>
+    {% if allowed_actions is not empty %}<section class="card"><h2>Mettre à jour la commande</h2>{% for action in allowed_actions %}
+        <form method="post" action="{{ path('app_sales_order_status', {id: order.id}) }}" style="display:inline-block;margin:6px 10px 6px 0"><input type="hidden" name="_token" value="{{ csrf_token('sales_order_status_' ~ order.id) }}"><input type="hidden" name="status" value="{{ action }}"><button type="submit">{{ statuses[action] }}</button></form>
+    {% endfor %}</section>{% endif %}
+{% endblock %}

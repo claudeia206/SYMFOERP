@@ -5,13 +5,17 @@
 {% block body %}
     <p class="muted">ESPACE DE TRAVAIL</p>
     <h1>Tableau de bord</h1>
-    <p class="muted">Le socle SYMFOERP est en place. Les modules métier seront développés progressivement.</p>
+    <p class="muted">Les modules disponibles sont accessibles depuis cet espace. Les autres seront développés progressivement.</p>
     <section class="grid" aria-label="Modules ERP">
         {% for module in modules %}
             <article class="card">
                 <h2>{{ module.name }}</h2>
                 <p class="muted">{{ module.description }}</p>
-                <span class="status">{{ module.status }}</span>
+                {% if module.route is defined %}
+                    <a class="button" href="{{ path(module.route) }}">Ouvrir le module</a>
+                {% else %}
+                    <span class="status">{{ module.status }}</span>
+                {% endif %}
             </article>
         {% endfor %}
     </section>

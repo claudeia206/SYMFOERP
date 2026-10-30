@@ -1,8 +1,8 @@
 FROM php:8.3-cli
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git unzip libicu-dev \
-    && docker-php-ext-install intl pdo_mysql opcache \
+        git unzip libicu-dev libonig-dev \
+    && docker-php-ext-install intl mbstring pdo_mysql opcache \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
