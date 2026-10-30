@@ -152,6 +152,7 @@ final class SalesInvoiceController extends AbstractController
 
             $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice, $amount, $date, $method, $reference, $note, $accounting): void {
                 $entityManager->lock($invoice, LockMode::PESSIMISTIC_WRITE);
+                $entityManager->refresh($invoice);
                 $payment = new SalesPayment($invoice, $amount, $date, $method, $reference, $note);
                 $invoice->addPayment($payment);
                 $entityManager->persist($payment);
