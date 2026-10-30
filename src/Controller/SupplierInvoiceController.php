@@ -31,14 +31,14 @@ final class SupplierInvoiceController extends AbstractController
         // one-invoice-per-order unique constraint.
         $billableOrders = $em->createQueryBuilder()
             ->select('DISTINCT order')
-            ->from(PurchaseOrder::class, 'order')
-            ->innerJoin('order.lines', 'line')
-            ->leftJoin(SupplierInvoice::class, 'invoice', 'WITH', 'invoice.purchaseOrder = order')
+            ->from(PurchaseOrder::class, 'po')
+            ->innerJoin('po.lines', 'line')
+            ->leftJoin(SupplierInvoice::class, 'invoice', 'WITH', 'invoice.purchaseOrder = po')
             ->where('invoice.id IS NULL')
             ->andWhere('line.receivedQuantity > 0')
-            ->andWhere('order.status NOT IN (:blockedStatuses)')
+            ->andWhere('po.status NOT IN (:blockedStatuses)')
             ->setParameter('blockedStatuses', [PurchaseOrder::STATUS_DRAFT, PurchaseOrder::STATUS_CANCELLED])
-            ->orderBy('order.createdAt', 'DESC')
+            ->orderBy('po.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
 
