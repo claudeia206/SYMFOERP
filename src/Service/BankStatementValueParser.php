@@ -37,6 +37,10 @@ final class BankStatementValueParser
         }
 
         $value = str_replace([" ", "\u{00A0}", "\u{202F}", ','], ['', '', '', '.'], $value);
+        if (!preg_match('/^-?(?:0|[1-9]\\d{0,9})(?:\\.\\d{1,2})?$/D', $value)) {
+            throw new InvalidArgumentException('Montant bancaire hors limites.');
+        }
+
         $negative = str_starts_with($value, '-');
         $unsigned = $negative ? substr($value, 1) : $value;
         [$whole, $fraction] = array_pad(explode('.', $unsigned, 2), 2, '');
