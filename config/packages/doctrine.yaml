@@ -2,6 +2,10 @@ doctrine:
     dbal:
         url: '%env(resolve:DATABASE_URL)%'
         use_savepoints: true
+        # These tables are managed through explicit DBAL SQL in the accounting
+        # and numbering services, not through Doctrine ORM entities. Excluding
+        # them prevents ORM schema tooling from proposing to DROP live tables.
+        schema_filter: '~^(?!app_(accounting_account|accounting_fiscal_year|accounting_journal|accounting_source_posting|credit_note_sequence|customer_payment_reminder|fixed_asset|fixed_asset_depreciation|invoice_sequence|journal_entry|journal_entry_line)$).*~'
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true
