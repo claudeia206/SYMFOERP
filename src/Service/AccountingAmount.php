@@ -35,7 +35,7 @@ final class AccountingAmount
         }
 
         // Keep line totals within the 13-digit accounting amount precision.
-        $maximumNumerator = 999999999999999 * 1000 + 500;
+        $maximumNumerator = 999999999999999 * 1000 + 499;
         if ($unitPriceCents !== 0 && $milliunits > intdiv($maximumNumerator, $unitPriceCents)) {
             throw new InvalidArgumentException('Le total de ligne dépasse la précision comptable prise en charge.');
         }
