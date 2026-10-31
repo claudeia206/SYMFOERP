@@ -61,7 +61,7 @@ SQL, [$to, $to, $from, $to, $from, $to, $to]);
                 if ($balance === 0) {
                     return;
                 }
-                $groups[$key][] = ['code' => $row['code'], 'name' => $row['name'], 'balance' => AccountingAmount::formatCents($balance)];
+                $groups[$key][] = ['code' => $row['code'], 'name' => $row['name'], 'balance' => AccountingAmount::formatFrenchCents($balance)];
                 $totals[$key] = AccountingAmount::addSignedCents($totals[$key], $balance);
             };
 
@@ -82,8 +82,10 @@ SQL, [$to, $to, $from, $to, $from, $to, $to]);
             }
         }
 
+        $balanceSheetTotal = AccountingAmount::addSignedCents($totals['liabilities'], $totals['equity']);
+        $netResult = AccountingAmount::addSignedCents($totals['income'], -$totals['expenses']);
         foreach ($totals as &$value) {
-            $value = AccountingAmount::formatCents($value);
+            $value = AccountingAmount::formatFrenchCents($value);
         }
         unset($value);
 
@@ -92,7 +94,8 @@ SQL, [$to, $to, $from, $to, $from, $to, $to]);
             'totals' => $totals,
             'from' => $from,
             'to' => $to,
-            'net_result' => AccountingAmount::formatCents(AccountingAmount::addSignedCents(AccountingAmount::toCents($totals['income']), -AccountingAmount::toCents($totals['expenses']))),
+            'balance_sheet_total' => AccountingAmount::formatFrenchCents($balanceSheetTotal),
+            'net_result' => AccountingAmount::formatFrenchCents($netResult),
         ]);
     }
 }
