@@ -67,8 +67,8 @@ final class SupplierInvoiceController extends AbstractController
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
         }
         try {
-            $date = new \DateTimeImmutable((string) $request->request->get('invoice_date', ''));
-            $due = new \DateTimeImmutable((string) $request->request->get('due_date', ''));
+            $date = $this->parseFormDate((string) $request->request->get('invoice_date', ''), 'Date de facture');
+            $due = $this->parseFormDate((string) $request->request->get('due_date', ''), 'Date d’échéance');
             $em->getConnection()->transactional(function () use ($em, $invoice, $date, $due, $posting): void {
                 $em->lock($invoice, LockMode::PESSIMISTIC_WRITE);
                 $em->refresh($invoice);
@@ -93,7 +93,7 @@ final class SupplierInvoiceController extends AbstractController
         }
         try {
             $amount = trim((string) $request->request->get('amount', ''));
-            $date = new \DateTimeImmutable((string) $request->request->get('paid_at', ''));
+            $date = $this->parseFormDate((string) $request->request->get('paid_at', ''), 'Date de règlement');
             $method = (string) $request->request->get('method', '');
             $reference = (string) $request->request->get('reference', '');
             $note = (string) $request->request->get('note', '');
