@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\\Controller\\SalesInvoiceController;
-use App\\Controller\\SupplierInvoiceController;
+use App\Controller\\SalesInvoiceController;
+use App\Controller\\SupplierInvoiceController;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
