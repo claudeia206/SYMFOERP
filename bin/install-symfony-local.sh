@@ -50,16 +50,20 @@ fi
 # Run maintenance commands directly in the already healthy Symfony container.
 # This preserves its exact environment and avoids Compose's one-off TTY behavior.
 console() {
-    docker exec --workdir /app symfoerp-symfony php -d display_errors=1 /app/bin/console "$@"
+    echo ">>> Symfony Console: $*"
+    docker exec --workdir /app symfoerp-symfony php -d display_errors=1 /app/bin/console "$@" 2>&1
+    local status=$?
+    echo "<<< Symfony Console exit=$status"
+    return "$status"
 }
 echo "Diagnostic CLI Symfony :"
 docker exec --workdir /app symfoerp-symfony php -r 'echo "PHP CLI OK; cwd=" . getcwd() . PHP_EOL;'
 docker exec --workdir /app symfoerp-symfony test -f /app/bin/console
 console --version
 echo "Migrations Doctrine détectées avant installation :"
-console doctrine:migrations:list
-console doctrine:migrations:status --show-versions
-console doctrine:migrations:migrate --no-interaction -vvv
+console doctrine:migrations:list --no-ansi -vvv
+console doctrine:migrations:status --show-versions --no-ansi -vvv
+console doctrine:migrations:migrate --no-interaction --no-ansi -vvv
 database_check='$url = parse_url(getenv("DATABASE_URL"));
 $pdo = new PDO(
     "mysql:host=" . $url["host"] . ";port=" . ($url["port"] ?? 3306) . ";dbname=" . ltrim($url["path"], "/") . ";charset=utf8mb4",
