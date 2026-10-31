@@ -123,6 +123,13 @@ foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00'] as $invalidPrice) {
 }
 try {
     \App\Service\AccountingAmount::lineNetCents('9999999.999', '9999999999.99');
+$assert(\\App\\Service\\AccountingAmount::lineNetCents('100.000', '9999999999.99') === 99999999999900, 'Line totals must support the full 12-whole-digit journal precision.');
+$assert(\\App\\Service\\AccountingAmount::taxCents(99999999999999, '100.00') === 99999999999999, 'VAT calculation must support the maximum journal amount.');
+try {
+    \\App\\Service\\AccountingAmount::lineNetCents('100.001', '9999999999.99');
+    throw new RuntimeException('A line total beyond journal precision was accepted.');
+} catch (\\InvalidArgumentException) {
+}
     throw new RuntimeException('An amount beyond accounting precision was accepted.');
 } catch (\InvalidArgumentException) {
 }
