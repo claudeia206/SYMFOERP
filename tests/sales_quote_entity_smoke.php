@@ -47,6 +47,7 @@ expectSales($order->getLines()->first()->getProduct() === $catalogProduct, 'Orde
 expectSales($order->getTotalExcludingTax() === $quote->getTotalExcludingTax(), 'Converted order subtotal must match the accepted quote.');
 expectSales($order->getTotalTax() === $quote->getTotalTax(), 'Converted order VAT must match the accepted quote.');
 expectSales($order->getTotalIncludingTax() === $quote->getTotalIncludingTax(), 'Converted order total must match the accepted quote.');
+expectSales($order->getTotalExcludingTaxCents() === $quote->getTotalExcludingTaxCents() && $order->getTotalTaxCents() === $quote->getTotalTaxCents() && $order->getTotalIncludingTaxCents() === $quote->getTotalIncludingTaxCents(), 'Converted sales order must preserve exact-cent quote totals.');
 $order->setStatus(SalesOrder::STATUS_FULFILLED);
 expectSales($order->getStatus() === SalesOrder::STATUS_FULFILLED, 'Order status must transition to fulfilled.');
 $catalogProduct->adjustStock('-2');
