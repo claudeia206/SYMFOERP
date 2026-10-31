@@ -55,13 +55,13 @@ foreach ([
     expectPostingValidation($rejected, 'Invalid monetary input was accepted: '.var_export($invalid, true));
 }
 
-$ledgerController = (new ReflectionClass(App\\Controller\\GeneralLedgerController::class))->newInstanceWithoutConstructor();
-$ledgerAmount = (new ReflectionClass(App\\Controller\\GeneralLedgerController::class))->getMethod('toCents');
+$ledgerController = (new ReflectionClass(App\Controller\\GeneralLedgerController::class))->newInstanceWithoutConstructor();
+$ledgerAmount = (new ReflectionClass(App\Controller\\GeneralLedgerController::class))->getMethod('toCents');
 $ledgerAmount->setAccessible(true);
 foreach ([
     ['12,34', 1234],
     ['1 234,56', 123456],
-    ["1\\u{00A0}234,56", 123456],
+    ["1\u{00A0}234,56", 123456],
     ['999 999 999 999,99', 99999999999999],
 ] as [$input, $expected]) {
     expectPostingValidation($ledgerAmount->invoke($ledgerController, $input) === $expected, 'Valid French ledger amount was converted incorrectly.');
