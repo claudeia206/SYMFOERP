@@ -6,6 +6,15 @@ use App\Service\FixedAssetDepreciationSequence;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
+$controller = (new ReflectionClass(FixedAssetController::class))->newInstanceWithoutConstructor();
+$parseMoney = (new ReflectionClass(FixedAssetController::class))->getMethod('parseMoney');
+$parseMoney->setAccessible(true);
+if ($parseMoney->invoke($controller, '999999999999.99') !== '999999999999.99'
+    || $parseMoney->invoke($controller, '1000000000000.00') !== null
+    || $parseMoney->invoke($controller, 1.25) !== null) {
+    throw new RuntimeException('Fixed asset monetary inputs must respect exact journal precision and reject floats.');
+}
+
 $calculator = new DepreciationCalculator();
 $start = new DateTimeImmutable('2024-07-01');
 $end = new DateTimeImmutable('2029-07-01');
