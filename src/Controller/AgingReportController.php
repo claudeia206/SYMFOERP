@@ -40,11 +40,19 @@ WHERE i.status IN ('received','partially_paid','overdue')
 HAVING remaining>0
 ORDER BY i.due_date,i.id
 SQL);
+        foreach([$receivables,$payables] as &$groupRows){
+            foreach($groupRows as &$row){
+                $row['total']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$row['total']));
+            }
+            unset($row);
+        }
+        unset($groupRows);
         $receivableTotals=$this->summarize($receivables,$today);
         $payableTotals=$this->summarize($payables,$today);
         return $this->render('accounting/aging.html.twig',[
             'today'=>$today,'receivables'=>$receivables,'payables'=>$payables,
             'receivable_totals'=>$receivableTotals,'payable_totals'=>$payableTotals,
+            'net_position'=>AccountingAmount::formatFrenchCents(AccountingAmount::addSignedCents(AccountingAmount::toCents(str_replace([' ', ','], ['', '.'], $receivableTotals['total'])),-AccountingAmount::toCents(str_replace([' ', ','], ['', '.'], $payableTotals['total'])))),
         ]);
     }
     private function summarize(array &$rows,string $today):array
@@ -56,11 +64,11 @@ SQL);
             $bucket=$days<=0?'current':($days<=30?'d1_30':($days<=60?'d31_60':($days<=90?'d61_90':'d90')));
             $row['bucket']=$bucket;
             $remaining=AccountingAmount::toCents((string)$row['remaining']);
-            $row['remaining']=AccountingAmount::formatCents($remaining);
+            $row['remaining']=AccountingAmount::formatFrenchCents($remaining);
             $totals[$bucket]=AccountingAmount::addSignedCents($totals[$bucket],$remaining);$totals['total']=AccountingAmount::addSignedCents($totals['total'],$remaining);
         }
         unset($row);
-        foreach($totals as &$amount)$amount=AccountingAmount::formatCents($amount);
+        foreach($totals as &$amount)$amount=AccountingAmount::formatFrenchCents($amount);
         unset($amount);
         return $totals;
     }
