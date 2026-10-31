@@ -35,4 +35,4 @@ foreach ([SalesInvoiceController::class, SupplierInvoiceController::class] as $c
     }
 }
 
-echo "Strict accounting form date validation smoke tests passed.\\n";
+echo "Strict accounting form date validation smoke tests passed.\n";
