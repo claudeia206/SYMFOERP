@@ -15,7 +15,7 @@
 </section>
 <section class="card">
     <h2>Contrôles avant clôture</h2>
-    <p>{% if summary.difference is defined and summary.difference == 0 %}✓{% else %}⚠{% endif %} Équilibre global : {{ summary.difference }} € d’écart</p>
+    <p>{% if balanced %}✓{% else %}⚠{% endif %} Équilibre global : {{ summary.difference }} € d’écart</p>
     <p>{% if unbalanced_count == 0 %}✓{% else %}⚠{% endif %} Écritures déséquilibrées : {{ unbalanced_count }}</p>
     <p>{% if draft_count == 0 %}✓{% else %}⚠{% endif %} Écritures non comptabilisées : {{ draft_count }}</p>
     {% if closed_at %}
