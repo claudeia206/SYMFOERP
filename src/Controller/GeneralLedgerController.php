@@ -151,11 +151,15 @@ final class GeneralLedgerController extends AbstractController
 
     private function toCents(string $value):int
     {
-        $value=str_replace([' ', chr(194).chr(160)], '',trim($value));
-        $value=str_replace(',','.',$value);
-        if(!preg_match('/^\d{1,12}(?:\.\d{1,2})?$/D',$value))throw new \InvalidArgumentException('Montant invalide : 12 chiffres avant la virgule et deux décimales maximum.');
-        $parts=explode('.',$value,2);
-        return ((int)$parts[0])*100+(int)str_pad($parts[1]??'0',2,'0');
+        $value=trim($value);
+        $grouping='[ \\x{00A0}\\x{202F}]';
+        if(!preg_match('/^(?:0|[1-9]\\d{0,11}|[1-9]\\d{0,2}(?:'.$grouping.'\\d{3})+)(?:[,.]\\d{1,2})?$/uD',$value)){
+            throw new \\InvalidArgumentException('Montant invalide : groupement des milliers et deux décimales maximum.');
+        }
+        $normalized=preg_replace('/'.$grouping.'/u','',$value);
+        $normalized=str_replace(',','.',$normalized);
+
+        return AccountingAmount::toCents($normalized);
     }
     private function validatePeriod(string $from,string $to):void
     {
