@@ -30,7 +30,7 @@ final class SupplierInvoiceController extends AbstractController
         ]);
     }
 
-    #[Route('/from-order/{id}', name: 'app_supplier_invoice_from_order', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    #[Route('/from-order/{id}', name: 'app_supplier_invoice_from_order', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function createFromOrder(Request $request, PurchaseOrder $order, EntityManagerInterface $em): Response
     {
         if (!$this->isCsrfTokenValid('supplier_invoice_create_'.$order->getId(), (string) $request->request->get('_token'))) {
@@ -54,13 +54,13 @@ final class SupplierInvoiceController extends AbstractController
         return $this->redirectToRoute('app_supplier_invoices');
     }
 
-    #[Route('/{id}', name: 'app_supplier_invoice_show', requirements: ['id' => '\\d+'], methods: ['GET'])]
+    #[Route('/{id}', name: 'app_supplier_invoice_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(SupplierInvoice $invoice): Response
     {
         return $this->render('supplier_invoice/show.html.twig', ['invoice' => $invoice, 'methods' => $this->methods()]);
     }
 
-    #[Route('/{id}/receive', name: 'app_supplier_invoice_receive', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    #[Route('/{id}/receive', name: 'app_supplier_invoice_receive', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function receive(Request $request, SupplierInvoice $invoice, EntityManagerInterface $em, AccountingPostingService $posting): Response
     {
         if (!$this->isCsrfTokenValid('supplier_invoice_receive_'.$invoice->getId(), (string) $request->request->get('_token'))) {
@@ -85,7 +85,7 @@ final class SupplierInvoiceController extends AbstractController
         return $this->redirectToRoute('app_supplier_invoice_show', ['id' => $invoice->getId()]);
     }
 
-    #[Route('/{id}/payments', name: 'app_supplier_invoice_payment', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    #[Route('/{id}/payments', name: 'app_supplier_invoice_payment', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function addPayment(Request $request, SupplierInvoice $invoice, EntityManagerInterface $em, AccountingPostingService $posting): Response
     {
         if (!$this->isCsrfTokenValid('supplier_invoice_payment_'.$invoice->getId(), (string) $request->request->get('_token'))) {
@@ -115,14 +115,14 @@ final class SupplierInvoiceController extends AbstractController
         return $this->redirectToRoute('app_supplier_invoice_show', ['id' => $invoice->getId()]);
     }
 
-    private function parseFormDate(string $value, string $label): \\DateTimeImmutable
+    private function parseFormDate(string $value, string $label): \DateTimeImmutable
     {
-        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/D', $value)) {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/D', $value)) {
             throw new InvalidArgumentException($label.' : format attendu AAAA-MM-JJ.');
         }
 
-        $date = \\DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-        $errors = \\DateTimeImmutable::getLastErrors();
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        $errors = \DateTimeImmutable::getLastErrors();
         if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) || $date->format('Y-m-d') !== $value) {
             throw new InvalidArgumentException($label.' : date calendrier invalide.');
         }
