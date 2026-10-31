@@ -20,7 +20,7 @@
 {% for transaction in transactions %}
 <tr>
 <td>{{ transaction.transaction_date|date('d/m/Y') }}</td><td>{{ transaction.label }}</td><td>{{ transaction.reference ?: '—' }}</td>
-<td>{{ transaction.amount|number_format(2,',',' ') }} €</td>
+<td>{{ transaction.amount_display }} €</td>
 <td>
 {% if transaction.matched_sales_payment_id %}<span>Règlement client #{{ transaction.matched_sales_payment_id }}</span>
 {% elseif transaction.matched_supplier_payment_id %}<span>Règlement fournisseur #{{ transaction.matched_supplier_payment_id }}</span>
@@ -30,7 +30,7 @@
 {% if transaction.amount > 0 %}
 <label for="sales-{{ transaction.id }}">Règlement client correspondant</label>
 <select id="sales-{{ transaction.id }}" name="payment_id" required><option value="">Choisir…</option>
-{% for payment in sales_payments %}{% if payment.amount == transaction.amount %}<option value="{{ payment.id }}">{{ payment.paid_at|date('d/m/Y') }} · {{ payment.counterparty }} · {{ payment.number }} · {{ payment.amount }} € · {{ payment.reference ?: 'sans réf.' }}</option>{% endif %}{% endfor %}
+{% for payment in sales_payments %}{% if payment.amount == transaction.amount %}<option value="{{ payment.id }}">{{ payment.paid_at|date('d/m/Y') }} · {{ payment.counterparty }} · {{ payment.number }} · {{ payment.amount_display }} € · {{ payment.reference ?: 'sans réf.' }}</option>{% endif %}{% endfor %}
 </select><input type="hidden" name="payment_type" value="sales">
 {% else %}
 <label for="supplier-{{ transaction.id }}">Règlement fournisseur correspondant</label>
