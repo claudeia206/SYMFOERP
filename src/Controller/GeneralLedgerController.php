@@ -55,7 +55,7 @@ final class GeneralLedgerController extends AbstractController
                 if(!is_array($line))throw new \InvalidArgumentException('Format de ligne comptable invalide.');
                 $accountId=$this->parsePositiveId($line['account_id']??null);$label=trim((string)($line['label']??''))?:$description;
                 $debit=$this->toCents((string)($line['debit']??'0'));$credit=$this->toCents((string)($line['credit']??'0'));
-                if($accountId===0&&$debit===0&&$credit===0&&trim((string)($line['label']??''))==='')continue;
+                if($accountId===null&&$debit===0&&$credit===0&&trim((string)($line['label']??''))==='')continue;
                 if($accountId===null||$label===''||mb_strlen($label)>255||(($debit>0)===($credit>0)))throw new \InvalidArgumentException('Chaque ligne doit avoir un compte, un libellé et un seul montant au débit ou au crédit.');
                 $lines[]=['account_id'=>$accountId,'label'=>$label,'debit'=>$debit,'credit'=>$credit];$debitCents+=$debit;$creditCents+=$credit;
             }
