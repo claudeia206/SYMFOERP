@@ -5,24 +5,24 @@
 <h1>Balance âgée clients et fournisseurs</h1>
 <p>Situation calculée au {{ today|date('d/m/Y') }} à partir des factures émises ou reçues, des règlements et des avoirs clients enregistrés.</p>
 <section class="grid">
-<article class="card"><p class="muted">Créances clients ouvertes</p><h2>{{ receivable_totals.total|number_format(2,',',' ') }} €</h2></article>
-<article class="card"><p class="muted">Dettes fournisseurs ouvertes</p><h2>{{ payable_totals.total|number_format(2,',',' ') }} €</h2></article>
-<article class="card"><p class="muted">Position nette indicative</p><h2>{{ (receivable_totals.total-payable_totals.total)|number_format(2,',',' ') }} €</h2></article>
+<article class="card"><p class="muted">Créances clients ouvertes</p><h2>{{ receivable_totals.total }} €</h2></article>
+<article class="card"><p class="muted">Dettes fournisseurs ouvertes</p><h2>{{ payable_totals.total }} €</h2></article>
+<article class="card"><p class="muted">Position nette indicative</p><h2>{{ net_position }} €</h2></article>
 </section>
 {% macro totals(t) %}
 <div class="table-scroll"><table class="data-table"><thead><tr><th>Non échues</th><th>1–30 j</th><th>31–60 j</th><th>61–90 j</th><th>Plus de 90 j</th><th>Total</th></tr></thead><tbody><tr>
-<td>{{ t.current|number_format(2,',',' ') }} €</td><td>{{ t.d1_30|number_format(2,',',' ') }} €</td><td>{{ t.d31_60|number_format(2,',',' ') }} €</td><td>{{ t.d61_90|number_format(2,',',' ') }} €</td><td>{{ t.d90|number_format(2,',',' ') }} €</td><th>{{ t.total|number_format(2,',',' ') }} €</th>
+<td>{{ t.current }} €</td><td>{{ t.d1_30 }} €</td><td>{{ t.d31_60 }} €</td><td>{{ t.d61_90 }} €</td><td>{{ t.d90 }} €</td><th>{{ t.total }} €</th>
 </tr></tbody></table></div>
 {% endmacro %}
 {% import _self as aging %}
 <section class="card"><h2>Créances clients</h2>{{ aging.totals(receivable_totals) }}
 <div class="table-scroll"><table class="data-table"><thead><tr><th>Client</th><th>Facture</th><th>Date</th><th>Échéance</th><th>Retard</th><th>Montant initial</th><th>Reste dû</th></tr></thead><tbody>
-{% for row in receivables %}<tr><td>{{ row.third_party }}</td><td><a href="{{ path('app_sales_invoice_show',{id:row.id}) }}">{{ row.reference }}</a></td><td>{{ row.invoice_date|date('d/m/Y') }}</td><td>{{ row.due_date|date('d/m/Y') }}</td><td>{{ row.days_overdue>0?row.days_overdue~' j':'—' }}</td><td>{{ row.total|number_format(2,',',' ') }} €</td><td><strong>{{ row.remaining|number_format(2,',',' ') }} €</strong></td></tr>
+{% for row in receivables %}<tr><td>{{ row.third_party }}</td><td><a href="{{ path('app_sales_invoice_show',{id:row.id}) }}">{{ row.reference }}</a></td><td>{{ row.invoice_date|date('d/m/Y') }}</td><td>{{ row.due_date|date('d/m/Y') }}</td><td>{{ row.days_overdue>0?row.days_overdue~' j':'—' }}</td><td>{{ row.total }} €</td><td><strong>{{ row.remaining }} €</strong></td></tr>
 {% else %}<tr><td colspan="7">Aucune créance ouverte.</td></tr>{% endfor %}
 </tbody></table></div></section>
 <section class="card"><h2>Dettes fournisseurs</h2>{{ aging.totals(payable_totals) }}
 <div class="table-scroll"><table class="data-table"><thead><tr><th>Fournisseur</th><th>Facture</th><th>Date</th><th>Échéance</th><th>Retard</th><th>Montant initial</th><th>Reste dû</th></tr></thead><tbody>
-{% for row in payables %}<tr><td>{{ row.third_party }}</td><td><a href="{{ path('app_supplier_invoice_show',{id:row.id}) }}">{{ row.reference }}</a></td><td>{{ row.invoice_date|date('d/m/Y') }}</td><td>{{ row.due_date|date('d/m/Y') }}</td><td>{{ row.days_overdue>0?row.days_overdue~' j':'—' }}</td><td>{{ row.total|number_format(2,',',' ') }} €</td><td><strong>{{ row.remaining|number_format(2,',',' ') }} €</strong></td></tr>
+{% for row in payables %}<tr><td>{{ row.third_party }}</td><td><a href="{{ path('app_supplier_invoice_show',{id:row.id}) }}">{{ row.reference }}</a></td><td>{{ row.invoice_date|date('d/m/Y') }}</td><td>{{ row.due_date|date('d/m/Y') }}</td><td>{{ row.days_overdue>0?row.days_overdue~' j':'—' }}</td><td>{{ row.total }} €</td><td><strong>{{ row.remaining }} €</strong></td></tr>
 {% else %}<tr><td colspan="7">Aucune dette ouverte.</td></tr>{% endfor %}
 </tbody></table></div></section>
 <p class="muted">Rapport de gestion indicatif : les soldes sont recalculés depuis les factures, règlements et avoirs. Les litiges, retenues, compensations, effets à recevoir/payer et écritures manuelles sur les comptes tiers ne sont pas intégrés. À rapprocher du grand livre avant toute décision comptable.</p>
