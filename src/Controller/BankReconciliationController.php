@@ -18,6 +18,12 @@ final class BankReconciliationController extends AbstractController
         $transactions=$db->fetchAllAssociative('SELECT * FROM app_bank_transaction ORDER BY transaction_date DESC,id DESC LIMIT 250');
         $sales=$db->fetchAllAssociative("SELECT p.id,p.amount,p.paid_at,p.reference,i.number,t.name AS counterparty FROM app_sales_payment p INNER JOIN app_sales_invoice i ON i.id=p.invoice_id INNER JOIN app_third_party t ON t.id=i.third_party_id LEFT JOIN app_bank_transaction b ON b.matched_sales_payment_id=p.id WHERE b.id IS NULL ORDER BY p.paid_at DESC,p.id DESC LIMIT 250");
         $suppliers=$db->fetchAllAssociative("SELECT p.id,p.amount,p.paid_at,p.reference,i.supplier_invoice_number AS number,t.name AS counterparty FROM app_supplier_payment p INNER JOIN app_supplier_invoice i ON i.id=p.invoice_id INNER JOIN app_third_party t ON t.id=i.supplier_id LEFT JOIN app_bank_transaction b ON b.matched_supplier_payment_id=p.id WHERE b.id IS NULL ORDER BY p.paid_at DESC,p.id DESC LIMIT 250");
+        foreach($transactions as &$row)$row['amount_display']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$row['amount']));
+        unset($row);
+        foreach($sales as &$row)$row['amount_display']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$row['amount']));
+        unset($row);
+        foreach($suppliers as &$row)$row['amount_display']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$row['amount']));
+        unset($row);
         return $this->render('bank_reconciliation/index.html.twig',['transactions'=>$transactions,'sales_payments'=>$sales,'supplier_payments'=>$suppliers]);
     }
 
