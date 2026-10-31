@@ -179,7 +179,7 @@ jobs:
           assert created_user_response.geturl().endswith("/admin/users"), "Administrator could not create a standard user"
           users_after_create = created_user_response.read().decode()
           assert "ci-user@example.test" in users_after_create, "New user is missing from the user list"
-          user_row = re.search(r'<tr>.*?ci-user@example\\.test.*?</tr>', users_after_create, re.S)
+          user_row = re.search(r'<tr>.*?ci-user@example.test.*?</tr>', users_after_create, re.S)
           assert user_row, "Created standard user row is missing"
           role_form = re.search(r'<form method="post" action="/admin/users/(\\d+)/role"[^>]*>.*?</form>', user_row.group(0), re.S)
           assert role_form, "User role management form is missing"
@@ -190,7 +190,7 @@ jobs:
               data=urllib.parse.urlencode({"_token": role_token.group(1), "is_admin": "1"}).encode(),
           ))
           promoted_html = promoted_response.read().decode()
-          promoted_row = re.search(r'<tr>.*?ci-user@example\\.test.*?</tr>', promoted_html, re.S)
+          promoted_row = re.search(r'<tr>.*?ci-user@example.test.*?</tr>', promoted_html, re.S)
           assert promoted_row and "Administrateur" in promoted_row.group(0), "Promoting a user to administrator did not persist"
           print("Administrator-only user management, user creation and role promotion passed.")
 
