@@ -86,6 +86,17 @@ final class AccountingAmount
         return $sum;
     }
 
+    public static function formatFrenchCents(int $cents): string
+    {
+        $formatted = self::formatCents($cents);
+        $negative = str_starts_with($formatted, '-');
+        $unsigned = $negative ? substr($formatted, 1) : $formatted;
+        [$integer, $fraction] = explode('.', $unsigned, 2);
+        $grouped = preg_replace('/\\B(?=(\\d{3})+(?!\\d))/', ' ', $integer);
+
+        return ($negative ? '-' : '').$grouped.','.$fraction;
+    }
+
     public static function formatCents(int $cents): string
     {
         $negative = $cents < 0;
