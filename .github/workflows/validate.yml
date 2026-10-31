@@ -24,7 +24,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Prepare CI environment
-        run: cp .env.docker.example .env.docker
+        run: |
+          umask 077
+          {
+            printf 'APP_SECRET=%s\n' "$(openssl rand -hex 32)"
+            printf 'SYMFONY_DB_NAME=symfoerp\n'
+            printf 'SYMFONY_DB_USER=symfoerp\n'
+            printf 'SYMFONY_DB_PASSWORD=%s\n' "$(openssl rand -hex 24)"
+            printf 'SYMFONY_DB_ROOT_PASSWORD=%s\n' "$(openssl rand -hex 24)"
+          } > .env.docker
 
       - name: Validate Docker Compose configuration
         run: docker compose --env-file .env.docker config --quiet
@@ -100,19 +108,16 @@ jobs:
         run: |
           set -eu
           trap 'docker compose --env-file .env.docker exec --no-TTY symfony sh -lc "tail -n 160 var/log/dev.log" || true' ERR
-          docker compose --env-file .env.docker up --detach symfony
+          # Exercise the same first-install path used by developers, not a parallel CI-only sequence.
+          printf '%s\\n%s\\n' 'ci-admin@example.test' 'CI-Only-Password-2026' | bash bin/install-symfony-local.sh
+          # Confirm the installer created the account and that Doctrine's schema is consistent.
           set -a
           . ./.env.docker
           set +a
           symfoerp_network="$(docker inspect --format '{{range $name, $network := .NetworkSettings.Networks}}{{printf "%s" $name}}{{end}}' symfoerp-symfony)"
           symfoerp_image="$(docker inspect --format '{{.Image}}' symfoerp-symfony)"
           symfoerp_database_url="mysql://${SYMFONY_DB_USER}:${SYMFONY_DB_PASSWORD}@db_symfony:3306/${SYMFONY_DB_NAME}?serverVersion=mariadb-11.4.2&charset=utf8mb4"
-          console() {
-            docker run --rm --network "$symfoerp_network" -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" -e DATABASE_URL="$symfoerp_database_url" "$symfoerp_image" php /app/bin/console "$@"
-          }
-          console doctrine:migrations:migrate --no-interaction
-          console doctrine:schema:validate
-          docker run --rm --network "$symfoerp_network" -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" -e DATABASE_URL="$symfoerp_database_url" -e SYMFOERP_ADMIN_EMAIL=ci-admin@example.test -e SYMFOERP_ADMIN_PASSWORD=CI-Only-Password-2026 "$symfoerp_image" php /app/bin/console app:user:create
+          docker run --rm --network "$symfoerp_network" -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" -e DATABASE_URL="$symfoerp_database_url" "$symfoerp_image" php /app/bin/console doctrine:schema:validate
           python3 - <<'PY'
           import http.cookiejar
           import urllib.parse
