@@ -29,6 +29,9 @@ jobs:
       - name: Validate Docker Compose configuration
         run: docker compose --env-file .env.docker config --quiet
 
+      - name: Validate native installer shell syntax
+        run: bash -n bin/install-symfony-local.sh
+
       - name: Build Symfony application image
         run: docker build --tag symfoerp-symfony:ci --file Dockerfile .
 
