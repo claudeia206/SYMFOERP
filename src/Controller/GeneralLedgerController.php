@@ -87,16 +87,30 @@ final class GeneralLedgerController extends AbstractController
         $to=(string)$request->query->get('to',(new DateTimeImmutable('today'))->format('Y-m-d'));$this->validatePeriod($from,$to);
         $account=$db->fetchAssociative('SELECT * FROM app_accounting_account WHERE id=?',[$id]);
         if(!$account)throw $this->createNotFoundException();
+        $opening=$db->fetchAssociative(
+            'SELECT COALESCE(SUM(l.debit),0) AS debit, COALESCE(SUM(l.credit),0) AS credit
+             FROM app_journal_entry_line l
+             INNER JOIN app_journal_entry e ON e.id=l.entry_id
+             WHERE l.account_id=? AND e.status=? AND e.entry_date < ?',
+            [$id,'posted',$from]
+        ) ?: ['debit'=>'0.00','credit'=>'0.00'];
+        $openingCents=AccountingAmount::toCents((string)$opening['debit'])-AccountingAmount::toCents((string)$opening['credit']);
         $lines=$db->fetchAllAssociative('SELECT e.entry_date,j.code AS journal_code,e.entry_number,e.reference,e.description,l.label,l.debit,l.credit FROM app_journal_entry_line l INNER JOIN app_journal_entry e ON e.id=l.entry_id INNER JOIN app_accounting_journal j ON j.id=e.journal_id WHERE l.account_id=? AND e.status=? AND e.entry_date BETWEEN ? AND ? ORDER BY e.entry_date,e.id,l.id',[$id,'posted',$from,$to]);
-        $balanceCents=0;foreach($lines as &$line){
+        $balanceCents=$openingCents;
+        foreach($lines as &$line){
             $debit=AccountingAmount::toCents((string)$line['debit']);
             $credit=AccountingAmount::toCents((string)$line['credit']);
             $balanceCents+=$debit-$credit;
             $line['debit']=AccountingAmount::formatCents($debit);
             $line['credit']=AccountingAmount::formatCents($credit);
             $line['balance']=AccountingAmount::formatCents($balanceCents);
-        }unset($line);$balance=AccountingAmount::formatCents($balanceCents);
-        return $this->render('general_ledger/account.html.twig',['account'=>$account,'lines'=>$lines,'from'=>$from,'to'=>$to,'balance'=>$balance]);
+        }
+        unset($line);
+        return $this->render('general_ledger/account.html.twig',[
+            'account'=>$account,'lines'=>$lines,'from'=>$from,'to'=>$to,
+            'opening_balance'=>AccountingAmount::formatCents($openingCents),
+            'balance'=>AccountingAmount::formatCents($balanceCents),
+        ]);
     }
 
     private function parsePositiveId(mixed $value):?int
