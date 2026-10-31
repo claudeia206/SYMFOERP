@@ -48,4 +48,42 @@ try {
 $sequence->assertPeriodComplete(new DateTimeImmutable('2026-12-31'), 2026);
 
 
+
+$scenarios = [
+    ['2024-02-29', 1],
+    ['2025-12-31', 3],
+    ['2026-01-01', 7],
+    ['2026-06-30', 40],
+];
+foreach ($scenarios as [$startDate, $years]) {
+    $scenarioStart = new DateTimeImmutable($startDate);
+    $scenarioEnd = $scenarioStart->modify(sprintf('+%d years', $years));
+    $scenarioRows = $calculator->straightLine('12345.67', '123.45', $years, $scenarioStart, $scenarioEnd);
+    $allocated = 0;
+    $previousAccumulated = 0;
+    $previousYear = 0;
+    foreach ($scenarioRows as $scenarioRow) {
+        $amount = App\\Service\\AccountingAmount::toCents($scenarioRow['amount']);
+        $accumulated = App\\Service\\AccountingAmount::toCents($scenarioRow['accumulated']);
+        if ($amount <= 0 || $accumulated < $previousAccumulated || (int) $scenarioRow['period'] <= $previousYear) {
+            throw new RuntimeException('Depreciation rows must be positive, cumulative and ordered by calendar year.');
+        }
+        $allocated += $amount;
+        if ($accumulated !== $allocated) {
+            throw new RuntimeException('Displayed accumulated depreciation must equal the sum of plan periods.');
+        }
+        $previousAccumulated = $accumulated;
+        $previousYear = (int) $scenarioRow['period'];
+    }
+    if ($allocated !== 1222222 || $scenarioRows[array_key_last($scenarioRows)]['net_book_value'] !== '123.45') {
+        throw new RuntimeException(sprintf('Depreciation did not preserve residual value for %s / %d years.', $startDate, $years));
+    }
+}
+
+try {
+    $calculator->straightLine('100.00', '0.00', 5, new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2025-12-31'));
+    throw new RuntimeException('Depreciation before the in-service date must be rejected.');
+} catch (InvalidArgumentException) {
+}
+
 echo "Fixed asset exact-cent depreciation and posting-order smoke tests passed.\n";
