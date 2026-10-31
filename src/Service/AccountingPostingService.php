@@ -65,12 +65,16 @@ final class AccountingPostingService
     {
         $this->db->transactional(function(Connection $db)use($type,$sourceId,$journalCode,$date,$reference,$description,$lines):void{
             if($sourceId<=0)throw new RuntimeException('Identifiant de pièce comptable invalide.');
-            if($db->fetchOne('SELECT 1 FROM app_accounting_source_posting WHERE source_type=? AND source_id=?',[$type,$sourceId]))return;
             $date=$this->validatedDate($date);
             $this->periodGuard->assertOpenDate($db, $date);
             if(!preg_match('/^[A-Z]{2}$/D',$journalCode))throw new RuntimeException('Code journal invalide.');
             $journal=$db->fetchAssociative('SELECT id,code FROM app_accounting_journal WHERE code=? FOR UPDATE',[$journalCode]);
             if(!$journal)throw new RuntimeException('Journal '.$journalCode.' non configuré.');
+            // Serialize postings in this journal before checking the source again.
+            // Otherwise two concurrent requests can both observe no source posting
+            // before one waits on the journal lock, then the second reports a unique
+            // constraint error instead of treating the retry as an idempotent no-op.
+            if($db->fetchOne('SELECT 1 FROM app_accounting_source_posting WHERE source_type=? AND source_id=?',[$type,$sourceId]))return;
             $debit=0;$credit=0;$resolved=[];
             foreach($lines as $line){
                 if(!is_array($line)||!isset($line['account'],$line['label'],$line['debit'],$line['credit'])||!is_string($line['account'])||!is_string($line['label']))throw new RuntimeException('Ligne de comptabilisation automatique invalide.');
