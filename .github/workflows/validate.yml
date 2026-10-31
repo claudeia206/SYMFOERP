@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: validate-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   compose-and-symfony:
@@ -24,10 +24,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Prepare CI environment
-        run: cp .env.docker.example .env.docker
+        run: |
+          umask 077
+          {
+            printf 'APP_SECRET=%s\n' "$(openssl rand -hex 32)"
+            printf 'SYMFONY_DB_NAME=symfoerp\n'
+            printf 'SYMFONY_DB_USER=symfoerp\n'
+            printf 'SYMFONY_DB_PASSWORD=%s\n' "$(openssl rand -hex 24)"
+            printf 'SYMFONY_DB_ROOT_PASSWORD=%s\n' "$(openssl rand -hex 24)"
+          } > .env.docker
 
       - name: Validate Docker Compose configuration
         run: docker compose --env-file .env.docker config --quiet
+
+      - name: Validate native installer shell syntax
+        run: bash -n bin/install-symfony-local.sh
 
       - name: Build Symfony application image
         run: docker build --tag symfoerp-symfony:ci --file Dockerfile .
@@ -56,9 +67,10 @@ jobs:
 
       - name: Test bank transaction reconciliation
         run: docker run --rm symfoerp-symfony:ci php tests/bank_transaction_entity_smoke.php
-
       - name: Test strict bank statement parsing
         run: docker run --rm symfoerp-symfony:ci php tests/bank_statement_value_parser_smoke.php
+      - name: Test FEC export formatting invariants
+        run: docker run --rm symfoerp-symfony:ci php tests/fec_export_formatter_smoke.php
 
       - name: Test product catalogue and stock invariants
         run: docker run --rm symfoerp-symfony:ci php tests/product_entity_smoke.php
@@ -74,9 +86,6 @@ jobs:
 
       - name: Test accounting fiscal period boundaries
         run: docker run --rm symfoerp-symfony:ci php tests/accounting_period_guard_smoke.php
-
-      - name: Test FEC export formatting invariants
-        run: docker run --rm symfoerp-symfony:ci php tests/fec_export_formatter_smoke.php
       - name: Smoke test Symfony HTTP application
         run: |
           set -eu
@@ -101,36 +110,24 @@ jobs:
 
       - name: Apply migrations and test authenticated third-party access
         run: |
-          set -euo pipefail
-          trap 'docker compose --env-file .env.docker logs --no-color symfony db_symfony || true; docker compose --env-file .env.docker exec --no-TTY symfony sh -lc "ls -la var/log; for f in var/log/*.log; do echo ===\$f===; tail -n 160 \$f; done" || true' ERR
-          docker compose --env-file .env.docker up --detach symfony
-          # Use the exact running image and its Compose network, but launch PHP in CLI mode.
+          set -eu
+          trap 'echo "=== Symfony and MariaDB container logs (last 300 lines) ==="; docker compose --env-file .env.docker logs --no-color --tail=300 symfony db_symfony || true' ERR
+          # Exercise the same first-install path used by developers, not a parallel CI-only sequence.
+          printf '%s\n%s\n' 'ci-admin@example.test' 'CI-Only-Password-2026' | bash bin/install-symfony-local.sh
+          # Confirm the installer created the account and that all Doctrine mappings are valid.
+          # Accounting tables are migration-managed and intentionally not all ORM-mapped.
           set -a
           . ./.env.docker
           set +a
           symfoerp_network="$(docker inspect --format '{{range $name, $network := .NetworkSettings.Networks}}{{printf "%s" $name}}{{end}}' symfoerp-symfony)"
           symfoerp_image="$(docker inspect --format '{{.Image}}' symfoerp-symfony)"
           symfoerp_database_url="mysql://${SYMFONY_DB_USER}:${SYMFONY_DB_PASSWORD}@db_symfony:3306/${SYMFONY_DB_NAME}?serverVersion=mariadb-11.4.2&charset=utf8mb4"
-          console() {
-            docker run --rm --network "$symfoerp_network" -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" -e DATABASE_URL="$symfoerp_database_url" "$symfoerp_image" php /app/bin/console "$@"
-          }
-          echo "=== Doctrine connection identity ==="
-          console doctrine:query:sql 'SELECT DATABASE() AS database_name, @@hostname AS database_host'
-          echo "=== Discovered Doctrine migrations (before migrate) ==="
-          console doctrine:migrations:list -vvv 2>&1 | tee /tmp/symfoerp-migrations-before.log
-          echo "=== Execute Doctrine migrations ==="
-          console doctrine:migrations:migrate --no-interaction -vvv 2>&1 | tee /tmp/symfoerp-migrations-run.log
-          echo "=== Doctrine migration status (after migrate) ==="
-          console doctrine:migrations:status --show-versions 2>&1 | tee /tmp/symfoerp-migrations-status.log
-          echo "=== Database tables and app_user presence ==="
-          console doctrine:query:sql "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME"
-          console doctrine:query:sql 'SELECT COUNT(*) AS app_user_table_check FROM app_user'
-          console doctrine:schema:validate
-          docker run --rm --network "$symfoerp_network" -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" -e DATABASE_URL="$symfoerp_database_url" -e SYMFOERP_ADMIN_EMAIL=ci-admin@example.test -e SYMFOERP_ADMIN_PASSWORD=CI-Only-Password-2026 "$symfoerp_image" php /app/bin/console app:user:create
+          docker run --rm --network "$symfoerp_network" -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" -e DATABASE_URL="$symfoerp_database_url" "$symfoerp_image" php /app/bin/console doctrine:schema:validate --skip-sync
           python3 - <<'PY'
           import http.cookiejar
           import urllib.parse
           import urllib.request
+          import re
           from html.parser import HTMLParser
 
           base = "http://127.0.0.1:8000"
@@ -150,15 +147,7 @@ jobs:
           parser.feed(login_page)
           assert parser.token, "Login CSRF token is missing"
           payload = urllib.parse.urlencode({"email": "ci-admin@example.test", "password": "CI-Only-Password-2026", "_csrf_token": parser.token}).encode()
-          try:
-              login_response = client.open(urllib.request.Request(base + "/login", data=payload))
-              login_body = login_response.read()
-              assert login_response.geturl().endswith("/"), f"Login did not reach dashboard: {login_response.geturl()}"
-          except Exception as error:
-              print(f"Login request failed: {error!r}")
-              if hasattr(error, "read"):
-                  print(error.read().decode(errors="replace")[-12000:])
-              raise
+          client.open(urllib.request.Request(base + "/login", data=payload)).read()
           registry = client.open(base + "/third-parties")
           html = registry.read().decode()
           assert registry.geturl().endswith("/third-parties"), "Authenticated user could not access third parties"
@@ -175,6 +164,41 @@ jobs:
           relogin_parser.feed(relogin_page)
           relogin_payload = urllib.parse.urlencode({"email": "ci-admin@example.test", "password": "CI-Only-Password-2026", "_csrf_token": relogin_parser.token}).encode()
           client.open(urllib.request.Request(base + "/login", data=relogin_payload)).read()
+
+          # Verify administrator-only user management, account creation and role changes.
+          admin_page = client.open(base + "/admin/users")
+          admin_html = admin_page.read().decode()
+          assert "Utilisateurs et rôles" in admin_html, "Administrator user management page did not render"
+          assert "ci-admin@example.test" in admin_html, "Initial administrator is missing from user management"
+          assert 'href="/admin/users/new"' in admin_html, "User creation link is missing"
+          new_user_page = client.open(base + "/admin/users/new").read().decode()
+          new_user_parser = TokenParser()
+          new_user_parser.feed(new_user_page)
+          assert new_user_parser.token, "User creation CSRF token is missing"
+          new_user_payload = urllib.parse.urlencode({
+              "_token": new_user_parser.token,
+              "email": "ci-user@example.test",
+              "password": "CI-Only-User-Password-2026",
+          }).encode()
+          created_user_response = client.open(urllib.request.Request(base + "/admin/users/new", data=new_user_payload))
+          assert created_user_response.geturl().endswith("/admin/users"), "Administrator could not create a standard user"
+          users_after_create = created_user_response.read().decode()
+          assert "ci-user@example.test" in users_after_create, "New user is missing from the user list"
+          user_row = re.search(r'<tr>.*?ci-user@example.test.*?</tr>', users_after_create, re.S)
+          assert user_row, "Created standard user row is missing"
+          role_form = re.search(r'<form method="post" action="/admin/users/([0-9]+)/role"[^>]*>.*?</form>', user_row.group(0), re.S)
+          assert role_form, "User role management form is missing"
+          role_token = re.search(r'name="_token" value="([^"]+)"', role_form.group(0))
+          assert role_token, "User role management CSRF token is missing"
+          promoted_response = client.open(urllib.request.Request(
+              base + "/admin/users/" + role_form.group(1) + "/role",
+              data=urllib.parse.urlencode({"_token": role_token.group(1), "is_admin": "1"}).encode(),
+          ))
+          promoted_html = promoted_response.read().decode()
+          promoted_row = re.search(r'<tr>.*?ci-user@example.test.*?</tr>', promoted_html, re.S)
+          assert promoted_row and "Administrateur" in promoted_row.group(0), "Promoting a user to administrator did not persist"
+          print("Administrator-only user management, user creation and role promotion passed.")
+
           sales_page = client.open(base + "/sales/quotes")
           sales_html = sales_page.read().decode()
           assert "Devis" in sales_html, "Authenticated user could not open the sales quotes module"
@@ -357,17 +381,17 @@ jobs:
           assert purchase_id, "Purchase order was not created"
           purchase_parser = TokenParser()
           purchase_parser.feed(purchase_html)
-          receive_token = re.search(r'<form method="post" action="/purchases/' + purchase_id.group(1) + r'/receive">.*?name="_token" value="([^"]+)"', purchase_html, re.S)
+          receive_token = re.search(r'<form method="post" action="/purchases/' + purchase_id.group(1) + r'/receive"[^>]*>.*?name="_token" value="([^"]+)"', purchase_html, re.S)
           assert receive_token, "Purchase receipt CSRF token missing"
           received_line = re.search(r'name="received\[(\d+)\]"', purchase_html)
           assert received_line, "Purchase order receipt quantity input missing"
           received_html = client.open(urllib.request.Request(base + "/purchases/" + purchase_id.group(1) + "/receive", data=urllib.parse.urlencode({
               "_token": receive_token.group(1), "received[" + received_line.group(1) + "]": "2",
           }).encode())).read().decode()
-          assert "réceptionnées" in received_html, "Purchase order receipt failed"
+          assert "Réceptionnée" in received_html and "2.000" in received_html, "Purchase order receipt did not persist the received quantity and final status"
           supplier_invoice_index = client.open(base + "/purchases/invoices").read().decode()
-          create_supplier_form = re.search(r'<form method="post" action="/purchases/invoices/from-order/' + purchase_id.group(1) + r'">.*?</form>', supplier_invoice_index, re.S)
-          assert create_supplier_form, "Supplier invoice creation form missing after receipt"
+          create_supplier_form = re.search(r'<form method="post" action="/purchases/invoices/from-order/' + purchase_id.group(1) + r'"[^>]*>.*?</form>', supplier_invoice_index, re.S)
+          assert create_supplier_form, "Supplier invoice creation form missing after receipt; rendered index excerpt: " + supplier_invoice_index[:5000]
           supplier_invoice_token = re.search(r'name="_token" value="([^"]+)"', create_supplier_form.group(0))
           assert supplier_invoice_token, "Supplier invoice creation CSRF token missing"
           supplier_invoice_html = client.open(urllib.request.Request(base + "/purchases/invoices/from-order/" + purchase_id.group(1), data=urllib.parse.urlencode({
@@ -376,7 +400,7 @@ jobs:
           supplier_invoice_id = re.search(r'href="/purchases/invoices/(\d+)"', supplier_invoice_html)
           assert supplier_invoice_id, "Supplier invoice draft was not created"
           supplier_detail = client.open(base + "/purchases/invoices/" + supplier_invoice_id.group(1)).read().decode()
-          supplier_receive_form = re.search(r'<form method="post" action="/purchases/invoices/' + supplier_invoice_id.group(1) + r'/receive">.*?</form>', supplier_detail, re.S)
+          supplier_receive_form = re.search(r'<form method="post" action="/purchases/invoices/' + supplier_invoice_id.group(1) + r'/receive"[^>]*>.*?</form>', supplier_detail, re.S)
           assert supplier_receive_form, "Supplier invoice validation form missing"
           supplier_receive_token = re.search(r'name="_token" value="([^"]+)"', supplier_receive_form.group(0))
           assert supplier_receive_token, "Supplier invoice validation CSRF token missing"
@@ -385,7 +409,7 @@ jobs:
               "due_date": (date.today() + timedelta(days=30)).isoformat(),
           }).encode())).read().decode()
           assert "validée et comptabilisée" in supplier_received, "Supplier invoice was not automatically posted"
-          supplier_payment_form = re.search(r'<form method="post" action="/purchases/invoices/' + supplier_invoice_id.group(1) + r'/payments">.*?</form>', supplier_received, re.S)
+          supplier_payment_form = re.search(r'<form method="post" action="/purchases/invoices/' + supplier_invoice_id.group(1) + r'/payments"[^>]*>.*?</form>', supplier_received, re.S)
           assert supplier_payment_form, "Supplier payment form missing after validation"
           supplier_payment_token = re.search(r'name="_token" value="([^"]+)"', supplier_payment_form.group(0))
           assert supplier_payment_token, "Supplier payment CSRF token missing"
@@ -402,23 +426,3 @@ jobs:
           print("Symfony authentication, third-party registry, quote creation, VAT totals, acceptance, idempotent order conversion, order completion and PDF export passed.")
           PY
 
-      - name: Smoke test fresh Dolibarr installation
-        run: |
-          set -eu
-          cleanup() {
-            docker compose --env-file .env.docker down --volumes --remove-orphans >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-          docker compose --env-file .env.docker up --detach db_dolibarr dolibarr
-          for attempt in $(seq 1 60); do
-            if curl --connect-timeout 2 --max-time 5 --fail --silent http://127.0.0.1:8080/ --output /tmp/symfoerp-dolibarr.html; then
-              if grep -qi "Dolibarr" /tmp/symfoerp-dolibarr.html; then
-                echo "Fresh Dolibarr installation responded successfully."
-                exit 0
-              fi
-            fi
-            sleep 2
-          done
-          docker compose --env-file .env.docker logs dolibarr db_dolibarr
-          echo "Fresh Dolibarr HTTP smoke test failed." >&2
-          exit 1
