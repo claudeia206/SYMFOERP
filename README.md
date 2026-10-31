@@ -20,6 +20,19 @@ La validation automatisée sur environnement vierge couvre :
 
 **Important :** cette alpha n'est pas une version de production ni une certification comptable/fiscale. Les parcours non couverts par les tests automatisés doivent être vérifiés pendant la recette. La première installation sur le poste de test doit encore être effectuée par l'utilisateur.
 
+## Installation native (Linux Mint, sans Docker)
+
+Pour une installation directe sur Linux Mint basé sur Ubuntu (hors LMDE), consulter [le guide d'installation native](docs/INSTALL-LINUX-MINT-NATIVE.md) puis lancer :
+
+```bash
+git clone https://github.com/claudeia206/SYMFOERP.git
+cd SYMFOERP
+git switch main
+bash bin/install-symfony-native.sh
+```
+
+Cette méthode installe PHP 8.3, Composer, Apache et MariaDB directement sur la machine. L'application est disponible sur http://localhost:8080/login. Elle est indépendante de Docker et de Dolibarr. Le script cible les éditions Linux Mint basées sur Ubuntu ; LMDE nécessite une procédure Debian distincte.
+
 ## Installation locale (Docker)
 
 Prérequis : Git, Docker Engine avec Docker Compose v2, OpenSSL et curl.
