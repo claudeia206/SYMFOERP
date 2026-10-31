@@ -56,7 +56,9 @@ SQL);
                 'inflows'=>AccountingAmount::formatFrenchCents($in),'outflows'=>AccountingAmount::formatFrenchCents($out),
                 'net'=>AccountingAmount::formatFrenchCents($net),'cumulative_net'=>AccountingAmount::formatFrenchCents($cumulative),
                 'overdue_inflows'=>AccountingAmount::formatFrenchCents($week['overdue_inflows']),
-                'overdue_outflows'=>AccountingAmount::formatFrenchCents($week['overdue_outflows'])];
+                'overdue_outflows'=>AccountingAmount::formatFrenchCents($week['overdue_outflows']),
+                'has_overdue_inflows'=>$week['overdue_inflows']>0,
+                'has_overdue_outflows'=>$week['overdue_outflows']>0];
         }
         return $this->render('cash_flow_forecast/index.html.twig',[
             'forecast'=>$forecast,'overdue_inflows'=>AccountingAmount::formatFrenchCents($overdueIn),
