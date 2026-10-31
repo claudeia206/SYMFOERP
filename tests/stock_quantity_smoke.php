@@ -10,6 +10,8 @@ require dirname(__DIR__).'/src/Entity/SalesOrderLine.php';
 require dirname(__DIR__).'/src/Entity/SupplierInvoiceLine.php';
 require dirname(__DIR__).'/src/Entity/SalesQuoteLine.php';
 require dirname(__DIR__).'/src/Entity/PurchaseOrderLine.php';
+require dirname(__DIR__).'/src/Entity/SalesPayment.php';
+require dirname(__DIR__).'/src/Entity/SupplierPayment.php';
 
 use App\Service\StockQuantity;
 
@@ -58,6 +60,25 @@ $maximumVatValues = $productValues;
 $maximumVatValues['vat_rate'] = '100.00';
 $product->update($maximumVatValues);
 $assert($product->getVatRate() === '100.00', 'A VAT rate of exactly 100 percent must be accepted.');
+$invoiceStub = (new \\ReflectionClass(\\App\\Entity\\SalesInvoice::class))->newInstanceWithoutConstructor();
+$salesPayment = new \\App\\Entity\\SalesPayment($invoiceStub, '12.3', new \\DateTimeImmutable('2026-01-01'), 'bank_transfer');
+$supplierInvoiceStub = (new \\ReflectionClass(\\App\\Entity\\SupplierInvoice::class))->newInstanceWithoutConstructor();
+$supplierPayment = new \\App\\Entity\\SupplierPayment($supplierInvoiceStub, '12.30', new \\DateTimeImmutable('2026-01-01'), 'bank_transfer');
+$assert($salesPayment->getAmount() === '12.30', 'Customer payments must be normalized to exact cents.');
+$assert($supplierPayment->getAmount() === '12.30', 'Supplier payments must be normalized to exact cents.');
+foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00', '0.00'] as $invalidPayment) {
+    try {
+        new \\App\\Entity\\SalesPayment($invoiceStub, $invalidPayment, new \\DateTimeImmutable('2026-01-01'), 'bank_transfer');
+        throw new RuntimeException('Invalid payment amount was accepted: '.$invalidPayment);
+    } catch (\\InvalidArgumentException) {
+    }
+}
+try {
+    new \\App\\Entity\\SupplierPayment($supplierInvoiceStub, '1.00', new \\DateTimeImmutable('2026-01-01'), 'unknown');
+    throw new RuntimeException('Invalid supplier payment method was accepted.');
+} catch (\\InvalidArgumentException) {
+}
+
 $productValues['purchase_price'] = '12.30';
 $product->update($productValues);
 foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00', 1.25] as $invalidPrice) {
