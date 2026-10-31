@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Service\StockQuantity;
+use App\Service\AccountingAmount;
 
 use App\Repository\PurchaseOrderRepository;
 use DateTimeImmutable;
@@ -104,12 +105,22 @@ class PurchaseOrder
         }
         $this->status = $allReceived ? self::STATUS_RECEIVED : ($anyReceived ? self::STATUS_PARTIALLY_RECEIVED : self::STATUS_SENT);
     }
-    public function getTotalExcludingTax(): float
+    public function getTotalExcludingTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (float $sum, PurchaseOrderLine $line): float => $sum + $line->getTotalExcludingTax(), 0.0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, PurchaseOrderLine $line): int => $sum + $line->getTotalExcludingTaxCents(), 0);
     }
-    public function getTotalIncludingTax(): float
+
+    public function getTotalTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (float $sum, PurchaseOrderLine $line): float => $sum + $line->getTotalIncludingTax(), 0.0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, PurchaseOrderLine $line): int => $sum + $line->getTotalTaxCents(), 0);
     }
+
+    public function getTotalIncludingTaxCents(): int
+    {
+        return $this->getTotalExcludingTaxCents() + $this->getTotalTaxCents();
+    }
+
+    public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
+    public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
+    public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
 }
