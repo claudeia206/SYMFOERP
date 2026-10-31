@@ -28,14 +28,17 @@ final class BankStatementValueParser
 
     public function parseAmountToCents(string $value): int
     {
-        $value = str_replace([" ", "\u{00A0}", "\u{202F}", '€'], '', trim($value));
-        if (str_contains($value, ',') && str_contains($value, '.')) {
-            throw new InvalidArgumentException('Montant bancaire ambigu.');
+        $value = trim($value);
+        $value = preg_replace('/\s*€$/u', '', $value) ?? $value;
+        $grouping = '[ \x{00A0}\x{202F}]';
+        $validFormat = '/^-?(?:0|[1-9]\d{0,9}|[1-9]\d{0,2}(?:'.$grouping.'\d{3})+)(?:[.,]\d{1,2})?$/uD';
+        if (!preg_match($validFormat, $value)) {
+            throw new InvalidArgumentException('Montant bancaire invalide ou séparateurs de milliers incorrects.');
         }
 
-        $value = str_replace(',', '.', $value);
-        if (!preg_match('/^-?(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/D', $value)) {
-            throw new InvalidArgumentException('Montant bancaire invalide.');
+        $value = str_replace([" ", "\u{00A0}", "\u{202F}", ','], ['', '', '', '.'], $value);
+        if (!preg_match('/^-?(?:0|[1-9]\\d{0,9})(?:\\.\\d{1,2})?$/D', $value)) {
+            throw new InvalidArgumentException('Montant bancaire hors limites.');
         }
 
         $negative = str_starts_with($value, '-');
