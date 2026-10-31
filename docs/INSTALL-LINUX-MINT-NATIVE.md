@@ -55,7 +55,7 @@ Ouvrir :
 
 **http://localhost:8080/login**
 
-Le serveur écoute uniquement sur l'interface locale. Il n'est pas exposé au réseau local ou à Internet.
+Le virtualhost SYMFOERP écoute uniquement sur `127.0.0.1:8080` : l'application n'est pas exposée au réseau local ou à Internet. Le service Apache peut conserver d'autres ports ou virtualhosts déjà configurés sur la machine.
 
 ## 5. Commandes utiles
 
