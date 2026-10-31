@@ -4,6 +4,7 @@ declare(strict_types=1);
 use App\Entity\SalesCreditNote;
 use App\Entity\SalesCreditNoteLine;
 use App\Entity\SalesInvoice;
+use App\Entity\SalesInvoiceLine;
 use App\Entity\SalesOrder;
 use App\Entity\SalesQuote;
 use App\Entity\SalesQuoteLine;
