@@ -32,7 +32,7 @@ final class SalesInvoiceController extends AbstractController
         ]);
     }
 
-    #[Route('/from-order/{id}', name: 'app_sales_invoice_from_order', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    #[Route('/from-order/{id}', name: 'app_sales_invoice_from_order', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function createFromOrder(Request $request, SalesOrder $order, SalesInvoiceRepository $invoices, EntityManagerInterface $entityManager): Response
     {
         if (!$this->isCsrfTokenValid('sales_invoice_create_'.$order->getId(), (string) $request->request->get('_token'))) {
@@ -56,7 +56,7 @@ final class SalesInvoiceController extends AbstractController
     }
 
 
-    #[Route('/{id}/issue', name: 'app_sales_invoice_issue', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    #[Route('/{id}/issue', name: 'app_sales_invoice_issue', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function issue(Request $request, SalesInvoice $invoice, EntityManagerInterface $entityManager, AccountingPostingService $posting): Response
     {
         if (!$this->isCsrfTokenValid('sales_invoice_issue_'.$invoice->getId(), (string) $request->request->get('_token'))) {
@@ -112,7 +112,7 @@ final class SalesInvoiceController extends AbstractController
     }
 
 
-    #[Route('/{id}/pdf', name: 'app_sales_invoice_pdf', requirements: ['id' => '\\d+'], methods: ['GET'])]
+    #[Route('/{id}/pdf', name: 'app_sales_invoice_pdf', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function pdf(SalesInvoice $invoice): Response
     {
         if ($invoice->getNumber() === null || $invoice->getSellerSnapshot() === null || $invoice->getCustomerSnapshot() === null) {
@@ -138,7 +138,7 @@ final class SalesInvoiceController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/payments', name: 'app_sales_invoice_payment', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    #[Route('/{id}/payments', name: 'app_sales_invoice_payment', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function addPayment(Request $request, SalesInvoice $invoice, EntityManagerInterface $entityManager, AccountingPostingService $posting): Response
     {
         if (!$this->isCsrfTokenValid('sales_invoice_payment_'.$invoice->getId(), (string) $request->request->get('_token'))) {
@@ -147,7 +147,7 @@ final class SalesInvoiceController extends AbstractController
 
         try {
             $amount = trim((string) $request->request->get('amount', ''));
-            $date = new DateTimeImmutable((string) $request->request->get('paid_at', ''));
+            $date = $this->parseFormDate((string) $request->request->get('paid_at', ''), 'Date de règlement');
             $method = (string) $request->request->get('method', '');
             $reference = (string) $request->request->get('reference', '');
             $note = (string) $request->request->get('note', '');
@@ -173,7 +173,22 @@ final class SalesInvoiceController extends AbstractController
         return $this->redirectToRoute('app_sales_invoice_show', ['id' => $invoice->getId()]);
     }
 
-    #[Route('/{id}', name: 'app_sales_invoice_show', requirements: ['id' => '\\d+'], methods: ['GET'])]
+    private function parseFormDate(string $value, string $label): DateTimeImmutable
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/D', $value)) {
+            throw new InvalidArgumentException($label.' : format attendu AAAA-MM-JJ.');
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        $errors = DateTimeImmutable::getLastErrors();
+        if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) || $date->format('Y-m-d') !== $value) {
+            throw new InvalidArgumentException($label.' : date calendrier invalide.');
+        }
+
+        return $date;
+    }
+
+    #[Route('/{id}', name: 'app_sales_invoice_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(SalesInvoice $invoice, EntityManagerInterface $entityManager): Response
     {
         $profile = $entityManager->find(CompanyProfile::class, 1);
