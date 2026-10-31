@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\AccountingAmount;
+
 use App\Repository\SalesOrderRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -114,17 +116,17 @@ class SalesOrder
     public function getLines(): Collection { return $this->lines; }
     public function getTotalExcludingTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesOrderLine $line): int => $sum + $line->getTotalExcludingTaxCents(), 0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesOrderLine $line): int => AccountingAmount::addCents($sum, $line->getTotalExcludingTaxCents()), 0);
     }
 
     public function getTotalTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesOrderLine $line): int => $sum + $line->getTotalTaxCents(), 0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesOrderLine $line): int => AccountingAmount::addCents($sum, $line->getTotalTaxCents()), 0);
     }
 
     public function getTotalIncludingTaxCents(): int
     {
-        return $this->getTotalExcludingTaxCents() + $this->getTotalTaxCents();
+        return AccountingAmount::addCents($this->getTotalExcludingTaxCents(), $this->getTotalTaxCents());
     }
 
     public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
