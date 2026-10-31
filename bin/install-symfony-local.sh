@@ -47,18 +47,9 @@ if [[ "$ready" -ne 1 ]]; then
     exit 1
 fi
 
-# Run the exact application image in PHP CLI mode on the existing Compose network.
-set -a
-. ./.env.docker
-set +a
-symfoerp_network="$(docker inspect --format '{{range $name, $network := .NetworkSettings.Networks}}{{printf "%s" $name}}{{end}}' symfoerp-symfony)"
-symfoerp_image="$(docker inspect --format '{{.Image}}' symfoerp-symfony)"
-symfoerp_database_url="mysql://${SYMFONY_DB_USER}:${SYMFONY_DB_PASSWORD}@db_symfony:3306/${SYMFONY_DB_NAME}?serverVersion=mariadb-11.4.2&charset=utf8mb4"
+# Run maintenance commands inside the already configured Symfony service.
 console() {
-    docker run --rm --network "$symfoerp_network" \
-        -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" \
-        -e DATABASE_URL="$symfoerp_database_url" \
-        "$symfoerp_image" php /app/bin/console "$@"
+    docker compose --env-file .env.docker exec --no-TTY symfony php bin/console "$@"
 }
 echo "Migrations Doctrine détectées avant installation :"
 console doctrine:migrations:list
@@ -80,10 +71,7 @@ if ($hasUserTable !== 1) {
 $userCount = (int) $pdo->query("SELECT COUNT(*) FROM app_user")->fetchColumn();
 echo json_encode($database + ["app_user_rows" => $userCount], JSON_THROW_ON_ERROR) . PHP_EOL;'
 echo "Vérification de la base utilisée par le conteneur CLI :"
-docker run --rm --network "$symfoerp_network" \
-    -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" \
-    -e DATABASE_URL="$symfoerp_database_url" \
-    "$symfoerp_image" php -r "$database_check"
+docker compose --env-file .env.docker exec --no-TTY symfony php -r "$database_check"
 echo "Vérification de la même base depuis le conteneur HTTP Symfony :"
 docker compose --env-file .env.docker exec --no-TTY symfony php -r "$database_check"
 console doctrine:schema:validate
@@ -106,10 +94,8 @@ trap cleanup_admin_env EXIT
     printf 'SYMFOERP_ADMIN_PASSWORD=%s\n' "$admin_password"
 } > "$admin_env_file"
 unset admin_password
-docker run --rm --network "$symfoerp_network" --env-file "$admin_env_file" \
-    -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" \
-    -e DATABASE_URL="$symfoerp_database_url" \
-    "$symfoerp_image" php /app/bin/console app:user:create
+docker compose --env-file .env.docker exec --no-TTY \
+    --env-file "$admin_env_file" symfony php bin/console app:user:create
 rm -f "$admin_env_file"
 trap - EXIT
 
