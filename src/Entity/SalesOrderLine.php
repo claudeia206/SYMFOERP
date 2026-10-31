@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Entity;
 use App\Service\StockQuantity;
+use App\Service\AccountingAmount;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 #[ORM\Entity]
@@ -21,7 +22,13 @@ class SalesOrderLine
     #[ORM\Column] private int $position;
     public function __construct(string $description,string $quantity,string $unitPrice,string $vatRate,int $position,?Product $product=null)
     {
-        $milliunits=StockQuantity::toMilliunits($quantity); if($milliunits<=0||$milliunits>9999999999) throw new InvalidArgumentException('La quantité commandée doit être strictement positive.'); $this->product=$product; $this->description=$description; $this->quantity=StockQuantity::format($milliunits); $this->unitPrice=$unitPrice; $this->vatRate=$vatRate; $this->position=max(1,$position);
+        $milliunits=StockQuantity::toMilliunits($quantity);
+        $unitPriceCents=AccountingAmount::toCents($unitPrice);
+        $vatRateCents=AccountingAmount::toCents($vatRate);
+        if($milliunits<=0||$milliunits>9999999999) throw new InvalidArgumentException('La quantité commandée doit être strictement positive.');
+        if($unitPriceCents<0||$unitPriceCents>999999999999||$vatRateCents<0||$vatRateCents>10000) throw new InvalidArgumentException('Le prix unitaire ou le taux de TVA est invalide.');
+        $this->product=$product; $this->description=$description; $this->quantity=StockQuantity::format($milliunits);
+        $this->unitPrice=AccountingAmount::formatCents($unitPriceCents); $this->vatRate=AccountingAmount::formatCents($vatRateCents); $this->position=max(1,$position);
     }
     public function getId(): ?int { return $this->id; }
     public function getPosition(): int { return $this->position; }
