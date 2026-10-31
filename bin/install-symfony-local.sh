@@ -61,7 +61,7 @@ console() {
         "$symfoerp_image" php /app/bin/console "$@"
 }
 echo "Migrations Doctrine détectées avant installation :"
-console doctrine:migrations:list --show-versions
+console doctrine:migrations:list
 console doctrine:migrations:status --show-versions
 console doctrine:migrations:migrate --no-interaction -vvv
 database_check='$url = parse_url(getenv("DATABASE_URL"));
