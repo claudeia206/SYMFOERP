@@ -19,14 +19,29 @@ final class GeneralLedgerController extends AbstractController
         $from=(string)$request->query->get('from',(new DateTimeImmutable('first day of january this year'))->format('Y-m-d'));
         $to=(string)$request->query->get('to',(new DateTimeImmutable('today'))->format('Y-m-d'));
         $this->validatePeriod($from,$to);
-        $accounts=$db->fetchAllAssociative('SELECT a.id,a.code,a.name,a.account_class,COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END),0) AS debit,COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END),0) AS credit FROM app_accounting_account a LEFT JOIN app_journal_entry_line l ON l.account_id=a.id LEFT JOIN app_journal_entry e ON e.id=l.entry_id AND e.status=? AND e.entry_date BETWEEN ? AND ? WHERE a.is_active=1 GROUP BY a.id,a.code,a.name,a.account_class ORDER BY a.code',['posted',$from,$to]);
+        $accounts=$db->fetchAllAssociative(
+            'SELECT a.id,a.code,a.name,a.account_class,
+                    COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.debit ELSE 0 END),0) AS opening_debit,
+                    COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.credit ELSE 0 END),0) AS opening_credit,
+                    COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.debit ELSE 0 END),0) AS debit,
+                    COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.credit ELSE 0 END),0) AS credit
+             FROM app_accounting_account a
+             LEFT JOIN app_journal_entry_line l ON l.account_id=a.id
+             LEFT JOIN app_journal_entry e ON e.id=l.entry_id AND e.status=?
+             WHERE a.is_active=1
+             GROUP BY a.id,a.code,a.name,a.account_class ORDER BY a.code',
+            [$from,$from,$from,$to,$from,$to,'posted']
+        );
         $debitTotal=0;$creditTotal=0;
         foreach($accounts as &$account){
+            $openingDebit=AccountingAmount::toCents((string)$account['opening_debit']);
+            $openingCredit=AccountingAmount::toCents((string)$account['opening_credit']);
             $debit=AccountingAmount::toCents((string)$account['debit']);
             $credit=AccountingAmount::toCents((string)$account['credit']);
+            $account['opening_balance']=AccountingAmount::formatCents($openingDebit-$openingCredit);
             $account['debit']=AccountingAmount::formatCents($debit);
             $account['credit']=AccountingAmount::formatCents($credit);
-            $account['balance']=AccountingAmount::formatCents($debit-$credit);
+            $account['balance']=AccountingAmount::formatCents($openingDebit-$openingCredit+$debit-$credit);
             $debitTotal+=$debit;$creditTotal+=$credit;
         }
         unset($account);
