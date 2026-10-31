@@ -8,6 +8,8 @@ require dirname(__DIR__).'/src/Service/AccountingAmount.php';
 require dirname(__DIR__).'/src/Entity/SalesInvoiceLine.php';
 require dirname(__DIR__).'/src/Entity/SalesOrderLine.php';
 require dirname(__DIR__).'/src/Entity/SupplierInvoiceLine.php';
+require dirname(__DIR__).'/src/Entity/SalesQuoteLine.php';
+require dirname(__DIR__).'/src/Entity/PurchaseOrderLine.php';
 
 use App\Service\StockQuantity;
 
@@ -79,6 +81,27 @@ $supplierLine = new \App\Entity\SupplierInvoiceLine($product, 'Ligne test', '1.0
 $assert($supplierLine->getUnitPrice() === '12.30' && $supplierLine->getVatRate() === '20.00', 'Supplier invoice line decimals must be normalized exactly.');
 $orderLine = new \App\Entity\SalesOrderLine('Ligne test', '1.000', '12.30', '20.00', 1, $product);
 $assert($orderLine->getUnitPrice() === '12.30' && $orderLine->getVatRate() === '20.00', 'Sales order line decimals must be normalized exactly.');
+$quoteLine = new \\App\\Entity\\SalesQuoteLine('Ligne devis', '1.250', '12.30', '20.00', 1);
+$purchaseLine = new \\App\\Entity\\PurchaseOrderLine($product, '1.250', 1);
+foreach ([$salesLine, $supplierLine, $orderLine, $quoteLine, $purchaseLine] as $line) {
+    $assert($line->getTotalExcludingTaxCents() === 1538, 'Line net must be rounded half-up to the cent without floats.');
+    $assert($line->getTotalTaxCents() === 308, 'Line VAT must be calculated from rounded net cents.');
+    $assert($line->getTotalIncludingTaxCents() === 1846, 'Line gross total must be the exact sum of net and VAT cents.');
+}
+$assert($quoteLine->getUnitPrice() === '12.30', 'Quote line price must be normalized without floats.');
+foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00'] as $invalidPrice) {
+    try {
+        new \\App\\Entity\\SalesQuoteLine('Ligne devis', '1.000', $invalidPrice, '20.00', 1);
+        throw new RuntimeException('Invalid quote line price was accepted: '.$invalidPrice);
+    } catch (\\InvalidArgumentException) {
+    }
+}
+try {
+    \\App\\Service\\AccountingAmount::lineNetCents('9999999.999', '9999999999.99');
+    throw new RuntimeException('An amount beyond accounting precision was accepted.');
+} catch (\\InvalidArgumentException) {
+}
+
 
 foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00'] as $invalidPrice) {
     try {
