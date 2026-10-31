@@ -53,7 +53,7 @@ SQL);
         return $this->render('accounting/aging.html.twig',[
             'today'=>$today,'receivables'=>$receivables,'payables'=>$payables,
             'receivable_totals'=>$receivableTotals,'payable_totals'=>$payableTotals,
-            'net_position'=>AccountingAmount::formatFrenchCents(AccountingAmount::addSignedCents(AccountingAmount::toCents(str_replace([' ', ','], ['', '.'], $receivableTotals['total'])),-AccountingAmount::toCents(str_replace([' ', ','], ['', '.'], $payableTotals['total'])))),
+            'net_position'=>AccountingAmount::formatFrenchCents(AccountingAmount::addSignedCents($receivableTotals['total_cents'],-$payableTotals['total_cents'])),
         ]);
     }
     private function summarize(array &$rows,string $today):array
@@ -69,7 +69,10 @@ SQL);
             $totals[$bucket]=AccountingAmount::addCents($totals[$bucket],$remaining);$totals['total']=AccountingAmount::addCents($totals['total'],$remaining);
         }
         unset($row);
-        foreach($totals as &$amount)$amount=AccountingAmount::formatFrenchCents($amount);
+        $totals['total_cents']=$totals['total'];
+        foreach($totals as $key=>&$amount){
+            if($key!=='total_cents')$amount=AccountingAmount::formatFrenchCents($amount);
+        }
         unset($amount);
         return $totals;
     }
