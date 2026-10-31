@@ -138,6 +138,8 @@ jobs:
           import http.cookiejar
           import urllib.parse
           import urllib.request
+          import os
+          import subprocess
           import re
           from html.parser import HTMLParser
 
@@ -399,6 +401,29 @@ jobs:
           }).encode()))
           credit_html = credit_response.read().decode()
           assert "a été émis et comptabilisé" in credit_html, "Customer credit note was not automatically posted"
+          # Move the CI invoice into the reminder window, then exercise the real CSRF-protected recording flow.
+          subprocess.run([
+              "docker", "compose", "--env-file", ".env.docker", "exec", "-T", "db_symfony", "mariadb",
+              "-u" + os.environ["SYMFONY_DB_USER"],
+              "-p" + os.environ["SYMFONY_DB_PASSWORD"],
+              os.environ["SYMFONY_DB_NAME"],
+              "-e", "UPDATE app_sales_invoice SET due_date=DATE_ADD(CURRENT_DATE, INTERVAL 3 DAY) WHERE id=" + invoice_id_match.group(1),
+          ], check=True, capture_output=True, text=True)
+          reminders_html = client.open(base + "/sales/reminders").read().decode()
+          assert "Relances des factures clients" in reminders_html, "Authenticated user could not open customer payment reminders"
+          reminder_form = re.search(r'<form method="post" action="/sales/invoices/' + invoice_id_match.group(1) + r'/reminders".*?</form>', reminders_html, re.S)
+          assert reminder_form, "Outstanding invoice reminder recording form is missing"
+          reminder_token = re.search(r'name="_token" value="([^"]+)"', reminder_form.group(0))
+          assert reminder_token, "Payment reminder CSRF token is missing"
+          reminder_response = client.open(urllib.request.Request(
+              base + "/sales/invoices/" + invoice_id_match.group(1) + "/reminders",
+              data=urllib.parse.urlencode({
+                  "_token": reminder_token.group(1), "level": "1", "channel": "email", "note": "CI reminder history",
+              }).encode(),
+          ))
+          reminder_html = reminder_response.read().decode()
+          assert "relance effectuée a été enregistrée" in reminder_html, "Customer payment reminder was not recorded"
+          assert "Historique des 100 dernières relances" in reminder_html and "CI reminder history" in reminder_html, "Customer payment reminder history did not persist"
           ledger_after_sales = client.open(base + "/accounting").read().decode()
           assert "Facture client FAC-" in ledger_after_sales, "Issued sales invoice accounting entry is missing"
           assert "Règlement facture FAC-" in ledger_after_sales, "Customer payment accounting entry is missing"
