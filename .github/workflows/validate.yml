@@ -181,7 +181,7 @@ jobs:
           assert "ci-user@example.test" in users_after_create, "New user is missing from the user list"
           user_row = re.search(r'<tr>.*?ci-user@example.test.*?</tr>', users_after_create, re.S)
           assert user_row, "Created standard user row is missing"
-          role_form = re.search(r'<form method="post" action="/admin/users/(\\d+)/role"[^>]*>.*?</form>', user_row.group(0), re.S)
+          role_form = re.search(r'<form method="post" action="/admin/users/([0-9]+)/role"[^>]*>.*?</form>', user_row.group(0), re.S)
           assert role_form, "User role management form is missing"
           role_token = re.search(r'name="_token" value="([^"]+)"', role_form.group(0))
           assert role_token, "User role management CSRF token is missing"
