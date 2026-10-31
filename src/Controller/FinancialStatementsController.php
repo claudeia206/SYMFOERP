@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\AccountingAmount;
+
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -45,21 +47,21 @@ ORDER BY a.code
 SQL, [$to, $to, $from, $to, $from, $to, $to]);
 
         $groups = ['assets' => [], 'liabilities' => [], 'equity' => [], 'income' => [], 'expenses' => []];
-        $totals = ['assets' => 0.0, 'liabilities' => 0.0, 'equity' => 0.0, 'income' => 0.0, 'expenses' => 0.0];
+        $totals = ['assets' => 0, 'liabilities' => 0, 'equity' => 0, 'income' => 0, 'expenses' => 0];
 
         foreach ($rows as $row) {
             $class = (string) $row['class'];
             $code = (string) $row['code'];
-            $debit = (float) $row['cumulative_debit'];
-            $credit = (float) $row['cumulative_credit'];
-            $periodDebit = (float) $row['period_debit'];
-            $periodCredit = (float) $row['period_credit'];
+            $debit = AccountingAmount::toCents((string) $row['cumulative_debit']);
+            $credit = AccountingAmount::toCents((string) $row['cumulative_credit']);
+            $periodDebit = AccountingAmount::toCents((string) $row['period_debit']);
+            $periodCredit = AccountingAmount::toCents((string) $row['period_credit']);
 
-            $add = static function (array &$groups, array &$totals, string $key, array $row, float $balance): void {
-                if (abs($balance) < 0.005) {
+            $add = static function (array &$groups, array &$totals, string $key, array $row, int $balance): void {
+                if ($balance === 0) {
                     return;
                 }
-                $groups[$key][] = ['code' => $row['code'], 'name' => $row['name'], 'balance' => round($balance, 2)];
+                $groups[$key][] = ['code' => $row['code'], 'name' => $row['name'], 'balance' => AccountingAmount::formatCents($balance)];
                 $totals[$key] += $balance;
             };
 
@@ -81,7 +83,7 @@ SQL, [$to, $to, $from, $to, $from, $to, $to]);
         }
 
         foreach ($totals as &$value) {
-            $value = round($value, 2);
+            $value = AccountingAmount::formatCents($value);
         }
         unset($value);
 
@@ -90,7 +92,7 @@ SQL, [$to, $to, $from, $to, $from, $to, $to]);
             'totals' => $totals,
             'from' => $from,
             'to' => $to,
-            'net_result' => round($totals['income'] - $totals['expenses'], 2),
+            'net_result' => AccountingAmount::formatCents(AccountingAmount::toCents($totals['income']) - AccountingAmount::toCents($totals['expenses'])),
         ]);
     }
 }
