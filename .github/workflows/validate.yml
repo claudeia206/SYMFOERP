@@ -75,6 +75,9 @@ jobs:
       - name: Test product catalogue and stock invariants
         run: docker run --rm symfoerp-symfony:ci php tests/product_entity_smoke.php
 
+      - name: Test exact stock quantity arithmetic
+        run: docker run --rm symfoerp-symfony:ci php tests/stock_quantity_smoke.php
+
       - name: Test supplier purchase orders and receipts
         run: docker run --rm symfoerp-symfony:ci php tests/purchase_order_entity_smoke.php
 

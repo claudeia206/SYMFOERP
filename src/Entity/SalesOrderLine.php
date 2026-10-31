@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Entity;
+use App\Service\StockQuantity;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 #[ORM\Entity]
@@ -20,7 +21,7 @@ class SalesOrderLine
     #[ORM\Column] private int $position;
     public function __construct(string $description,string $quantity,string $unitPrice,string $vatRate,int $position,?Product $product=null)
     {
-        $this->product=$product; $this->description=$description; $this->quantity=$quantity; $this->unitPrice=$unitPrice; $this->vatRate=$vatRate; $this->position=max(1,$position);
+        $milliunits=StockQuantity::toMilliunits($quantity); if($milliunits<=0||$milliunits>9999999999) throw new InvalidArgumentException('La quantité commandée doit être strictement positive.'); $this->product=$product; $this->description=$description; $this->quantity=StockQuantity::format($milliunits); $this->unitPrice=$unitPrice; $this->vatRate=$vatRate; $this->position=max(1,$position);
     }
     public function getId(): ?int { return $this->id; }
     public function getPosition(): int { return $this->position; }
@@ -29,19 +30,19 @@ class SalesOrderLine
     public function getProduct(): ?Product { return $this->product; }
     public function getQuantity(): string { return $this->quantity; }
     public function getDeliveredQuantity(): string { return $this->deliveredQuantity; }
-    public function getRemainingQuantity(): string { return number_format(max(0,(float)$this->quantity-(float)$this->deliveredQuantity),3,'.',''); }
+    public function getRemainingQuantity(): string { return StockQuantity::format(max(0,StockQuantity::toMilliunits($this->quantity)-StockQuantity::toMilliunits($this->deliveredQuantity))); }
     public function recordDelivery(string $quantity): self
     {
-        if(!is_numeric($quantity)||round((float)$quantity,3)<=0||(float)$quantity>(float)$this->getRemainingQuantity()+0.000001) throw new InvalidArgumentException('La quantité livrée doit être positive et ne peut pas dépasser le reliquat.');
-        $this->deliveredQuantity=number_format((float)$this->deliveredQuantity+(float)$quantity,3,'.','');
+        $delivered=StockQuantity::toMilliunits($quantity); if($delivered<=0||$delivered>StockQuantity::toMilliunits($this->getRemainingQuantity())) throw new InvalidArgumentException('La quantité livrée doit être positive et ne peut pas dépasser le reliquat.');
+        $this->deliveredQuantity=StockQuantity::format(StockQuantity::toMilliunits($this->deliveredQuantity)+$delivered);
         return $this;
     }
     public function getReturnedQuantity(): string { return $this->returnedQuantity; }
-    public function getReturnableQuantity(): string { return number_format(max(0,(float)$this->deliveredQuantity-(float)$this->returnedQuantity),3,'.',''); }
+    public function getReturnableQuantity(): string { return StockQuantity::format(max(0,StockQuantity::toMilliunits($this->deliveredQuantity)-StockQuantity::toMilliunits($this->returnedQuantity))); }
     public function recordReturn(string $quantity): self
     {
-        if(!is_numeric($quantity)||round((float)$quantity,3)<=0||(float)$quantity>(float)$this->getReturnableQuantity()+0.000001) throw new InvalidArgumentException('La quantité retournée dépasse la quantité livrée encore éligible à un retour.');
-        $this->returnedQuantity=number_format((float)$this->returnedQuantity+(float)$quantity,3,'.','');
+        $returned=StockQuantity::toMilliunits($quantity); if($returned<=0||$returned>StockQuantity::toMilliunits($this->getReturnableQuantity())) throw new InvalidArgumentException('La quantité retournée dépasse la quantité livrée encore éligible à un retour.');
+        $this->returnedQuantity=StockQuantity::format(StockQuantity::toMilliunits($this->returnedQuantity)+$returned);
         return $this;
     }
     public function getUnitPrice(): string { return $this->unitPrice; }

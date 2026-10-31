@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\StockQuantity;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 
@@ -46,12 +47,13 @@ class PurchaseOrderLine
     public function __construct(Product $product, string $quantity, int $position)
     {
         if (!$product->isActive()) { throw new InvalidArgumentException('Un produit archivé ne peut pas être commandé.'); }
-        if (!is_numeric($quantity) || round((float) $quantity, 3) <= 0 || (float) $quantity > 9999999.999) {
+        $milliunits = StockQuantity::toMilliunits($quantity);
+        if ($milliunits <= 0 || $milliunits > 9999999999) {
             throw new InvalidArgumentException('La quantité commandée doit être strictement positive.');
         }
         $this->product = $product;
         $this->description = $product->getName();
-        $this->quantity = number_format((float) $quantity, 3, '.', '');
+        $this->quantity = StockQuantity::format($milliunits);
         $this->unitPrice = $product->getPurchasePrice();
         $this->vatRate = $product->getVatRate();
         $this->position = max(1, $position);
@@ -65,17 +67,18 @@ public function setPurchaseOrder(PurchaseOrder $order): self { $this->purchaseOr
     public function getDescription(): string { return $this->description; }
     public function getQuantity(): string { return $this->quantity; }
     public function getReceivedQuantity(): string { return $this->receivedQuantity; }
-    public function getRemainingQuantity(): string { return number_format(max(0, (float) $this->quantity - (float) $this->receivedQuantity), 3, '.', ''); }
+    public function getRemainingQuantity(): string { return StockQuantity::format(max(0, StockQuantity::toMilliunits($this->quantity) - StockQuantity::toMilliunits($this->receivedQuantity))); }
     public function getUnitPrice(): string { return $this->unitPrice; }
     public function getVatRate(): string { return $this->vatRate; }
     public function getTotalExcludingTax(): float { return (float) $this->quantity * (float) $this->unitPrice; }
     public function getTotalIncludingTax(): float { return $this->getTotalExcludingTax() * (1 + (float) $this->vatRate / 100); }
     public function receive(string $quantity): self
     {
-        if (!is_numeric($quantity) || round((float) $quantity, 3) <= 0 || (float) $quantity > (float) $this->getRemainingQuantity() + 0.000001) {
+        $received = StockQuantity::toMilliunits($quantity);
+        if ($received <= 0 || $received > StockQuantity::toMilliunits($this->getRemainingQuantity())) {
             throw new InvalidArgumentException('La quantité réceptionnée doit être positive et ne peut pas dépasser le reliquat.');
         }
-        $this->receivedQuantity = number_format((float) $this->receivedQuantity + (float) $quantity, 3, '.', '');
+        $this->receivedQuantity = StockQuantity::format(StockQuantity::toMilliunits($this->receivedQuantity) + $received);
         return $this;
     }
 }

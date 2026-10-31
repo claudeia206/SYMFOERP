@@ -108,6 +108,7 @@ final class ProductController extends AbstractController
         try {
             $em->getConnection()->transactional(function () use ($request, $product, $em): void {
                 $em->lock($product, LockMode::PESSIMISTIC_WRITE);
+                $em->refresh($product);
                 $quantity = (string) $request->request->get('quantity', '');
                 $reason = (string) $request->request->get('reason', '');
                 $note = (string) $request->request->get('note', '');

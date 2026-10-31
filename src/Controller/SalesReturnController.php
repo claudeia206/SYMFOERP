@@ -5,6 +5,7 @@ use App\Entity\ProductStockMovement;
 use App\Entity\SalesOrder;
 use App\Entity\SalesReturn;
 use App\Entity\SalesReturnLine;
+use App\Service\StockQuantity;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\LockMode;
 use InvalidArgumentException;
@@ -24,15 +25,27 @@ final class SalesReturnController extends AbstractController
                 $em->lock($order,LockMode::PESSIMISTIC_WRITE); $em->refresh($order);
                 $salesReturn=new SalesReturn($order,(string)$request->request->get('notes','')); $count=0;
                 $quantities=$request->request->all('quantities');
+                $products = [];
+                foreach ($order->getLines() as $line) {
+                    $product = $line->getProduct();
+                    if ($product !== null && $product->isStockTracked() && $product->getId() !== null) {
+                        $products[$product->getId()] = $product;
+                    }
+                }
+                ksort($products, SORT_NUMERIC);
+                foreach ($products as $product) {
+                    $em->lock($product, LockMode::PESSIMISTIC_WRITE);
+                    $em->refresh($product);
+                }
                 foreach($order->getLines() as $line) {
                     $raw=trim((string)($quantities[(string)$line->getId()]??''));
                     if($raw==='') continue;
-                    if(!is_numeric($raw)||round((float)$raw,3)<=0) throw new InvalidArgumentException('Chaque quantité retournée doit être un nombre strictement positif.');
-                    $quantity=number_format((float)$raw,3,'.','');
+                    $milliunits = StockQuantity::toMilliunits($raw);
+                    if ($milliunits <= 0) throw new InvalidArgumentException('Chaque quantité retournée doit être un nombre strictement positif.');
+                    $quantity = StockQuantity::format($milliunits);
                     $returnLine=new SalesReturnLine($line,$quantity);
                     $product=$line->getProduct();
                     if($product!==null&&$product->isStockTracked()) {
-                        $em->lock($product,LockMode::PESSIMISTIC_WRITE);
                         $product->adjustStock($quantity);
                         $em->persist(new ProductStockMovement($product,$quantity,'return',sprintf('Retour client commande %s · ligne %d',$order->getNumber()??('#'.$order->getId()),$line->getId())));
                     }

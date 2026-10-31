@@ -11,6 +11,7 @@ use App\Entity\ThirdParty;
 use App\Repository\ProductRepository;
 use App\Repository\PurchaseOrderRepository;
 use App\Repository\ThirdPartyRepository;
+use App\Service\StockQuantity;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
 use InvalidArgumentException;
@@ -96,13 +97,25 @@ final class PurchaseOrderController extends AbstractController
                     throw new InvalidArgumentException('Cette commande ne peut plus être réceptionnée.');
                 }
                 $quantities = $request->request->all('received');
+                $products = [];
+                foreach ($order->getLines() as $line) {
+                    $product = $line->getProduct();
+                    if ($product->isStockTracked() && $product->getId() !== null) {
+                        $products[$product->getId()] = $product;
+                    }
+                }
+                ksort($products, SORT_NUMERIC);
+                foreach ($products as $product) {
+                    $em->lock($product, LockMode::PESSIMISTIC_WRITE);
+                    $em->refresh($product);
+                }
                 foreach ($order->getLines() as $line) {
                     $quantity = trim((string) ($quantities[(string) $line->getId()] ?? ''));
                     if ($quantity === '') { continue; }
-                    if (!is_numeric($quantity)) { throw new InvalidArgumentException('Une quantité réceptionnée doit être numérique.'); }
-                    if ((float) $quantity == 0.0) { continue; }
+                    $milliunits = StockQuantity::toMilliunits($quantity);
+                    if ($milliunits === 0) { continue; }
                     $product = $line->getProduct();
-                    $em->lock($product, LockMode::PESSIMISTIC_WRITE);
+                    $quantity = StockQuantity::format($milliunits);
                     $line->receive($quantity);
                     if ($product->isStockTracked()) {
                         $product->adjustStock($quantity);
