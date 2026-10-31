@@ -12,7 +12,7 @@
 <h2>Échéancier hebdomadaire</h2>
 <div class="table-scroll"><table class="data-table"><thead><tr><th>Semaine</th><th>Encaissements</th><th>Décaissements</th><th>Flux net</th><th>Cumul net prévisionnel</th></tr></thead><tbody>
 {% for week in forecast %}
-<tr><td>{{ week.start|date('d/m/Y') }} – {{ week.end|date('d/m/Y') }}</td><td>{{ week.inflows }} €{% if week.overdue_inflows>0 %}<small> · dont échus {{ week.overdue_inflows }} €</small>{% endif %}</td><td>{{ week.outflows }} €{% if week.overdue_outflows>0 %}<small> · dont échus {{ week.overdue_outflows }} €</small>{% endif %}</td><td>{{ week.net }} €</td><td><strong>{{ week.cumulative_net }} €</strong></td></tr>
+<tr><td>{{ week.start|date('d/m/Y') }} – {{ week.end|date('d/m/Y') }}</td><td>{{ week.inflows }} €{% if week.has_overdue_inflows %}<small> · dont échus {{ week.overdue_inflows }} €</small>{% endif %}</td><td>{{ week.outflows }} €{% if week.has_overdue_outflows %}<small> · dont échus {{ week.overdue_outflows }} €</small>{% endif %}</td><td>{{ week.net }} €</td><td><strong>{{ week.cumulative_net }} €</strong></td></tr>
 {% endfor %}
 </tbody></table></div>
 </section>
