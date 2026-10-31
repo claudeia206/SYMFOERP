@@ -65,7 +65,7 @@ SQL,[$customerId,$asOf->format('Y-m-d'),$customerId,$asOf->format('Y-m-d'),$cust
         foreach($rows as $row){
             $amountCents=AccountingAmount::toCents((string)$row['amount']);
             $isDebit=$row['kind']==='invoice';
-            $balanceCents+=$isDebit?$amountCents:-$amountCents;
+            $balanceCents=AccountingAmount::addSignedCents($balanceCents,$isDebit?$amountCents:-$amountCents);
             $result[]=$row+[
                 'amount'=>AccountingAmount::formatCents($amountCents),
                 'debit'=>AccountingAmount::formatCents($isDebit?$amountCents:0),
