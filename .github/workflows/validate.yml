@@ -468,6 +468,10 @@ jobs:
           ledger_after_purchases = client.open(base + "/accounting").read().decode()
           assert "Facture fournisseur CI-FOUR-001" in ledger_after_purchases, "Supplier invoice accounting entry is missing"
           assert "Règlement fournisseur CI-FOUR-001" in ledger_after_purchases, "Supplier payment accounting entry is missing"
+          fec_text = client.open(base + "/accounting/fec/export?year=" + str(date.today().year)).read().decode("utf-8")
+          fec_lines = fec_text.splitlines()
+          assert len(fec_lines) > 1 and len(fec_lines[0].split("|")) == 18, "FEC export header or rows are missing"
+          print("FEC 18-column export smoke check passed.")
           print("Automatic general ledger postings for supplier invoices and payments passed.")
           print("Automatic general ledger postings for sales invoices, payments and credit notes passed.")
           print("Symfony authentication, third-party registry, quote creation, VAT totals, acceptance, idempotent order conversion, order completion and PDF export passed.")
