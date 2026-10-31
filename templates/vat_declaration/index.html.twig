@@ -13,14 +13,14 @@
 </form>
 </section>
 <section class="grid">
-<article class="card"><p class="muted">TVA collectée (445710)</p><h2>{{ collected|number_format(2,',',' ') }} €</h2></article>
-<article class="card"><p class="muted">TVA déductible (445660 + 445620)</p><h2>{{ deductible|number_format(2,',',' ') }} €</h2></article>
-<article class="card"><p class="muted">{{ net >= 0 ? 'TVA nette à payer' : 'Crédit de TVA théorique' }}</p><h2>{{ net|abs|number_format(2,',',' ') }} €</h2></article>
+<article class="card"><p class="muted">TVA collectée (445710)</p><h2>{{ collected }} €</h2></article>
+<article class="card"><p class="muted">TVA déductible (445660 + 445620)</p><h2>{{ deductible }} €</h2></article>
+<article class="card"><p class="muted">{{ net_label }}</p><h2>{{ net_abs }} €</h2></article>
 </section>
 <section class="card">
 <h2>Détail mensuel</h2>
 <div class="table-scroll"><table class="data-table"><thead><tr><th>Mois</th><th>TVA collectée</th><th>TVA déductible</th><th>Solde</th></tr></thead><tbody>
-{% for month in months %}<tr><td>{{ month.period }}</td><td>{{ month.collected|number_format(2,',',' ') }} €</td><td>{{ month.deductible|number_format(2,',',' ') }} €</td><td>{{ month.net|abs|number_format(2,',',' ') }} € {{ month.net>0?'à payer':(month.net<0?'crédit':'—') }}</td></tr>
+{% for month in months %}<tr><td>{{ month.period }}</td><td>{{ month.collected }} €</td><td>{{ month.deductible }} €</td><td>{{ month.net_abs }} € {{ month.net_label }}</td></tr>
 {% else %}<tr><td colspan="4">Aucun mouvement de TVA comptabilisé sur cette période.</td></tr>{% endfor %}
 </tbody></table></div>
 </section>
