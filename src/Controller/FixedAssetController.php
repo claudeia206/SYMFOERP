@@ -125,16 +125,16 @@ final class FixedAssetController extends AbstractController
                 $safeText($asset['name']),
                 $asset['acquisition_date'],
                 $asset['in_service_date'],
-                number_format($cost, 2, '.', ''),
-                number_format($accumulated, 2, '.', ''),
-                number_format($netBookValue, 2, '.', ''),
+                AccountingAmount::formatCents($cost),
+                AccountingAmount::formatCents($accumulated),
+                AccountingAmount::formatCents($netBookValue),
                 (string) $asset['useful_life_years'],
                 $asset['last_depreciation_year'] ?? '',
                 $safeText($asset['status']),
                 $asset['disposal_date'] ?? '',
                 $asset['disposal_proceeds'] === null
                     ? ''
-                    : number_format((float) $asset['disposal_proceeds'], 2, '.', ''),
+                    : AccountingAmount::formatCents(AccountingAmount::toCents((string) $asset['disposal_proceeds'])),
             ], ';', '"', '\\');
         }
 
@@ -179,7 +179,7 @@ final class FixedAssetController extends AbstractController
             $journalCode=(string)$db->fetchOne('SELECT code FROM app_accounting_journal WHERE id=?', [$journal]);
             if ($journalCode==='') throw new \\InvalidArgumentException('Journal comptable introuvable.');
             $db->insert('app_fixed_asset',[
-                'code'=>$code,'name'=>$name,'acquisition_cost'=>number_format($cost,2,'.',''),'residual_value'=>number_format($residual,2,'.',''),
+                'code'=>$code,'name'=>$name,'acquisition_cost'=>AccountingAmount::formatCents(AccountingAmount::toCents($cost)),'residual_value'=>AccountingAmount::formatCents(AccountingAmount::toCents($residual)),
                 'useful_life_years'=>$years,'acquisition_date'=>$acquisitionDate,'in_service_date'=>$serviceDate,'status'=>'active',
                 'asset_account_id'=>$assetAccount,'accumulated_account_id'=>$accumAccount,'expense_account_id'=>$expenseAccount,
                 'journal_id'=>$journal,'acquisition_counterpart_account_id'=>$acquisitionCounterpart,
@@ -195,7 +195,7 @@ final class FixedAssetController extends AbstractController
                 'created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s'),
             ]);
             $entryId=(int)$db->lastInsertId();
-            $amount=number_format($cost,2,'.','');
+            $amount=AccountingAmount::formatCents(AccountingAmount::toCents($cost));
             $db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$assetAccount,'label'=>$description,'debit'=>$amount,'credit'=>'0.00']);
             $db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$acquisitionCounterpart,'label'=>$description,'debit'=>'0.00','credit'=>$amount]);
             $db->update('app_fixed_asset',['acquisition_journal_entry_id'=>$entryId],['id'=>$assetId]);
@@ -362,18 +362,21 @@ final class FixedAssetController extends AbstractController
      * Parse a monetary input without accepting locale separators, exponents,
      * signs or more than two decimal places.
      */
-    private function parseMoney(mixed $value): ?float
+    private function parseMoney(mixed $value): ?string
     {
-        if (!is_string($value) && !is_int($value) && !is_float($value)) {
+        if (!is_string($value) && !is_int($value)) {
             return null;
         }
 
         $raw = trim((string) $value);
-        if (preg_match('/^\\d{1,12}(?:\\.\\d{1,2})?$/D', $raw) !== 1) {
+        if (preg_match('/^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,2})?$/D', $raw) !== 1) {
             return null;
         }
 
-        $amount = (float) $raw;
-        return is_finite($amount) ? $amount : null;
+        try {
+            return AccountingAmount::formatCents(AccountingAmount::toCents($raw));
+        } catch (\\InvalidArgumentException) {
+            return null;
+        }
     }
 }
