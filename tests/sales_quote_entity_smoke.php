@@ -27,12 +27,16 @@ $catalogLine->setProduct($catalogProduct);
 $quote->addLine($catalogLine);
 $catalogProduct->adjustStock('10');
 $quote->addLine(new SalesQuoteLine('Frais de dossier', '1', '10.00', '0.00', 2));
+$quote->addLine(new SalesQuoteLine('Arrondi au centime', '1.250', '12.30', '20.00', 3));
 
 expectSales($quote->getStatus() === SalesQuote::STATUS_DRAFT, 'New quotes must start as drafts.');
-expectSales($quote->getLines()->count() === 2, 'Quote lines must be attached to their quote.');
-expectSales($quote->getTotalExcludingTax() === 110.0, 'The quote subtotal must be calculated correctly.');
-expectSales($quote->getTotalTax() === 20.0, 'VAT must be rounded and summed per line.');
-expectSales($quote->getTotalIncludingTax() === 130.0, 'The total including VAT must be calculated correctly.');
+expectSales($quote->getLines()->count() === 3, 'Quote lines must be attached to their quote.');
+expectSales($quote->getTotalExcludingTax() === 125.38, 'The quote subtotal must be calculated correctly.');
+expectSales($quote->getTotalTax() === 23.08, 'VAT must be rounded and summed per line.');
+expectSales($quote->getTotalIncludingTax() === 148.46, 'The total including VAT must be calculated correctly.');
+expectSales($quote->getTotalExcludingTaxCents() === 12538, 'Quote subtotal must be aggregated in exact cents.');
+expectSales($quote->getTotalTaxCents() === 2308, 'Quote VAT must be aggregated in exact cents.');
+expectSales($quote->getTotalIncludingTaxCents() === 14846, 'Quote gross total must be aggregated in exact cents.');
 
 $quote->setStatus(SalesQuote::STATUS_SENT);
 expectSales($quote->getStatus() === SalesQuote::STATUS_SENT, 'Quote status must be mutable to a supported state.');
