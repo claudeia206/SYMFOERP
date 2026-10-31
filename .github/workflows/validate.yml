@@ -422,7 +422,7 @@ jobs:
               }).encode(),
           ))
           reminder_html = reminder_response.read().decode()
-          assert "relance effectuée a été enregistrée" in reminder_html, "Customer payment reminder was not recorded"
+          assert "relance effectuée a été enregistrée" in reminder_html, "Customer payment reminder was not recorded: " + reminder_html[-3000:]
           assert "Historique des 100 dernières relances" in reminder_html and "CI reminder history" in reminder_html, "Customer payment reminder history did not persist"
           ledger_after_sales = client.open(base + "/accounting").read().decode()
           assert "Facture client FAC-" in ledger_after_sales, "Issued sales invoice accounting entry is missing"
