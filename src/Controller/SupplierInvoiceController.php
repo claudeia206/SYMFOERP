@@ -115,6 +115,21 @@ final class SupplierInvoiceController extends AbstractController
         return $this->redirectToRoute('app_supplier_invoice_show', ['id' => $invoice->getId()]);
     }
 
+    private function parseFormDate(string $value, string $label): \\DateTimeImmutable
+    {
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/D', $value)) {
+            throw new InvalidArgumentException($label.' : format attendu AAAA-MM-JJ.');
+        }
+
+        $date = \\DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        $errors = \\DateTimeImmutable::getLastErrors();
+        if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) || $date->format('Y-m-d') !== $value) {
+            throw new InvalidArgumentException($label.' : date calendrier invalide.');
+        }
+
+        return $date;
+    }
+
     private function methods(): array
     {
         return ['bank_transfer' => 'Virement', 'card' => 'Carte', 'cash' => 'Espèces', 'check' => 'Chèque', 'other' => 'Autre'];
