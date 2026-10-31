@@ -66,7 +66,7 @@ SQL);
             $row['bucket']=$bucket;
             $remaining=AccountingAmount::toCents((string)$row['remaining']);
             $row['remaining']=AccountingAmount::formatFrenchCents($remaining);
-            $totals[$bucket]=AccountingAmount::addSignedCents($totals[$bucket],$remaining);$totals['total']=AccountingAmount::addSignedCents($totals['total'],$remaining);
+            $totals[$bucket]=AccountingAmount::addCents($totals[$bucket],$remaining);$totals['total']=AccountingAmount::addCents($totals['total'],$remaining);
         }
         unset($row);
         foreach($totals as &$amount)$amount=AccountingAmount::formatFrenchCents($amount);
