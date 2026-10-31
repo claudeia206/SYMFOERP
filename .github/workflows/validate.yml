@@ -348,7 +348,7 @@ jobs:
           received_html = client.open(urllib.request.Request(base + "/purchases/" + purchase_id.group(1) + "/receive", data=urllib.parse.urlencode({
               "_token": receive_token.group(1), "received[" + received_line.group(1) + "]": "2",
           }).encode())).read().decode()
-          assert "réceptionnées" in received_html, "Purchase order receipt failed"
+          assert "Réceptionnée" in received_html and "2.000" in received_html, "Purchase order receipt did not persist the received quantity and final status"
           supplier_invoice_index = client.open(base + "/purchases/invoices").read().decode()
           create_supplier_form = re.search(r'<form method="post" action="/purchases/invoices/from-order/' + purchase_id.group(1) + r'">.*?</form>', supplier_invoice_index, re.S)
           assert create_supplier_form, "Supplier invoice creation form missing after receipt"
