@@ -5,23 +5,23 @@
 <h1>Reporting financier</h1>
 <p class="muted">Synthèse calculée à partir des factures émises, des factures fournisseurs reçues et des règlements enregistrés.</p>
 <section class="grid" aria-label="Indicateurs financiers">
-    <article class="card"><p class="muted">Créances clients à encaisser</p><h2>{{ sales_outstanding|number_format(2, ',', ' ') }} €</h2><p>{{ sales_overdue_count }} facture(s) en retard</p><a href="{{ path('app_sales_invoices') }}">Voir les factures clients</a></article>
-    <article class="card"><p class="muted">Dettes fournisseurs à régler</p><h2>{{ supplier_outstanding|number_format(2, ',', ' ') }} €</h2><p>{{ supplier_overdue_count }} facture(s) en retard</p><a href="{{ path('app_supplier_invoices') }}">Voir les factures fournisseurs</a></article>
-    <article class="card"><p class="muted">Encaissements du mois</p><h2>{{ collected_this_month|number_format(2, ',', ' ') }} €</h2><p class="muted">Règlements clients enregistrés ce mois-ci</p></article>
-    <article class="card"><p class="muted">Décaissements du mois</p><h2>{{ disbursed_this_month|number_format(2, ',', ' ') }} €</h2><p class="muted">Règlements fournisseurs enregistrés ce mois-ci</p></article>
+    <article class="card"><p class="muted">Créances clients à encaisser</p><h2>{{ sales_outstanding }} €</h2><p>{{ sales_overdue_count }} facture(s) en retard</p><a href="{{ path('app_sales_invoices') }}">Voir les factures clients</a></article>
+    <article class="card"><p class="muted">Dettes fournisseurs à régler</p><h2>{{ supplier_outstanding }} €</h2><p>{{ supplier_overdue_count }} facture(s) en retard</p><a href="{{ path('app_supplier_invoices') }}">Voir les factures fournisseurs</a></article>
+    <article class="card"><p class="muted">Encaissements du mois</p><h2>{{ collected_this_month }} €</h2><p class="muted">Règlements clients enregistrés ce mois-ci</p></article>
+    <article class="card"><p class="muted">Décaissements du mois</p><h2>{{ disbursed_this_month }} €</h2><p class="muted">Règlements fournisseurs enregistrés ce mois-ci</p></article>
 </section>
 <section class="card">
     <h2>Créances clients en retard</h2>
     {% if overdue_receivables is empty %}<p class="muted">Aucune créance échue impayée.</p>{% else %}
     <div class="table-scroll"><table class="data-table"><thead><tr><th>Facture</th><th>Client</th><th>Échéance</th><th>Montant restant</th></tr></thead><tbody>
-    {% for invoice in overdue_receivables %}<tr><td><a href="{{ path('app_sales_invoice_show',{id:invoice.id}) }}">{{ invoice.number ?: 'Brouillon numéroté' }}</a></td><td>{{ invoice.counterparty }}</td><td>{{ invoice.due_date|date('d/m/Y') }}</td><td>{{ invoice.remaining|number_format(2,',',' ') }} €</td></tr>{% endfor %}
+    {% for invoice in overdue_receivables %}<tr><td><a href="{{ path('app_sales_invoice_show',{id:invoice.id}) }}">{{ invoice.number ?: 'Brouillon numéroté' }}</a></td><td>{{ invoice.counterparty }}</td><td>{{ invoice.due_date|date('d/m/Y') }}</td><td>{{ invoice.remaining }} €</td></tr>{% endfor %}
     </tbody></table></div>{% endif %}
 </section>
 <section class="card">
     <h2>Dettes fournisseurs en retard</h2>
     {% if overdue_payables is empty %}<p class="muted">Aucune dette fournisseur échue impayée.</p>{% else %}
     <div class="table-scroll"><table class="data-table"><thead><tr><th>Référence fournisseur</th><th>Fournisseur</th><th>Échéance</th><th>Montant restant</th></tr></thead><tbody>
-    {% for invoice in overdue_payables %}<tr><td>{{ invoice.number }}</td><td>{{ invoice.counterparty }}</td><td>{{ invoice.due_date|date('d/m/Y') }}</td><td>{{ invoice.remaining|number_format(2,',',' ') }} €</td></tr>{% endfor %}
+    {% for invoice in overdue_payables %}<tr><td>{{ invoice.number }}</td><td>{{ invoice.counterparty }}</td><td>{{ invoice.due_date|date('d/m/Y') }}</td><td>{{ invoice.remaining }} €</td></tr>{% endfor %}
     </tbody></table></div>{% endif %}
 </section>
 <p class="muted">Les montants sont des indicateurs de gestion issus des pièces et règlements saisis ; ils ne constituent pas une balance comptable certifiée.</p>
