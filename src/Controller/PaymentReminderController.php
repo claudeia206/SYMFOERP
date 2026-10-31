@@ -129,7 +129,8 @@ SQL, [$id, $id, $id]);
             $this->addFlash('success', 'La relance effectuée a été enregistrée dans l’historique.');
         } catch (InvalidArgumentException $exception) {
             $this->addFlash('error', $exception->getMessage());
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            error_log('Payment reminder recording failed: '.$exception->getMessage());
             $this->addFlash('error', 'Impossible d’enregistrer la relance. Aucune entrée d’historique n’a été créée.');
         }
 
