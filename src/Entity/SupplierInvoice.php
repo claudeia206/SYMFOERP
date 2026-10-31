@@ -86,7 +86,7 @@ class SupplierInvoice
         $this->payments = new ArrayCollection();
 
         foreach ($order->getLines() as $line) {
-            if ((float) $line->getReceivedQuantity() <= 0) { continue; }
+            if (StockQuantity::toMilliunits($line->getReceivedQuantity()) <= 0) { continue; }
             $this->addLine(new SupplierInvoiceLine(
                 $line->getProduct(),
                 $line->getDescription(),
@@ -179,17 +179,13 @@ class SupplierInvoice
         return max(0, $totalCents - $paidCents);
     }
 
-    private static function decimalToCents(float|string $amount): int
+    private static function decimalToCents(string $amount): int
     {
-        if (is_string($amount)) {
-            [$whole, $fraction] = array_pad(explode('.', $amount, 2), 2, '');
-            return ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
-        }
-        return (int) round($amount * 100);
+        return AccountingAmount::toCents($amount);
     }
     public function getEffectiveStatus(?DateTimeImmutable $today = null): string
     {
-        if (in_array($this->status, [self::STATUS_RECEIVED, self::STATUS_PARTIALLY_PAID], true) && $this->getRemainingAmount() > 0 && $this->dueDate < ($today ?? new DateTimeImmutable('today'))) { return self::STATUS_OVERDUE; }
+        if (in_array($this->status, [self::STATUS_RECEIVED, self::STATUS_PARTIALLY_PAID], true) && $this->getRemainingAmountCents() > 0 && $this->dueDate < ($today ?? new DateTimeImmutable('today'))) { return self::STATUS_OVERDUE; }
         return $this->status;
     }
 }
