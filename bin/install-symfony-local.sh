@@ -47,9 +47,10 @@ if [[ "$ready" -ne 1 ]]; then
     exit 1
 fi
 
-# Run maintenance commands inside the already configured Symfony service.
+# Run maintenance commands directly in the already healthy Symfony container.
+# This preserves its exact environment and avoids Compose's one-off TTY behavior.
 console() {
-    docker compose --env-file .env.docker run --rm --no-deps --entrypoint php symfony bin/console "$@"
+    docker exec symfoerp-symfony php bin/console "$@"
 }
 echo "Migrations Doctrine détectées avant installation :"
 console doctrine:migrations:list
@@ -71,9 +72,9 @@ if ($hasUserTable !== 1) {
 $userCount = (int) $pdo->query("SELECT COUNT(*) FROM app_user")->fetchColumn();
 echo json_encode($database + ["app_user_rows" => $userCount], JSON_THROW_ON_ERROR) . PHP_EOL;'
 echo "Vérification de la base utilisée par le conteneur CLI :"
-docker compose --env-file .env.docker run --rm --no-deps --entrypoint php symfony -r "$database_check"
+docker exec symfoerp-symfony php -r "$database_check"
 echo "Vérification de la même base depuis le conteneur HTTP Symfony :"
-docker compose --env-file .env.docker exec --no-TTY --interactive=false symfony php -r "$database_check"
+docker exec symfoerp-symfony php -r "$database_check"
 console doctrine:schema:validate
 
 read -r -p "E-mail du premier administrateur : " admin_email
@@ -83,10 +84,10 @@ if [[ -z "$admin_email" || ${#admin_password} -lt 12 ]]; then
     echo "E-mail requis et mot de passe d'au moins 12 caractères." >&2
     exit 1
 fi
-docker compose --env-file .env.docker exec --no-TTY --interactive=false \
+docker exec \
     -e "SYMFOERP_ADMIN_EMAIL=$admin_email" \
     -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \
-    symfony php bin/console app:user:create </dev/null
+    symfoerp-symfony php bin/console app:user:create </dev/null
 unset admin_password
 echo
 echo "Installation SYMFOERP terminée : http://localhost:8000/login"
