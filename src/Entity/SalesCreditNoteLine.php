@@ -38,7 +38,7 @@ class SalesCreditNoteLine
     public function getVatRate(): string { return $this->vatRate; }
     public function getTotalExcludingTaxCents(): int { return AccountingAmount::lineNetCents($this->quantity, $this->unitPrice); }
     public function getTotalTaxCents(): int { return AccountingAmount::taxCents($this->getTotalExcludingTaxCents(), $this->vatRate); }
-    public function getTotalIncludingTaxCents(): int { return $this->getTotalExcludingTaxCents() + $this->getTotalTaxCents(); }
+    public function getTotalIncludingTaxCents(): int { return AccountingAmount::addCents($this->getTotalExcludingTaxCents(), $this->getTotalTaxCents()); }
     public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
     public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
     public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
