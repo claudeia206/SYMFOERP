@@ -99,6 +99,10 @@ final class AccountingAmount
 
     public static function formatCents(int $cents): string
     {
+        if ($cents === PHP_INT_MIN) {
+            throw new InvalidArgumentException('Le montant minimal ne peut pas être formaté en centimes.');
+        }
+
         $negative = $cents < 0;
         $absolute = abs($cents);
 
