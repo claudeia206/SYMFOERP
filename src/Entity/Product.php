@@ -80,7 +80,7 @@ class Product
     public function isActive(): bool { return $this->active; }
     public function setActive(bool $active): self { $this->active = $active; $this->updatedAt = new DateTimeImmutable(); return $this; }
     public function getCreatedAt(): DateTimeImmutable { return $this->createdAt; }
-    public function isLowStock(): bool { return $this->stockTracked && (float) $this->stockQuantity <= (float) $this->stockAlertThreshold; }
+    public function isLowStock(): bool { return $this->stockTracked && StockQuantity::toMilliunits($this->stockQuantity) <= StockQuantity::toMilliunits($this->stockAlertThreshold); }
 
     public function update(array $data): self
     {
@@ -100,10 +100,7 @@ class Product
         $this->vatRate = number_format((float) $vat, 2, '.', '');
         $this->stockTracked = isset($data['stock_tracked']) && (string) $data['stock_tracked'] === '1';
         $threshold = $data['stock_alert_threshold'] ?? '0';
-        if (!is_numeric($threshold) || (float) $threshold < 0 || (float) $threshold > 999999999.999) {
-            throw new InvalidArgumentException('Le seuil de stock doit être un nombre positif ou nul.');
-        }
-        $this->stockAlertThreshold = number_format((float) $threshold, 3, '.', '');
+        $this->stockAlertThreshold = StockQuantity::format(StockQuantity::toMilliunits($threshold));
         $this->active = isset($data['active']) && (string) $data['active'] === '1';
         $this->updatedAt = new DateTimeImmutable();
         return $this;
@@ -131,14 +128,21 @@ class Product
 
     public function adjustStock(string $quantity): self
     {
-        if (!$this->stockTracked || !is_numeric($quantity) || (float) $quantity == 0.0 || abs((float) $quantity) > 999999999.999) {
-            throw new InvalidArgumentException('Mouvement de stock invalide.');
+        if (!$this->stockTracked) {
+            throw new InvalidArgumentException('Le suivi de stock est désactivé pour ce produit.');
         }
-        $next = round((float) $this->stockQuantity + (float) $quantity, 3);
+        $delta = StockQuantity::toMilliunits($quantity, true);
+        if ($delta === 0) {
+            throw new InvalidArgumentException('Un mouvement de stock doit être non nul.');
+        }
+        $next = StockQuantity::toMilliunits($this->stockQuantity) + $delta;
         if ($next < 0) {
             throw new InvalidArgumentException('Le stock disponible ne peut pas devenir négatif.');
         }
-        $this->stockQuantity = number_format($next, 3, '.', '');
+        if ($next > 999999999999) {
+            throw new InvalidArgumentException('Le stock dépasse la capacité maximale autorisée.');
+        }
+        $this->stockQuantity = StockQuantity::format($next);
         $this->updatedAt = new DateTimeImmutable();
         return $this;
     }
