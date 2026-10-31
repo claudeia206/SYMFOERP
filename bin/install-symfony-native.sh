@@ -90,6 +90,12 @@ echo "==> Installation des dépendances PHP"
 composer install --no-interaction --prefer-dist --optimize-autoloader
 
 echo "==> Permissions des répertoires Symfony"
+# Apache doit pouvoir traverser les dossiers parents, sans obtenir le droit de les lister.
+parent="$(dirname "$ROOT_DIR")"
+while [[ "$parent" != "/" && "$parent" != "." ]]; do
+  $SUDO setfacl -m u:www-data:--x "$parent"
+  parent="$(dirname "$parent")"
+done
 $SUDO setfacl -R -m u:www-data:rwX -m u:"$(id -un)":rwX var
 $SUDO setfacl -dR -m u:www-data:rwX -m u:"$(id -un)":rwX var
 
