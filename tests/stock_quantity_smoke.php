@@ -62,23 +62,23 @@ $maximumVatValues = $productValues;
 $maximumVatValues['vat_rate'] = '100.00';
 $product->update($maximumVatValues);
 $assert($product->getVatRate() === '100.00', 'A VAT rate of exactly 100 percent must be accepted.');
-$invoiceStub = (new \\ReflectionClass(\\App\\Entity\\SalesInvoice::class))->newInstanceWithoutConstructor();
-$salesPayment = new \\App\\Entity\\SalesPayment($invoiceStub, '12.3', new \\DateTimeImmutable('2026-01-01'), 'bank_transfer');
-$supplierInvoiceStub = (new \\ReflectionClass(\\App\\Entity\\SupplierInvoice::class))->newInstanceWithoutConstructor();
-$supplierPayment = new \\App\\Entity\\SupplierPayment($supplierInvoiceStub, '12.30', new \\DateTimeImmutable('2026-01-01'), 'bank_transfer');
+$invoiceStub = (new \ReflectionClass(\App\Entity\SalesInvoice::class))->newInstanceWithoutConstructor();
+$salesPayment = new \App\Entity\SalesPayment($invoiceStub, '12.3', new \DateTimeImmutable('2026-01-01'), 'bank_transfer');
+$supplierInvoiceStub = (new \ReflectionClass(\App\Entity\SupplierInvoice::class))->newInstanceWithoutConstructor();
+$supplierPayment = new \App\Entity\SupplierPayment($supplierInvoiceStub, '12.30', new \DateTimeImmutable('2026-01-01'), 'bank_transfer');
 $assert($salesPayment->getAmount() === '12.30', 'Customer payments must be normalized to exact cents.');
 $assert($supplierPayment->getAmount() === '12.30', 'Supplier payments must be normalized to exact cents.');
 foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00', '0.00'] as $invalidPayment) {
     try {
-        new \\App\\Entity\\SalesPayment($invoiceStub, $invalidPayment, new \\DateTimeImmutable('2026-01-01'), 'bank_transfer');
+        new \App\Entity\SalesPayment($invoiceStub, $invalidPayment, new \DateTimeImmutable('2026-01-01'), 'bank_transfer');
         throw new RuntimeException('Invalid payment amount was accepted: '.$invalidPayment);
-    } catch (\\InvalidArgumentException) {
+    } catch (\InvalidArgumentException) {
     }
 }
 try {
-    new \\App\\Entity\\SupplierPayment($supplierInvoiceStub, '1.00', new \\DateTimeImmutable('2026-01-01'), 'unknown');
+    new \App\Entity\SupplierPayment($supplierInvoiceStub, '1.00', new \DateTimeImmutable('2026-01-01'), 'unknown');
     throw new RuntimeException('Invalid supplier payment method was accepted.');
-} catch (\\InvalidArgumentException) {
+} catch (\InvalidArgumentException) {
 }
 
 $productValues['purchase_price'] = '12.30';
@@ -122,16 +122,16 @@ foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00'] as $invalidPrice) {
     }
 }
 try {
-    \\App\\Service\\AccountingAmount::lineNetCents('9999999.999', '9999999999.99');
+    \App\Service\AccountingAmount::lineNetCents('9999999.999', '9999999999.99');
     throw new RuntimeException('An amount beyond accounting precision was accepted.');
-} catch (\\InvalidArgumentException) {
+} catch (\InvalidArgumentException) {
 }
-$assert(\\App\\Service\\AccountingAmount::lineNetCents('100.000', '9999999999.99') === 99999999999900, 'Line totals must support the full 12-whole-digit journal precision.');
-$assert(\\App\\Service\\AccountingAmount::taxCents(99999999999999, '100.00') === 99999999999999, 'VAT calculation must support the maximum journal amount.');
+$assert(\App\Service\AccountingAmount::lineNetCents('100.000', '9999999999.99') === 99999999999900, 'Line totals must support the full 12-whole-digit journal precision.');
+$assert(\App\Service\AccountingAmount::taxCents(99999999999999, '100.00') === 99999999999999, 'VAT calculation must support the maximum journal amount.');
 try {
-    \\App\\Service\\AccountingAmount::lineNetCents('100.001', '9999999999.99');
+    \App\Service\AccountingAmount::lineNetCents('100.001', '9999999999.99');
     throw new RuntimeException('A line total beyond journal precision was accepted.');
-} catch (\\InvalidArgumentException) {
+} catch (\InvalidArgumentException) {
 }
 
 foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00'] as $invalidPrice) {
