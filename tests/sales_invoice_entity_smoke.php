@@ -74,7 +74,7 @@ $invoice->addPayment($firstPayment);
 expectInvoice($invoice->getStatus() === SalesInvoice::STATUS_PARTIALLY_PAID, 'Partial payment must update invoice status.');
 expectInvoice($invoice->getPaidAmount() === 40.0, 'Paid amount must aggregate payments.');
 expectInvoice($invoice->getRemainingAmount() === 80.0, 'Remaining balance must decrease after payment.');
-expectInvoice($invoice->getPaidAmount() * 100 === 4000 && $invoice->getRemainingAmount() * 100 === 8000, 'Payment and remaining balance getters must preserve exact cents.');
+expectInvoice($invoice->getPaidAmountCents() === 4000 && $invoice->getRemainingAmountCents() === 8000, 'Payment and remaining balance getters must preserve exact cents.');
 
 $secondPayment = new SalesPayment($invoice, '80.00', new DateTimeImmutable('2026-10-30'), 'card');
 $invoice->addPayment($secondPayment);
@@ -91,7 +91,7 @@ try {
 $boundaryInvoice = new SalesInvoice($order);
 $boundaryInvoice->issue('FAC-2026-000002', new DateTimeImmutable('2026-10-30 12:00:00'), new DateTimeImmutable('2026-11-29 12:00:00'), $profile->toInvoiceSnapshot(), $customerSnapshot);
 $boundaryInvoice->addPayment(new SalesPayment($boundaryInvoice, '119.99', new DateTimeImmutable('2026-10-30'), 'bank_transfer'));
-expectInvoice($boundaryInvoice->getRemainingAmount() === 0.01, 'A one-cent customer balance must remain outstanding exactly.');
+expectInvoice($boundaryInvoice->getRemainingAmountCents() === 1, 'A one-cent customer balance must remain outstanding exactly.');
 try {
     $boundaryInvoice->addPayment(new SalesPayment($boundaryInvoice, '0.02', new DateTimeImmutable('2026-10-30'), 'cash'));
     throw new RuntimeException('A customer payment one cent above the balance was accepted.');
