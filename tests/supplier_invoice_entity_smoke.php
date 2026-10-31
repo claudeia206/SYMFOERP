@@ -6,6 +6,7 @@ use App\Entity\Product;
 use App\Entity\PurchaseOrder;
 use App\Entity\PurchaseOrderLine;
 use App\Entity\SupplierInvoice;
+use App\Entity\SupplierInvoiceLine;
 use App\Entity\SupplierPayment;
 use App\Entity\ThirdParty;
 
@@ -23,7 +24,7 @@ $order = new PurchaseOrder($supplier);
 $line = new PurchaseOrderLine($product, '5', 1);
 foreach (['1e3', '0.0001', '1,000'] as $invalidQuantity) {
     try {
-        new \\App\\Entity\\SupplierInvoiceLine($product, 'Quantité invalide', $invalidQuantity, '25.00', '20.00', 1);
+        new SupplierInvoiceLine($product, 'Quantité invalide', $invalidQuantity, '25.00', '20.00', 1);
         throw new RuntimeException('Invalid supplier invoice quantity was accepted: '.$invalidQuantity);
     } catch (InvalidArgumentException) {
     }
