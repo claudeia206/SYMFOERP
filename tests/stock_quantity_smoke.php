@@ -58,6 +58,8 @@ $maximumVatValues = $productValues;
 $maximumVatValues['vat_rate'] = '100.00';
 $product->update($maximumVatValues);
 $assert($product->getVatRate() === '100.00', 'A VAT rate of exactly 100 percent must be accepted.');
+$productValues['purchase_price'] = '12.30';
+$product->update($productValues);
 foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00', 1.25] as $invalidPrice) {
     $invalidValues = $productValues;
     $invalidValues['purchase_price'] = $invalidPrice;
