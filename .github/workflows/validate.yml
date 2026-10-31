@@ -226,6 +226,12 @@ jobs:
           assert "Prévision de trésorerie" in cash_flow_html, "Authenticated user could not open cash flow forecast"
           ledger_html = client.open(base + "/accounting").read().decode()
           assert "Comptabilité générale" in ledger_html, "Authenticated user could not open general ledger"
+          statements_html = client.open(base + "/accounting/statements").read().decode()
+          assert "Bilan et compte de résultat" in statements_html, "Authenticated user could not open financial statements"
+          assert "Résultat de la période" in statements_html, "Financial statements did not render the period result"
+          fixed_assets_html = client.open(base + "/accounting/fixed-assets").read().decode()
+          assert "Immobilisations" in fixed_assets_html, "Authenticated user could not open fixed asset management"
+          assert "Nouvelle immobilisation" in fixed_assets_html, "Fixed asset creation form did not render"
           from datetime import date, timedelta
           ledger_token_parser = TokenParser()
           ledger_token_parser.feed(ledger_html)
