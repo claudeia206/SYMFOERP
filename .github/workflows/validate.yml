@@ -85,6 +85,8 @@ jobs:
         run: docker run --rm symfoerp-symfony:ci php tests/accounting_posting_validation_smoke.php
       - name: Test exact-cent accounting arithmetic
         run: docker run --rm symfoerp-symfony:ci php tests/accounting_amount_smoke.php
+      - name: Test fixed asset exact-cent depreciation
+        run: docker run --rm symfoerp-symfony:ci php tests/fixed_asset_depreciation_smoke.php
       - name: Test strict accounting form dates
         run: docker run --rm symfoerp-symfony:ci php tests/accounting_form_date_smoke.php
 
