@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\StockQuantity;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
@@ -36,7 +37,8 @@ class ProductStockMovement
 
     public function __construct(Product $product, string $quantity, string $reason, ?string $note = null)
     {
-        if (!is_numeric($quantity) || (float) $quantity == 0.0) {
+        $milliunits = StockQuantity::toMilliunits($quantity, true);
+        if ($milliunits === 0) {
             throw new InvalidArgumentException('La quantité du mouvement doit être non nulle.');
         }
         $reason = trim($reason);
@@ -44,7 +46,7 @@ class ProductStockMovement
             throw new InvalidArgumentException('Motif de mouvement invalide.');
         }
         $this->product = $product;
-        $this->quantity = number_format((float) $quantity, 3, '.', '');
+        $this->quantity = StockQuantity::format($milliunits);
         $this->reason = $reason;
         $this->note = trim((string) $note) !== '' ? mb_substr(trim((string) $note), 0, 2000) : null;
         $this->createdAt = new DateTimeImmutable();
