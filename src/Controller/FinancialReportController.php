@@ -54,7 +54,7 @@ final class FinancialReportController extends AbstractController
         foreach($sales as &$invoice) {
             $total=AccountingAmount::toCents((string)$invoice['total']);
             $paid=AccountingAmount::toCents((string)$invoice['paid']);
-            $remaining=max(0,$total-$paid);
+            $remaining=max(0,AccountingAmount::addSignedCents($total,-$paid));
             $invoice['total']=AccountingAmount::formatCents($total);
             $invoice['paid']=AccountingAmount::formatCents($paid);
             $invoice['remaining']=AccountingAmount::formatCents($remaining);
@@ -66,7 +66,7 @@ final class FinancialReportController extends AbstractController
         foreach($purchases as &$invoice) {
             $total=AccountingAmount::toCents((string)$invoice['total']);
             $paid=AccountingAmount::toCents((string)$invoice['paid']);
-            $remaining=max(0,$total-$paid);
+            $remaining=max(0,AccountingAmount::addSignedCents($total,-$paid));
             $invoice['total']=AccountingAmount::formatCents($total);
             $invoice['paid']=AccountingAmount::formatCents($paid);
             $invoice['remaining']=AccountingAmount::formatCents($remaining);
