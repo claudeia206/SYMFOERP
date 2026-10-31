@@ -7,8 +7,8 @@
 {% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
 {% for message in app.flashes('error') %}<p class="card" role="alert">{{ message }}</p>{% endfor %}
 <section class="grid" aria-label="Indicateurs de relance">
-<article class="card"><p class="muted">Créances échues</p><h2>{{ overdue_total|number_format(2,',',' ') }} €</h2></article>
-<article class="card"><p class="muted">Échéances à venir</p><h2>{{ upcoming_total|number_format(2,',',' ') }} €</h2></article>
+<article class="card"><p class="muted">Créances échues</p><h2>{{ overdue_total }} €</h2></article>
+<article class="card"><p class="muted">Échéances à venir</p><h2>{{ upcoming_total }} €</h2></article>
 <article class="card"><p class="muted">Factures à traiter</p><h2>{{ reminders|length }}</h2></article>
 </section>
 <section class="card">
@@ -21,7 +21,7 @@
 <td>{{ item.customer_name }}{% if item.email %}<small>{{ item.email }}</small>{% else %}<small>Adresse e-mail manquante</small>{% endif %}</td>
 <td>{{ item.due_date|date('d/m/Y') }}</td>
 <td>{% if item.days_late>0 %}{{ item.days_late }} jour(s){% else %}À venir{% endif %}</td>
-<td>{{ item.remaining|number_format(2,',',' ') }} €</td>
+<td>{{ item.remaining }} €</td>
 <td>{{ item.stage }}</td>
 <td>{{ item.reminder_count }}{% if item.last_reminder %}<small>Dernière : {{ item.last_reminder|date('d/m/Y') }}</small>{% endif %}</td>
 <td>
