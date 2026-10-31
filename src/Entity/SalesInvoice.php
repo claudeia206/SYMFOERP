@@ -169,7 +169,7 @@ class SalesInvoice
 
     public function getCreditedAmount(): float
     {
-        $cents = array_reduce($this->creditNotes->toArray(), static fn (int $sum, SalesCreditNote $note): int => $sum + $note->getTotalIncludingTaxCents(), 0);
+        $cents = array_reduce($this->creditNotes->toArray(), static fn (int $sum, SalesCreditNote $note): int => AccountingAmount::addCents($sum, $note->getTotalIncludingTaxCents()), 0);
         return $cents / 100;
     }
 
@@ -216,7 +216,7 @@ class SalesInvoice
 
     public function getPaidAmount(): float
     {
-        $cents = array_reduce($this->payments->toArray(), static fn (int $sum, SalesPayment $payment): int => $sum + self::decimalToCents($payment->getAmount()), 0);
+        $cents = array_reduce($this->payments->toArray(), static fn (int $sum, SalesPayment $payment): int => AccountingAmount::addCents($sum, self::decimalToCents($payment->getAmount())), 0);
         return $cents / 100;
     }
 
