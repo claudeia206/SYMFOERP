@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Entity;
 use App\Service\StockQuantity;
+use App\Service\AccountingAmount;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 #[ORM\Entity]
@@ -35,7 +36,10 @@ class SalesCreditNoteLine
     public function getQuantity(): string { return $this->quantity; }
     public function getUnitPrice(): string { return $this->unitPrice; }
     public function getVatRate(): string { return $this->vatRate; }
-    public function getTotalExcludingTax(): float { return round((float)$this->quantity*(float)$this->unitPrice,2); }
-    public function getTotalTax(): float { return round($this->getTotalExcludingTax()*(float)$this->vatRate/100,2); }
-    public function getTotalIncludingTax(): float { return round($this->getTotalExcludingTax()+$this->getTotalTax(),2); }
+    public function getTotalExcludingTaxCents(): int { return AccountingAmount::lineNetCents($this->quantity, $this->unitPrice); }
+    public function getTotalTaxCents(): int { return AccountingAmount::taxCents($this->getTotalExcludingTaxCents(), $this->vatRate); }
+    public function getTotalIncludingTaxCents(): int { return $this->getTotalExcludingTaxCents() + $this->getTotalTaxCents(); }
+    public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
+    public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
+    public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
 }
