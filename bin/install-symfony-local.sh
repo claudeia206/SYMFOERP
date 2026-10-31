@@ -49,7 +49,7 @@ fi
 
 # Run maintenance commands inside the already configured Symfony service.
 console() {
-    docker compose --env-file .env.docker exec --no-TTY symfony php bin/console "$@"
+    docker compose --env-file .env.docker exec --no-TTY --interactive=false symfony php bin/console "$@"
 }
 echo "Migrations Doctrine détectées avant installation :"
 console doctrine:migrations:list
@@ -71,9 +71,9 @@ if ($hasUserTable !== 1) {
 $userCount = (int) $pdo->query("SELECT COUNT(*) FROM app_user")->fetchColumn();
 echo json_encode($database + ["app_user_rows" => $userCount], JSON_THROW_ON_ERROR) . PHP_EOL;'
 echo "Vérification de la base utilisée par le conteneur CLI :"
-docker compose --env-file .env.docker exec --no-TTY symfony php -r "$database_check"
+docker compose --env-file .env.docker exec --no-TTY --interactive=false symfony php -r "$database_check"
 echo "Vérification de la même base depuis le conteneur HTTP Symfony :"
-docker compose --env-file .env.docker exec --no-TTY symfony php -r "$database_check"
+docker compose --env-file .env.docker exec --no-TTY --interactive=false symfony php -r "$database_check"
 console doctrine:schema:validate
 
 read -r -p "E-mail du premier administrateur : " admin_email
@@ -83,22 +83,11 @@ if [[ -z "$admin_email" || ${#admin_password} -lt 12 ]]; then
     echo "E-mail requis et mot de passe d'au moins 12 caractères." >&2
     exit 1
 fi
-admin_env_file="$(mktemp)"
-chmod 600 "$admin_env_file"
-cleanup_admin_env() {
-    rm -f "$admin_env_file"
-}
-trap cleanup_admin_env EXIT
-{
-    printf 'SYMFOERP_ADMIN_EMAIL=%s\n' "$admin_email"
-    printf 'SYMFOERP_ADMIN_PASSWORD=%s\n' "$admin_password"
-} > "$admin_env_file"
+docker compose --env-file .env.docker exec --no-TTY --interactive=false \
+    -e "SYMFOERP_ADMIN_EMAIL=$admin_email" \
+    -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \
+    symfony php bin/console app:user:create
 unset admin_password
-docker compose --env-file .env.docker exec --no-TTY symfony \
-    sh -c '. /dev/stdin; exec php bin/console app:user:create' < "$admin_env_file"
-rm -f "$admin_env_file"
-trap - EXIT
-
 echo
 echo "Installation SYMFOERP terminée : http://localhost:8000/login"
 echo "Les données sont conservées dans les volumes Docker. Pour arrêter :"
