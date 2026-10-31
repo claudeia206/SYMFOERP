@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__).'/src/Service/StockQuantity.php';
+require dirname(__DIR__).'/src/Entity/Product.php';
 
 use App\Service\StockQuantity;
 
@@ -30,6 +31,37 @@ foreach (['1e3', '1,25', '1.0001', '-1', '', '1000000000'] as $invalid) {
 try {
     StockQuantity::toMilliunits('-0.001');
     throw new RuntimeException('Negative quantity was accepted for an inbound quantity.');
+} catch (\InvalidArgumentException) {
+}
+
+$productValues = [
+    'sku' => 'SKU-STOCK-TEST',
+    'name' => 'Produit stock test',
+    'unit' => 'pièce',
+    'purchase_price' => '9999999999.99',
+    'sale_price' => '12.30',
+    'vat_rate' => '20.00',
+    'stock_tracked' => '1',
+    'stock_alert_threshold' => '0',
+    'active' => '1',
+];
+$product = new \App\Entity\Product('SKU-STOCK-TEST', 'Produit stock test');
+$product->update($productValues);
+$assert($product->getPurchasePrice() === '9999999999.99', 'Maximum product price must be stored without float conversion.');
+foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00', 1.25] as $invalidPrice) {
+    $invalidValues = $productValues;
+    $invalidValues['purchase_price'] = $invalidPrice;
+    try {
+        (new \App\Entity\Product('SKU-STOCK-TEST', 'Produit stock test'))->update($invalidValues);
+        throw new RuntimeException('Invalid product price was accepted: '.var_export($invalidPrice, true));
+    } catch (\InvalidArgumentException) {
+    }
+}
+$invalidVatValues = $productValues;
+$invalidVatValues['vat_rate'] = '100.01';
+try {
+    (new \App\Entity\Product('SKU-STOCK-TEST', 'Produit stock test'))->update($invalidVatValues);
+    throw new RuntimeException('VAT rate above 100 percent was accepted.');
 } catch (\InvalidArgumentException) {
 }
 
