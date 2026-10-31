@@ -48,7 +48,7 @@ class PurchaseOrderLine
     {
         if (!$product->isActive()) { throw new InvalidArgumentException('Un produit archivé ne peut pas être commandé.'); }
         $milliunits = StockQuantity::toMilliunits($quantity);
-        if ($milliunits <= 0) {
+        if ($milliunits <= 0 || $milliunits > 9999999999) {
             throw new InvalidArgumentException('La quantité commandée doit être strictement positive.');
         }
         $this->product = $product;
