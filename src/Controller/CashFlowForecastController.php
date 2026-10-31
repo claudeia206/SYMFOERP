@@ -40,18 +40,18 @@ SQL);
                 $amount=AccountingAmount::toCents((string)$row['remaining']);if($amount<=0)continue;
                 $due=new DateTimeImmutable($row['due_date']);
                 $isOverdue=$due<$today;
-                if($isOverdue){$due=$today;if($group['direction']==='in')$overdueIn=AccountingAmount::addSignedCents($overdueIn,$amount);else $overdueOut=AccountingAmount::addSignedCents($overdueOut,$amount);}
+                if($isOverdue){$due=$today;if($group['direction']==='in')$overdueIn=AccountingAmount::addCents($overdueIn,$amount);else $overdueOut=AccountingAmount::addCents($overdueOut,$amount);}
                 $weekStart=$due->modify('monday this week')->format('Y-m-d');
                 if(!isset($weeks[$weekStart]))continue;
                 $key=$group['direction']==='in'?'inflows':'outflows';
-                $weeks[$weekStart][$key]=AccountingAmount::addSignedCents($weeks[$weekStart][$key],$amount);
-                if($isOverdue){$overdueKey=$group['direction']==='in'?'overdue_inflows':'overdue_outflows';$weeks[$weekStart][$overdueKey]=AccountingAmount::addSignedCents($weeks[$weekStart][$overdueKey],$amount);}
+                $weeks[$weekStart][$key]=AccountingAmount::addCents($weeks[$weekStart][$key],$amount);
+                if($isOverdue){$overdueKey=$group['direction']==='in'?'overdue_inflows':'overdue_outflows';$weeks[$weekStart][$overdueKey]=AccountingAmount::addCents($weeks[$weekStart][$overdueKey],$amount);}
             }
         }
         $cumulative=0;$forecast=[];$totalInflows=0;$totalOutflows=0;
         foreach($weeks as $week){
             $in=$week['inflows'];$out=$week['outflows'];$net=AccountingAmount::addSignedCents($in,-$out);$cumulative=AccountingAmount::addSignedCents($cumulative,$net);
-            $totalInflows=AccountingAmount::addSignedCents($totalInflows,$in);$totalOutflows=AccountingAmount::addSignedCents($totalOutflows,$out);
+            $totalInflows=AccountingAmount::addCents($totalInflows,$in);$totalOutflows=AccountingAmount::addCents($totalOutflows,$out);
             $forecast[]=['start'=>$week['start'],'end'=>$week['end'],
                 'inflows'=>AccountingAmount::formatFrenchCents($in),'outflows'=>AccountingAmount::formatFrenchCents($out),
                 'net'=>AccountingAmount::formatFrenchCents($net),'cumulative_net'=>AccountingAmount::formatFrenchCents($cumulative),
