@@ -37,16 +37,27 @@ final class GeneralLedgerController extends AbstractController
             $openingCredit=AccountingAmount::toCents((string)$account['opening_credit']);
             $debit=AccountingAmount::toCents((string)$account['debit']);
             $credit=AccountingAmount::toCents((string)$account['credit']);
-            $account['opening_balance']=AccountingAmount::formatCents(AccountingAmount::addSignedCents($openingDebit,-$openingCredit));
-            $account['debit']=AccountingAmount::formatCents($debit);
-            $account['credit']=AccountingAmount::formatCents($credit);
-            $account['balance']=AccountingAmount::formatCents(AccountingAmount::addSignedCents($openingDebit,-$openingCredit,$debit,-$credit));
-            $debitTotal=AccountingAmount::addSignedCents($debitTotal,$debit);$creditTotal=AccountingAmount::addSignedCents($creditTotal,$credit);
+            $openingBalance=AccountingAmount::addSignedCents($openingDebit,-$openingCredit);
+            $account['opening_balance']=AccountingAmount::formatCents($openingBalance);
+            $account['opening_balance_display']=AccountingAmount::formatFrenchCents(abs($openingBalance));
+            $account['opening_side']=$openingBalance>0?'D':($openingBalance<0?'C':'—');
+            $account['debit']=AccountingAmount::formatFrenchCents($debit);
+            $account['credit']=AccountingAmount::formatFrenchCents($credit);
+            $closingBalance=AccountingAmount::addSignedCents($openingBalance,$debit,-$credit);
+            $account['balance']=AccountingAmount::formatCents($closingBalance);
+            $account['balance_display']=AccountingAmount::formatFrenchCents(abs($closingBalance));
+            $account['balance_side']=$closingBalance>0?'D':($closingBalance<0?'C':'—');
+            $debitTotal=AccountingAmount::addCents($debitTotal,$debit);$creditTotal=AccountingAmount::addCents($creditTotal,$credit);
         }
         unset($account);
+        foreach($entries as &$entry){
+            $entry['debit']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$entry['debit']));
+            $entry['credit']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$entry['credit']));
+        }
+        unset($entry);
         $journals=$db->fetchAllAssociative('SELECT id,code,name FROM app_accounting_journal ORDER BY code');
         $entries=$db->fetchAllAssociative('SELECT e.id,e.entry_number,e.entry_date,e.reference,e.description,j.code AS journal_code,j.name AS journal_name,COALESCE(SUM(l.debit),0) AS debit,COALESCE(SUM(l.credit),0) AS credit FROM app_journal_entry e INNER JOIN app_accounting_journal j ON j.id=e.journal_id INNER JOIN app_journal_entry_line l ON l.entry_id=e.id WHERE e.status=? AND e.entry_date BETWEEN ? AND ? GROUP BY e.id,e.entry_number,e.entry_date,e.reference,e.description,j.code,j.name ORDER BY e.entry_date DESC,e.id DESC LIMIT 100',['posted',$from,$to]);
-        return $this->render('general_ledger/index.html.twig',['accounts'=>$accounts,'journals'=>$journals,'entries'=>$entries,'from'=>$from,'to'=>$to,'debit_total'=>AccountingAmount::formatCents($debitTotal),'credit_total'=>AccountingAmount::formatCents($creditTotal)]);
+        return $this->render('general_ledger/index.html.twig',['accounts'=>$accounts,'journals'=>$journals,'entries'=>$entries,'from'=>$from,'to'=>$to,'debit_total'=>AccountingAmount::formatFrenchCents($debitTotal),'credit_total'=>AccountingAmount::formatFrenchCents($creditTotal)]);
     }
 
     #[Route('/entries',name:'app_general_ledger_entry_create',methods:['POST'])]
@@ -71,7 +82,7 @@ final class GeneralLedgerController extends AbstractController
                 $debit=$this->toCents((string)($line['debit']??'0'));$credit=$this->toCents((string)($line['credit']??'0'));
                 if($accountId===null&&$debit===0&&$credit===0&&trim((string)($line['label']??''))==='')continue;
                 if($accountId===null||$label===''||mb_strlen($label)>255||(($debit>0)===($credit>0)))throw new \InvalidArgumentException('Chaque ligne doit avoir un compte, un libellé et un seul montant au débit ou au crédit.');
-                $lines[]=['account_id'=>$accountId,'label'=>$label,'debit'=>$debit,'credit'=>$credit];$debitCents=AccountingAmount::addSignedCents($debitCents,$debit);$creditCents=AccountingAmount::addSignedCents($creditCents,$credit);
+                $lines[]=['account_id'=>$accountId,'label'=>$label,'debit'=>$debit,'credit'=>$credit];$debitCents=AccountingAmount::addCents($debitCents,$debit);$creditCents=AccountingAmount::addCents($creditCents,$credit);
             }
             if($debitCents<=0||$debitCents!==$creditCents)throw new \InvalidArgumentException('Écriture déséquilibrée : le total débit doit être égal au total crédit.');
             $db->beginTransaction();
@@ -115,15 +126,18 @@ final class GeneralLedgerController extends AbstractController
             $debit=AccountingAmount::toCents((string)$line['debit']);
             $credit=AccountingAmount::toCents((string)$line['credit']);
             $balanceCents=AccountingAmount::addSignedCents($balanceCents,$debit,-$credit);
-            $line['debit']=AccountingAmount::formatCents($debit);
-            $line['credit']=AccountingAmount::formatCents($credit);
-            $line['balance']=AccountingAmount::formatCents($balanceCents);
+            $line['debit']=AccountingAmount::formatFrenchCents($debit);
+            $line['credit']=AccountingAmount::formatFrenchCents($credit);
+            $line['balance']=AccountingAmount::formatFrenchCents(abs($balanceCents));
+            $line['balance_side']=$balanceCents>0?'D':($balanceCents<0?'C':'—');
         }
         unset($line);
         return $this->render('general_ledger/account.html.twig',[
             'account'=>$account,'lines'=>$lines,'from'=>$from,'to'=>$to,
-            'opening_balance'=>AccountingAmount::formatCents($openingCents),
-            'balance'=>AccountingAmount::formatCents($balanceCents),
+            'opening_balance'=>AccountingAmount::formatFrenchCents(abs($openingCents)),
+            'opening_side'=>$openingCents>0?'D':($openingCents<0?'C':'—'),
+            'balance'=>AccountingAmount::formatFrenchCents(abs($balanceCents)),
+            'balance_side'=>$balanceCents>0?'débiteur':($balanceCents<0?'créditeur':'nul'),
         ]);
     }
 
