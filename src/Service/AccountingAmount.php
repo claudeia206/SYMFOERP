@@ -26,6 +26,36 @@ final class AccountingAmount
         return $negative ? -$cents : $cents;
     }
 
+    public static function lineNetCents(string $quantity, string $unitPrice): int
+    {
+        $milliunits = StockQuantity::toMilliunits($quantity);
+        $unitPriceCents = self::toCents($unitPrice);
+        if ($milliunits < 0 || $unitPriceCents < 0) {
+            throw new InvalidArgumentException('Les quantités et prix de ligne doivent être positifs ou nuls.');
+        }
+
+        // Keep line totals within the 13-digit accounting amount precision.
+        $maximumNumerator = 999999999999999 * 1000 + 500;
+        if ($unitPriceCents !== 0 && $milliunits > intdiv($maximumNumerator, $unitPriceCents)) {
+            throw new InvalidArgumentException('Le total de ligne dépasse la précision comptable prise en charge.');
+        }
+
+        return intdiv($milliunits * $unitPriceCents + 500, 1000);
+    }
+
+    public static function taxCents(int $netCents, string $vatRate): int
+    {
+        $vatRateCents = self::toCents($vatRate);
+        if ($netCents < 0 || $netCents > 999999999999999 || $vatRateCents < 0 || $vatRateCents > 10000) {
+            throw new InvalidArgumentException('Base ou taux de TVA hors limites.');
+        }
+
+        $whole = intdiv($netCents, 10000) * $vatRateCents;
+        $remainder = ($netCents % 10000) * $vatRateCents;
+
+        return $whole + intdiv($remainder + 5000, 10000);
+    }
+
     public static function formatCents(int $cents): string
     {
         $negative = $cents < 0;
