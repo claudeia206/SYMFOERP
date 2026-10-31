@@ -101,11 +101,19 @@ jobs:
 
       - name: Apply migrations and test authenticated third-party access
         run: |
-          set -eu
+          set -euo pipefail
           trap 'docker compose --env-file .env.docker logs --no-color symfony db_symfony || true; docker compose --env-file .env.docker exec --no-TTY symfony sh -lc "ls -la var/log; for f in var/log/*.log; do echo ===\$f===; tail -n 160 \$f; done" || true' ERR
           docker compose --env-file .env.docker up --detach symfony
-          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:migrate --no-interaction -vvv
-          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:status --show-versions
+          echo "=== Doctrine connection identity ==="
+          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:query:sql 'SELECT DATABASE() AS database_name, @@hostname AS database_host'
+          echo "=== Discovered Doctrine migrations (before migrate) ==="
+          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:list -vvv 2>&1 | tee /tmp/symfoerp-migrations-before.log
+          echo "=== Execute Doctrine migrations ==="
+          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:migrate --no-interaction -vvv 2>&1 | tee /tmp/symfoerp-migrations-run.log
+          echo "=== Doctrine migration status (after migrate) ==="
+          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:status --show-versions 2>&1 | tee /tmp/symfoerp-migrations-status.log
+          echo "=== Database tables and app_user presence ==="
+          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:query:sql "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME"
           docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:query:sql 'SELECT COUNT(*) AS app_user_table_check FROM app_user'
           docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:schema:validate
           docker compose --env-file .env.docker exec --no-TTY -e SYMFOERP_ADMIN_EMAIL=ci-admin@example.test -e SYMFOERP_ADMIN_PASSWORD=CI-Only-Password-2026 symfony php bin/console app:user:create
