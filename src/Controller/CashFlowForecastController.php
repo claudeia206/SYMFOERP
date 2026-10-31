@@ -53,16 +53,17 @@ SQL);
             $in=$week['inflows'];$out=$week['outflows'];$net=AccountingAmount::addSignedCents($in,-$out);$cumulative=AccountingAmount::addSignedCents($cumulative,$net);
             $totalInflows=AccountingAmount::addSignedCents($totalInflows,$in);$totalOutflows=AccountingAmount::addSignedCents($totalOutflows,$out);
             $forecast[]=['start'=>$week['start'],'end'=>$week['end'],
-                'inflows'=>AccountingAmount::formatCents($in),'outflows'=>AccountingAmount::formatCents($out),
-                'net'=>AccountingAmount::formatCents($net),'cumulative_net'=>AccountingAmount::formatCents($cumulative),
-                'overdue_inflows'=>AccountingAmount::formatCents($week['overdue_inflows']),
-                'overdue_outflows'=>AccountingAmount::formatCents($week['overdue_outflows'])];
+                'inflows'=>AccountingAmount::formatFrenchCents($in),'outflows'=>AccountingAmount::formatFrenchCents($out),
+                'net'=>AccountingAmount::formatFrenchCents($net),'cumulative_net'=>AccountingAmount::formatFrenchCents($cumulative),
+                'overdue_inflows'=>AccountingAmount::formatFrenchCents($week['overdue_inflows']),
+                'overdue_outflows'=>AccountingAmount::formatFrenchCents($week['overdue_outflows'])];
         }
         return $this->render('cash_flow_forecast/index.html.twig',[
-            'forecast'=>$forecast,'overdue_inflows'=>AccountingAmount::formatCents($overdueIn),
-            'overdue_outflows'=>AccountingAmount::formatCents($overdueOut),
-            'total_inflows'=>AccountingAmount::formatCents($totalInflows),
-            'total_outflows'=>AccountingAmount::formatCents($totalOutflows),
+            'forecast'=>$forecast,'overdue_inflows'=>AccountingAmount::formatFrenchCents($overdueIn),
+            'overdue_outflows'=>AccountingAmount::formatFrenchCents($overdueOut),
+            'total_inflows'=>AccountingAmount::formatFrenchCents($totalInflows),
+            'total_outflows'=>AccountingAmount::formatFrenchCents($totalOutflows),
+            'net_forecast'=>AccountingAmount::formatFrenchCents(AccountingAmount::addSignedCents($totalInflows,-$totalOutflows)),
         ]);
     }
 }
