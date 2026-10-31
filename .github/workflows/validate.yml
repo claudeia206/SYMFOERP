@@ -216,6 +216,37 @@ jobs:
           assert "Prévision de trésorerie" in cash_flow_html, "Authenticated user could not open cash flow forecast"
           ledger_html = client.open(base + "/accounting").read().decode()
           assert "Comptabilité générale" in ledger_html, "Authenticated user could not open general ledger"
+          from datetime import date, timedelta
+          ledger_token_parser = TokenParser()
+          ledger_token_parser.feed(ledger_html)
+          ledger_token = ledger_token_parser.token
+          journal_match = re.search(r'<option value="(\d+)"[^>]*>OD —', ledger_html)
+          customer_account = re.search(r'href="/accounting/accounts/(\d+)[^"]*">411000</a>', ledger_html)
+          bank_account = re.search(r'href="/accounting/accounts/(\d+)[^"]*">512000</a>', ledger_html)
+          assert ledger_token and journal_match and customer_account and bank_account, "General ledger setup for opening-balance test is incomplete"
+          opening_date = (date.today() - timedelta(days=2)).isoformat()
+          movement_date = date.today().isoformat()
+          opening_payload = {
+              "_token": ledger_token, "journal_id": journal_match.group(1), "entry_date": opening_date,
+              "reference": "CI-OPENING-BALANCE", "description": "CI-OPENING-BALANCE",
+              "lines[0][account_id]": customer_account.group(1), "lines[0][label]": "Opening debit",
+              "lines[0][debit]": "100.00", "lines[0][credit]": "0.00",
+              "lines[1][account_id]": bank_account.group(1), "lines[1][label]": "Opening credit",
+              "lines[1][debit]": "0.00", "lines[1][credit]": "100.00",
+          }
+          client.open(urllib.request.Request(base + "/accounting/entries", data=urllib.parse.urlencode(opening_payload).encode()))
+          movement_payload = {
+              "_token": ledger_token, "journal_id": journal_match.group(1), "entry_date": movement_date,
+              "reference": "CI-CURRENT-MOVEMENT", "description": "CI-CURRENT-MOVEMENT",
+              "lines[0][account_id]": bank_account.group(1), "lines[0][label]": "Current debit",
+              "lines[0][debit]": "25.00", "lines[0][credit]": "0.00",
+              "lines[1][account_id]": customer_account.group(1), "lines[1][label]": "Current credit",
+              "lines[1][debit]": "0.00", "lines[1][credit]": "25.00",
+          }
+          client.open(urllib.request.Request(base + "/accounting/entries", data=urllib.parse.urlencode(movement_payload).encode()))
+          account_statement = client.open(base + "/accounting/accounts/" + customer_account.group(1) + "?from=" + movement_date + "&to=" + movement_date).read().decode()
+          assert "Solde antérieur" in account_statement and "100,00 € D" in account_statement, "General ledger opening balance was not carried forward"
+          assert "75,00 € débiteur" in account_statement, "General ledger closing balance did not include current-period movement"
           vat_html = client.open(base + "/accounting/vat").read().decode()
           assert "Préparation de la déclaration de TVA" in vat_html, "Authenticated user could not open VAT declaration report"
           aging_html = client.open(base + "/accounting/aging").read().decode()
