@@ -166,7 +166,7 @@ class SupplierInvoice
     public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
     public function getPaidAmount(): float
     {
-        $cents = array_reduce($this->payments->toArray(), static fn(int $sum, SupplierPayment $payment): int => $sum + self::decimalToCents($payment->getAmount()), 0);
+        $cents = array_reduce($this->payments->toArray(), static fn(int $sum, SupplierPayment $payment): int => AccountingAmount::addCents($sum, self::decimalToCents($payment->getAmount())), 0);
         return $cents / 100;
     }
 
