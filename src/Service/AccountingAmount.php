@@ -56,6 +56,19 @@ final class AccountingAmount
         return $whole + intdiv($remainder + 5000, 10000);
     }
 
+    public static function addCents(int ...$amounts): int
+    {
+        $sum = 0;
+        foreach ($amounts as $amount) {
+            if ($amount < 0 || $amount > 99999999999999 - $sum) {
+                throw new InvalidArgumentException('Le total dépasse la précision NUMERIC(14, 2) du journal comptable.');
+            }
+            $sum += $amount;
+        }
+
+        return $sum;
+    }
+
     public static function formatCents(int $cents): string
     {
         $negative = $cents < 0;
