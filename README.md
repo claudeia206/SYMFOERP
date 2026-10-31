@@ -35,8 +35,8 @@ docker compose --env-file .env.docker down
 cp .env.docker.example .env.docker
 # Remplacer les valeurs secrètes avant le démarrage.
 docker compose --env-file .env.docker up -d --build
-docker compose --env-file .env.docker exec symfony php bin/console doctrine:migrations:migrate --no-interaction
-docker compose --env-file .env.docker exec symfony php bin/console doctrine:schema:validate
+docker compose --env-file .env.docker run --rm --no-deps --entrypoint php symfony /app/bin/console doctrine:migrations:migrate --no-interaction
+docker compose --env-file .env.docker run --rm --no-deps --entrypoint php symfony /app/bin/console doctrine:schema:validate
 ```
 
 Créer le premier administrateur en transmettant les identifiants via l'environnement du processus :
@@ -45,10 +45,10 @@ Créer le premier administrateur en transmettant les identifiants via l'environn
 read -r -p "E-mail administrateur : " SYMFOERP_ADMIN_EMAIL
 read -r -s -p "Mot de passe (12 caractères minimum) : " SYMFOERP_ADMIN_PASSWORD
 echo
-docker compose --env-file .env.docker exec \
+docker compose --env-file .env.docker run --rm --no-deps \
   -e SYMFOERP_ADMIN_EMAIL="$SYMFOERP_ADMIN_EMAIL" \
   -e SYMFOERP_ADMIN_PASSWORD="$SYMFOERP_ADMIN_PASSWORD" \
-  symfony php bin/console app:user:create
+  --entrypoint php symfony /app/bin/console app:user:create
 unset SYMFOERP_ADMIN_EMAIL SYMFOERP_ADMIN_PASSWORD
 ```
 
