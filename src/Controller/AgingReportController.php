@@ -15,12 +15,12 @@ final class AgingReportController extends AbstractController
         $today=(new DateTimeImmutable('today'))->format('Y-m-d');
         $receivables=$db->fetchAllAssociative(<<<'SQL'
 SELECT i.id,i.number AS reference,i.invoice_date,i.due_date,t.name AS third_party,
-       COALESCE(lines.total,0) AS total,COALESCE(payments.paid,0) AS paid,
+       COALESCE(invoice_lines.total,0) AS total,COALESCE(payments.paid,0) AS paid,
        COALESCE(credits.credited,0) AS credited,
-       GREATEST(0,ROUND(COALESCE(lines.total,0)-COALESCE(payments.paid,0)-COALESCE(credits.credited,0),2)) AS remaining
+       GREATEST(0,ROUND(COALESCE(invoice_lines.total,0)-COALESCE(payments.paid,0)-COALESCE(credits.credited,0),2)) AS remaining
 FROM app_sales_invoice i
 INNER JOIN app_third_party t ON t.id=i.third_party_id
-LEFT JOIN (SELECT invoice_id,SUM(ROUND(quantity*unit_price,2)+ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS total FROM app_sales_invoice_line GROUP BY invoice_id) lines ON lines.invoice_id=i.id
+LEFT JOIN (SELECT invoice_id,SUM(ROUND(quantity*unit_price,2)+ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS total FROM app_sales_invoice_line GROUP BY invoice_id) invoice_lines ON invoice_lines.invoice_id=i.id
 LEFT JOIN (SELECT invoice_id,SUM(amount) AS paid FROM app_sales_payment GROUP BY invoice_id) payments ON payments.invoice_id=i.id
 LEFT JOIN (SELECT n.invoice_id,SUM(cl.amount) AS credited FROM app_sales_credit_note n INNER JOIN (SELECT credit_note_id,SUM(ROUND(quantity*unit_price,2)+ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS amount FROM app_sales_credit_note_line GROUP BY credit_note_id) cl ON cl.credit_note_id=n.id GROUP BY n.invoice_id) credits ON credits.invoice_id=i.id
 WHERE i.number IS NOT NULL AND i.status IN ('issued','partially_paid','overdue')
@@ -29,11 +29,11 @@ ORDER BY i.due_date,i.id
 SQL);
         $payables=$db->fetchAllAssociative(<<<'SQL'
 SELECT i.id,i.supplier_invoice_number AS reference,i.invoice_date,i.due_date,t.name AS third_party,
-       COALESCE(lines.total,0) AS total,COALESCE(payments.paid,0) AS paid,
-       GREATEST(0,ROUND(COALESCE(lines.total,0)-COALESCE(payments.paid,0),2)) AS remaining
+       COALESCE(invoice_lines.total,0) AS total,COALESCE(payments.paid,0) AS paid,
+       GREATEST(0,ROUND(COALESCE(invoice_lines.total,0)-COALESCE(payments.paid,0),2)) AS remaining
 FROM app_supplier_invoice i
 INNER JOIN app_third_party t ON t.id=i.supplier_id
-LEFT JOIN (SELECT invoice_id,SUM(ROUND(quantity*unit_price,2)+ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS total FROM app_supplier_invoice_line GROUP BY invoice_id) lines ON lines.invoice_id=i.id
+LEFT JOIN (SELECT invoice_id,SUM(ROUND(quantity*unit_price,2)+ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS total FROM app_supplier_invoice_line GROUP BY invoice_id) invoice_lines ON invoice_lines.invoice_id=i.id
 LEFT JOIN (SELECT invoice_id,SUM(amount) AS paid FROM app_supplier_payment GROUP BY invoice_id) payments ON payments.invoice_id=i.id
 WHERE i.status IN ('received','partially_paid','overdue')
 HAVING remaining>0
