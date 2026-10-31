@@ -50,13 +50,13 @@ final class GeneralLedgerController extends AbstractController
             $debitTotal=AccountingAmount::addCents($debitTotal,$debit);$creditTotal=AccountingAmount::addCents($creditTotal,$credit);
         }
         unset($account);
+        $journals=$db->fetchAllAssociative('SELECT id,code,name FROM app_accounting_journal ORDER BY code');
+        $entries=$db->fetchAllAssociative('SELECT e.id,e.entry_number,e.entry_date,e.reference,e.description,j.code AS journal_code,j.name AS journal_name,COALESCE(SUM(l.debit),0) AS debit,COALESCE(SUM(l.credit),0) AS credit FROM app_journal_entry e INNER JOIN app_accounting_journal j ON j.id=e.journal_id INNER JOIN app_journal_entry_line l ON l.entry_id=e.id WHERE e.status=? AND e.entry_date BETWEEN ? AND ? GROUP BY e.id,e.entry_number,e.entry_date,e.reference,e.description,j.code,j.name ORDER BY e.entry_date DESC,e.id DESC LIMIT 100',['posted',$from,$to]);
         foreach($entries as &$entry){
             $entry['debit']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$entry['debit']));
             $entry['credit']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$entry['credit']));
         }
         unset($entry);
-        $journals=$db->fetchAllAssociative('SELECT id,code,name FROM app_accounting_journal ORDER BY code');
-        $entries=$db->fetchAllAssociative('SELECT e.id,e.entry_number,e.entry_date,e.reference,e.description,j.code AS journal_code,j.name AS journal_name,COALESCE(SUM(l.debit),0) AS debit,COALESCE(SUM(l.credit),0) AS credit FROM app_journal_entry e INNER JOIN app_accounting_journal j ON j.id=e.journal_id INNER JOIN app_journal_entry_line l ON l.entry_id=e.id WHERE e.status=? AND e.entry_date BETWEEN ? AND ? GROUP BY e.id,e.entry_number,e.entry_date,e.reference,e.description,j.code,j.name ORDER BY e.entry_date DESC,e.id DESC LIMIT 100',['posted',$from,$to]);
         return $this->render('general_ledger/index.html.twig',['accounts'=>$accounts,'journals'=>$journals,'entries'=>$entries,'from'=>$from,'to'=>$to,'debit_total'=>AccountingAmount::formatFrenchCents($debitTotal),'credit_total'=>AccountingAmount::formatFrenchCents($creditTotal)]);
     }
 
