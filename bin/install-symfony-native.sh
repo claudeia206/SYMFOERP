@@ -31,7 +31,7 @@ fi
 
 echo "==> Installation des outils de base"
 $SUDO apt-get update
-$SUDO apt-get install -y software-properties-common ca-certificates curl git unzip acl   apache2 mariadb-server mariadb-client
+$SUDO apt-get install -y software-properties-common ca-certificates curl git unzip acl apache2 mariadb-server mariadb-client
 
 PHP_VERSION="$(apt-cache policy php8.3-cli 2>/dev/null | awk '/Candidate:/ {print $2; exit}')"
 if [[ -z "$PHP_VERSION" || "$PHP_VERSION" == "(none)" ]]; then
@@ -118,8 +118,8 @@ $SUDO tee /etc/apache2/sites-available/symfoerp.conf >/dev/null <<EOF
         FallbackResource /index.php
     </Directory>
 
-    ErrorLog ${APACHE_LOG_DIR}/symfoerp-error.log
-    CustomLog ${APACHE_LOG_DIR}/symfoerp-access.log combined
+    ErrorLog /var/log/apache2/symfoerp-error.log
+    CustomLog /var/log/apache2/symfoerp-access.log combined
 </VirtualHost>
 EOF
 
