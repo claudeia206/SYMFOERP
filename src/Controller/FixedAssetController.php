@@ -123,7 +123,7 @@ final class FixedAssetController extends AbstractController
             $cost = AccountingAmount::toCents((string) $asset['acquisition_cost']);
             $residual = AccountingAmount::toCents((string) $asset['residual_value']);
             $accumulated = AccountingAmount::toCents((string) $asset['total_depreciation']);
-            $netBookValue = max($residual, $cost - $accumulated);
+            $netBookValue = max($residual, AccountingAmount::addSignedCents($cost, -$accumulated));
 
             fputcsv($stream, [
                 $safeText($asset['code']),
@@ -293,12 +293,12 @@ final class FixedAssetController extends AbstractController
                 $periodYear=(int)$period['period'];
                 if(!isset($postedByYear[$periodYear]))throw new \InvalidArgumentException(sprintf('Comptabilisez d’abord la dotation %d avant la sortie.',$periodYear));
                 if($postedByYear[$periodYear]!==AccountingAmount::toCents((string)$period['amount']))throw new \InvalidArgumentException(sprintf('La dotation %d ne correspond plus au plan calculé.',$periodYear));
-                $accumulatedCents+=$postedByYear[$periodYear];
+                $accumulatedCents=AccountingAmount::addCents($accumulatedCents,$postedByYear[$periodYear]);
             }
             $costCents=AccountingAmount::toCents((string)$asset['acquisition_cost']);
             $proceedsCents=AccountingAmount::toCents($proceeds);
-            $bookValueCents=max(0,$costCents-$accumulatedCents);
-            $gainCents=$proceedsCents-$bookValueCents;
+            $bookValueCents=max(0,AccountingAmount::addSignedCents($costCents,-$accumulatedCents));
+            $gainCents=AccountingAmount::addSignedCents($proceedsCents,-$bookValueCents);
             $amounts=[
                 (int)$asset['disposal_bank_account_id'],(int)$asset['accumulated_account_id'],
                 (int)$asset['asset_account_id'],(int)($gainCents>=0?$asset['disposal_gain_account_id']:$asset['disposal_loss_account_id'])
