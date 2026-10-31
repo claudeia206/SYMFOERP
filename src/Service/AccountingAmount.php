@@ -34,8 +34,8 @@ final class AccountingAmount
             throw new InvalidArgumentException('Les quantités et prix de ligne doivent être positifs ou nuls.');
         }
 
-        // Keep line totals within the 13-digit accounting amount precision.
-        $maximumNumerator = 999999999999999 * 1000 + 499;
+        // Journal entry amounts use NUMERIC(14, 2): at most 12 whole digits.
+        $maximumNumerator = 99999999999999 * 1000 + 499;
         if ($unitPriceCents !== 0 && $milliunits > intdiv($maximumNumerator, $unitPriceCents)) {
             throw new InvalidArgumentException('Le total de ligne dépasse la précision comptable prise en charge.');
         }
@@ -46,7 +46,7 @@ final class AccountingAmount
     public static function taxCents(int $netCents, string $vatRate): int
     {
         $vatRateCents = self::toCents($vatRate);
-        if ($netCents < 0 || $netCents > 999999999999999 || $vatRateCents < 0 || $vatRateCents > 10000) {
+        if ($netCents < 0 || $netCents > 99999999999999 || $vatRateCents < 0 || $vatRateCents > 10000) {
             throw new InvalidArgumentException('Base ou taux de TVA hors limites.');
         }
 
