@@ -69,6 +69,20 @@ final class AccountingAmount
         return $sum;
     }
 
+    public static function addSignedCents(int ...$amounts): int
+    {
+        $sum = 0;
+        foreach ($amounts as $amount) {
+            if (($amount > 0 && $sum > PHP_INT_MAX - $amount)
+                || ($amount < 0 && $sum < PHP_INT_MIN - $amount)) {
+                throw new InvalidArgumentException('Le cumul des montants dépasse la capacité entière prise en charge.');
+            }
+            $sum += $amount;
+        }
+
+        return $sum;
+    }
+
     public static function formatCents(int $cents): string
     {
         $negative = $cents < 0;
