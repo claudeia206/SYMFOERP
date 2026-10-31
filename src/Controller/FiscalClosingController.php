@@ -54,6 +54,7 @@ final class FiscalClosingController extends AbstractController
             ],
             'draft_count' => $draftCount,
             'unbalanced_count' => $unbalanced,
+            'balanced' => $differenceCents === 0,
             'ready' => $draftCount === 0 && $unbalanced === 0 && $differenceCents === 0 && ($period['closed_at'] ?? null) === null,
             'closed_at' => $period['closed_at'] ?? null,
         ]);
