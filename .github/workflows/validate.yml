@@ -98,9 +98,13 @@ jobs:
           set -eu
           trap 'docker compose --env-file .env.docker exec --no-TTY symfony sh -lc "tail -n 160 var/log/dev.log" || true' ERR
           docker compose --env-file .env.docker up --detach symfony
-          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:migrate --no-interaction
-          docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:schema:validate
-          docker compose --env-file .env.docker exec --no-TTY -e SYMFOERP_ADMIN_EMAIL=ci-admin@example.test -e SYMFOERP_ADMIN_PASSWORD=CI-Only-Password-2026 symfony php bin/console app:user:create
+          # Use disposable CLI containers so console commands cannot be confused with the HTTP server.
+          console() {
+            docker compose --env-file .env.docker run --rm --no-deps --entrypoint php symfony /app/bin/console "$@"
+          }
+          console doctrine:migrations:migrate --no-interaction
+          console doctrine:schema:validate
+          docker compose --env-file .env.docker run --rm --no-deps -e SYMFOERP_ADMIN_EMAIL=ci-admin@example.test -e SYMFOERP_ADMIN_PASSWORD=CI-Only-Password-2026 --entrypoint php symfony /app/bin/console app:user:create
           python3 - <<'PY'
           import http.cookiejar
           import urllib.parse
