@@ -9,9 +9,16 @@ if [[ ! -f composer.json || ! -f bin/console || ! -d public ]]; then
   exit 1
 fi
 
-for command in sudo apt-get curl openssl git; do
+for command in apt-get curl openssl git; do
   command -v "$command" >/dev/null 2>&1 || { echo "Prérequis manquant : $command" >&2; exit 1; }
 done
+
+if [[ "$EUID" -eq 0 ]]; then
+  SUDO=""
+else
+  command -v sudo >/dev/null 2>&1 || { echo "Prérequis manquant : sudo" >&2; exit 1; }
+  SUDO="sudo"
+fi
 
 . /etc/os-release
 UBUNTU_CODENAME="${UBUNTU_CODENAME:-}"
@@ -21,11 +28,6 @@ if [[ "${ID:-}" != "linuxmint" || -z "$UBUNTU_CODENAME" ]]; then
   exit 1
 fi
 
-if [[ "$EUID" -eq 0 ]]; then
-  SUDO=""
-else
-  SUDO="sudo"
-fi
 
 echo "==> Installation des outils de base"
 $SUDO apt-get update
@@ -45,7 +47,7 @@ if [[ -z "$PHP_VERSION" || "$PHP_VERSION" == "(none)" ]]; then
 fi
 
 echo "==> Installation de PHP 8.3 et des extensions Symfony"
-$SUDO apt-get install -y php8.3-cli php8.3-common php8.3-fpm libapache2-mod-php8.3 \
+$SUDO apt-get install -y php8.3-cli php8.3-common libapache2-mod-php8.3 \
   php8.3-mysql php8.3-xml php8.3-mbstring php8.3-intl php8.3-curl \
   php8.3-zip php8.3-gd php8.3-bcmath php8.3-opcache composer
 
