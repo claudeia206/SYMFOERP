@@ -13,6 +13,10 @@ function expectBankParser(bool $condition, string $message): void
 }
 
 $parser = new BankStatementValueParser();
+expectBankParser(
+    $parser->normalizeHeaders(["\xEF\xBB\xBFDate", " Label ", "AMOUNT"]) === ['date', 'label', 'amount'],
+    'UTF-8 BOM bank CSV headers were not normalized.'
+);
 expectBankParser($parser->parseDate('2026-10-30')->format('Y-m-d') === '2026-10-30', 'ISO date parsing failed.');
 expectBankParser($parser->parseDate('30/10/2026')->format('Y-m-d') === '2026-10-30', 'French date parsing failed.');
 
