@@ -143,9 +143,24 @@ class SupplierInvoice
         return $this;
     }
 
-    public function getTotalExcludingTax(): float { return array_reduce($this->lines->toArray(), static fn(float $s, SupplierInvoiceLine $l): float => $s + $l->getTotalExcludingTax(), 0.0); }
-    public function getTotalTax(): float { return array_reduce($this->lines->toArray(), static fn(float $s, SupplierInvoiceLine $l): float => $s + $l->getTotalTax(), 0.0); }
-    public function getTotalIncludingTax(): float { return round($this->getTotalExcludingTax() + $this->getTotalTax(), 2); }
+    public function getTotalExcludingTaxCents(): int
+    {
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SupplierInvoiceLine $line): int => $sum + $line->getTotalExcludingTaxCents(), 0);
+    }
+
+    public function getTotalTaxCents(): int
+    {
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SupplierInvoiceLine $line): int => $sum + $line->getTotalTaxCents(), 0);
+    }
+
+    public function getTotalIncludingTaxCents(): int
+    {
+        return $this->getTotalExcludingTaxCents() + $this->getTotalTaxCents();
+    }
+
+    public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
+    public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
+    public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
     public function getPaidAmount(): float
     {
         $cents = array_reduce($this->payments->toArray(), static fn(int $sum, SupplierPayment $payment): int => $sum + self::decimalToCents($payment->getAmount()), 0);
@@ -159,7 +174,7 @@ class SupplierInvoice
 
     private function getRemainingAmountCents(): int
     {
-        $totalCents = self::decimalToCents($this->getTotalIncludingTax());
+        $totalCents = $this->getTotalIncludingTaxCents();
         $paidCents = array_reduce($this->payments->toArray(), static fn(int $sum, SupplierPayment $payment): int => $sum + self::decimalToCents($payment->getAmount()), 0);
         return max(0, $totalCents - $paidCents);
     }
