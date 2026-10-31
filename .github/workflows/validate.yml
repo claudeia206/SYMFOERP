@@ -243,6 +243,12 @@ jobs:
               "lines[1][account_id]": customer_account.group(1), "lines[1][label]": "Current credit",
               "lines[1][debit]": "0.00", "lines[1][credit]": "25.00",
           }
+          for payload in (opening_payload, movement_payload):
+              for row in (2, 3):
+                  payload[f"lines[{row}][account_id]"] = ""
+                  payload[f"lines[{row}][label]"] = ""
+                  payload[f"lines[{row}][debit]"] = "0.00"
+                  payload[f"lines[{row}][credit]"] = "0.00"
           client.open(urllib.request.Request(base + "/accounting/entries", data=urllib.parse.urlencode(movement_payload).encode()))
           account_statement = client.open(base + "/accounting/accounts/" + customer_account.group(1) + "?from=" + movement_date + "&to=" + movement_date).read().decode()
           assert "Solde antérieur" in account_statement and "100,00 € D" in account_statement, "General ledger opening balance was not carried forward"
