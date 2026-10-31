@@ -48,7 +48,7 @@ SQL,[$limit->format('Y-m-d')]);
             $remainingCents=AccountingAmount::toCents((string)$row['remaining']);
             if($remainingCents<=0)continue;
             $remaining=AccountingAmount::formatCents($remainingCents);
-            $localizedRemaining=str_replace('.', ',', $remaining);
+            $localizedRemaining=AccountingAmount::formatFrenchCents($remainingCents);
             $due=new DateTimeImmutable($row['due_date']);
             $daysLate=$due<$today?(int)$due->diff($today)->days:0;
             $stage=$daysLate===0?'Échéance proche':($daysLate<=7?'Première relance':($daysLate<=30?'Deuxième relance':'Relance formelle'));
@@ -58,7 +58,7 @@ SQL,[$limit->format('Y-m-d')]);
                 ?'Nous vous rappelons que la facture '.$row['number'].' d’un montant restant dû de '.$localizedRemaining." € arrive à échéance le ".$due->format('d/m/Y').".\n\n"
                 :'Sauf erreur de notre part, la facture '.$row['number'].' présente un solde restant dû de '.$localizedRemaining." € et était payable le ".$due->format('d/m/Y').".\n\n";
             $body.='Nous vous remercions de bien vouloir procéder à son règlement ou de nous contacter en cas de difficulté.'."\n\nCordialement";
-            $row['remaining']=$remaining;$row['days_late']=$daysLate;$row['stage']=$stage;$row['subject']=$subject;
+            $row['remaining']=AccountingAmount::formatFrenchCents($remainingCents);$row['days_late']=$daysLate;$row['stage']=$stage;$row['subject']=$subject;
             $row['mailto']=$row['email']? 'mailto:'.rawurlencode($row['email']).'?subject='.rawurlencode($subject).'&body='.rawurlencode($greeting.$body):null;
             $reminders[]=$row;
             if($daysLate>0)$overdueTotal+=$remainingCents;else $upcomingTotal+=$remainingCents;
@@ -72,8 +72,8 @@ INNER JOIN app_third_party t ON t.id=i.third_party_id
 ORDER BY r.sent_at DESC,r.id DESC LIMIT 100
 SQL);
         return $this->render('payment_reminder/index.html.twig',[
-            'reminders'=>$reminders,'overdue_total'=>AccountingAmount::formatCents($overdueTotal),
-            'upcoming_total'=>AccountingAmount::formatCents($upcomingTotal),'today'=>$today,'history'=>$history,
+            'reminders'=>$reminders,'overdue_total'=>AccountingAmount::formatFrenchCents($overdueTotal),
+            'upcoming_total'=>AccountingAmount::formatFrenchCents($upcomingTotal),'today'=>$today,'history'=>$history,
         ]);
     }
 
