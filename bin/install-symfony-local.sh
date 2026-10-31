@@ -81,9 +81,11 @@ echo "Vérification de la base utilisée par le conteneur CLI :"
 docker exec --workdir /app symfoerp-symfony php -r "$database_check"
 echo "Vérification de la même base depuis le conteneur HTTP Symfony :"
 docker exec symfoerp-symfony php -r "$database_check"
-echo "Différentiel Doctrine (diagnostic SQL en lecture seule) :"
-console doctrine:schema:update --dump-sql --no-interaction --no-ansi -vvv
-console doctrine:schema:validate
+# Les migrations SQL sont la source de vérité du schéma : plusieurs tables comptables
+# sont volontairement gérées par migrations et ne disposent pas encore d’entités ORM.
+# Valider les mappings sans demander à SchemaTool de comparer ou supprimer ces tables.
+echo "Validation des mappings Doctrine (schéma géré par les migrations) :"
+console doctrine:schema:validate --skip-sync --no-ansi
 
 read -r -p "E-mail du premier administrateur : " admin_email
 read -r -s -p "Mot de passe administrateur (12 caractères minimum) : " admin_password
