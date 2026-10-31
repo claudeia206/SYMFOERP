@@ -43,10 +43,10 @@ class Product
     #[ORM\Column(name: 'stock_tracked', options: ['default' => true])]
     private bool $stockTracked = true;
 
-    #[ORM\Column(name: 'stock_quantity', type: 'decimal', precision: 12, scale: 3)]
+    #[ORM\Column(name: 'stock_quantity', type: 'decimal', precision: 12, scale: 3, options: ['default' => '0.000'])]
     private string $stockQuantity = '0.000';
 
-    #[ORM\Column(name: 'stock_alert_threshold', type: 'decimal', precision: 12, scale: 3)]
+    #[ORM\Column(name: 'stock_alert_threshold', type: 'decimal', precision: 12, scale: 3, options: ['default' => '0.000'])]
     private string $stockAlertThreshold = '0.000';
 
     #[ORM\Column(options: ['default' => true])]
