@@ -77,8 +77,8 @@ cleanup_admin_env() {
 }
 trap cleanup_admin_env EXIT
 {
-    printf 'SYMFOERP_ADMIN_EMAIL=%s\\n' "$admin_email"
-    printf 'SYMFOERP_ADMIN_PASSWORD=%s\\n' "$admin_password"
+    printf 'SYMFOERP_ADMIN_EMAIL=%s\n' "$admin_email"
+    printf 'SYMFOERP_ADMIN_PASSWORD=%s\n' "$admin_password"
 } > "$admin_env_file"
 unset admin_password
 docker run --rm --network "$symfoerp_network" --env-file "$admin_env_file" \
