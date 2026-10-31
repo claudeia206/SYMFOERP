@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\StockQuantity;
+
 use App\Repository\PurchaseOrderRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
