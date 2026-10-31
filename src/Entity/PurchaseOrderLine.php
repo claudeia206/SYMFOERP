@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Service\StockQuantity;
+use App\Service\AccountingAmount;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 
