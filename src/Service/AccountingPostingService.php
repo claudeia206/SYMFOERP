@@ -85,7 +85,7 @@ final class AccountingPostingService
             $number=(int)$db->fetchOne('SELECT COALESCE(MAX(entry_number),0)+1 FROM app_journal_entry WHERE journal_id=?',[$journal['id']]);
             $db->insert('app_journal_entry',['journal_id'=>$journal['id'],'entry_number'=>$number,'entry_date'=>$date,'reference'=>$reference,'description'=>mb_substr($description,0,255),'status'=>'posted','created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
             $entryId=(int)$db->lastInsertId();
-            foreach($resolved as $line)$db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$line['account_id'],'label'=>mb_substr($line['label'],0,255),'debit'=>number_format($line['debit']/100,2,'.',''),'credit'=>number_format($line['credit']/100,2,'.','')]);
+            foreach($resolved as $line)$db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$line['account_id'],'label'=>mb_substr($line['label'],0,255),'debit'=>AccountingAmount::formatCents($line['debit']),'credit'=>AccountingAmount::formatCents($line['credit'])]);
             $db->insert('app_accounting_source_posting',['source_type'=>$type,'source_id'=>$sourceId,'entry_id'=>$entryId,'posted_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
         });
     }
