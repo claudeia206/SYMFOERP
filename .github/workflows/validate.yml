@@ -83,6 +83,8 @@ jobs:
 
       - name: Test accounting posting validation
         run: docker run --rm symfoerp-symfony:ci php tests/accounting_posting_validation_smoke.php
+      - name: Test strict accounting form dates
+        run: docker run --rm symfoerp-symfony:ci php tests/accounting_form_date_smoke.php
 
       - name: Test accounting fiscal period boundaries
         run: docker run --rm symfoerp-symfony:ci php tests/accounting_period_guard_smoke.php
