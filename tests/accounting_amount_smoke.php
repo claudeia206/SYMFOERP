@@ -32,6 +32,16 @@ foreach ([
     expectAccountingAmount(AccountingAmount::formatCents($value) === $expected, 'Exact cent formatting failed.');
 }
 
+foreach ([
+    [0, '0,00'],
+    [1234, '12,34'],
+    [-1234, '-12,34'],
+    [123456789, '1 234 567,89'],
+    [999999999999999, '9 999 999 999 999,99'],
+] as [$value, $expected]) {
+    expectAccountingAmount(AccountingAmount::formatFrenchCents($value) === $expected, 'French exact-cent formatting failed.');
+}
+
 expectAccountingAmount(AccountingAmount::addCents(1200, 345) === 1545, 'Exact-cent addition failed.');
 expectAccountingAmount(AccountingAmount::addCents(99999999999999) === 99999999999999, 'Maximum journal amount must be supported.');
 expectAccountingAmount(AccountingAmount::addSignedCents(-1200, 345) === -855, 'Signed exact-cent addition failed.');
