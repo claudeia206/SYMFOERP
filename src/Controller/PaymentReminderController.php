@@ -61,7 +61,7 @@ SQL,[$limit->format('Y-m-d')]);
             $row['remaining']=AccountingAmount::formatFrenchCents($remainingCents);$row['days_late']=$daysLate;$row['stage']=$stage;$row['subject']=$subject;
             $row['mailto']=$row['email']? 'mailto:'.rawurlencode($row['email']).'?subject='.rawurlencode($subject).'&body='.rawurlencode($greeting.$body):null;
             $reminders[]=$row;
-            if($daysLate>0)$overdueTotal+=$remainingCents;else $upcomingTotal+=$remainingCents;
+            if($daysLate>0)$overdueTotal=AccountingAmount::addCents($overdueTotal,$remainingCents);else $upcomingTotal=AccountingAmount::addCents($upcomingTotal,$remainingCents);
         }
         $history=$db->fetchAllAssociative(<<<'SQL'
 SELECT r.id,r.invoice_id,r.reminder_level,r.channel,r.recipient,r.note,r.sent_at,
