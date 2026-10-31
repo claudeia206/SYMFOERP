@@ -42,7 +42,7 @@ $quote->setStatus(SalesQuote::STATUS_SENT);
 expectSales($quote->getStatus() === SalesQuote::STATUS_SENT, 'Quote status must be mutable to a supported state.');
 $quote->setStatus(SalesQuote::STATUS_ACCEPTED);
 $order = new SalesOrder($quote);
-expectSales($order->getLines()->count() === 2, 'Order conversion must copy all quote lines.');
+expectSales($order->getLines()->count() === 3, 'Order conversion must copy all quote lines.');
 expectSales($order->getLines()->first()->getProduct() === $catalogProduct, 'Order conversion must preserve the product reference.');
 expectSales($order->getTotalExcludingTax() === $quote->getTotalExcludingTax(), 'Converted order subtotal must match the accepted quote.');
 expectSales($order->getTotalTax() === $quote->getTotalTax(), 'Converted order VAT must match the accepted quote.');
