@@ -229,6 +229,15 @@ final class FixedAssetController extends AbstractController
             $period=null;
             foreach($periods as $candidate)if((int)$candidate['period']===$year)$period=$candidate;
             if(!$period || $period['amount']<=0)throw new \InvalidArgumentException('Aucune dotation à comptabiliser sur cet exercice.');
+            $postedPriorYears = $db->fetchFirstColumn(
+                'SELECT fiscal_year FROM app_fixed_asset_depreciation WHERE asset_id=? AND fiscal_year<?',
+                [$id, $year]
+            );
+            (new AppServiceFixedAssetDepreciationSequence())->assertPriorPeriodsPosted(
+                $periods,
+                $year,
+                $postedPriorYears
+            );
             $accounts=$db->fetchAllAssociative('SELECT id FROM app_accounting_account WHERE is_active=1 AND id IN (?,?)',[(int)$asset['expense_account_id'],(int)$asset['accumulated_account_id']]);
             if(count($accounts)!==2)throw new \InvalidArgumentException('Les comptes de dotation et d’amortissement doivent être actifs.');
             $journalCode=(string)$db->fetchOne('SELECT code FROM app_accounting_journal WHERE id=?',[(int)$asset['journal_id']]);

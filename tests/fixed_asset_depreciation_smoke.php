@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use App\Service\DepreciationCalculator;
+use App\Service\FixedAssetDepreciationSequence;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
@@ -28,4 +29,15 @@ if (array_sum(array_map(static fn(array $row): int => App\Service\AccountingAmou
     throw new RuntimeException('Partial-period depreciation must round cumulatively to exact cents.');
 }
 
-echo "Fixed asset exact-cent depreciation smoke tests passed.\n";
+$sequence = new FixedAssetDepreciationSequence();
+try {
+    $sequence->assertPriorPeriodsPosted($rows, 2026, [2024]);
+    throw new RuntimeException('Out-of-order depreciation posting must be rejected.');
+} catch (InvalidArgumentException $exception) {
+    if (!str_contains($exception->getMessage(), '2025')) {
+        throw $exception;
+    }
+}
+$sequence->assertPriorPeriodsPosted($rows, 2026, [2024, 2025]);
+
+echo "Fixed asset exact-cent depreciation and posting-order smoke tests passed.\n";
