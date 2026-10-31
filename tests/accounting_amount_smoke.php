@@ -34,6 +34,15 @@ foreach ([
 
 expectAccountingAmount(AccountingAmount::addCents(1200, 345) === 1545, 'Exact-cent addition failed.');
 expectAccountingAmount(AccountingAmount::addCents(99999999999999) === 99999999999999, 'Maximum journal amount must be supported.');
+expectAccountingAmount(AccountingAmount::addSignedCents(-1200, 345) === -855, 'Signed exact-cent addition failed.');
+foreach ([[PHP_INT_MAX, 1], [PHP_INT_MIN, -1]] as $invalidSignedSum) {
+    try {
+        AccountingAmount::addSignedCents(...$invalidSignedSum);
+        throw new RuntimeException('Signed accounting total overflow was accepted.');
+    } catch (InvalidArgumentException) {
+    }
+}
+
 foreach ([[-1], [99999999999999, 1]] as $invalidSum) {
     try {
         AccountingAmount::addCents(...$invalidSum);
