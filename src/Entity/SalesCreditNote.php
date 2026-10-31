@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace App\Entity;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -51,7 +52,22 @@ class SalesCreditNote
         if ($line->getCreditNote()!==$this) throw new InvalidArgumentException('La ligne appartient à un autre avoir.');
         if (!$this->lines->contains($line)) $this->lines->add($line); return $this;
     }
-    public function getTotalExcludingTax(): float { return round(array_reduce($this->lines->toArray(),static fn(float $s,SalesCreditNoteLine $l):float=>$s+$l->getTotalExcludingTax(),0.0),2); }
-    public function getTotalTax(): float { return round(array_reduce($this->lines->toArray(),static fn(float $s,SalesCreditNoteLine $l):float=>$s+$l->getTotalTax(),0.0),2); }
-    public function getTotalIncludingTax(): float { return round($this->getTotalExcludingTax()+$this->getTotalTax(),2); }
+    public function getTotalExcludingTaxCents(): int
+    {
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesCreditNoteLine $line): int => $sum + $line->getTotalExcludingTaxCents(), 0);
+    }
+
+    public function getTotalTaxCents(): int
+    {
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesCreditNoteLine $line): int => $sum + $line->getTotalTaxCents(), 0);
+    }
+
+    public function getTotalIncludingTaxCents(): int
+    {
+        return $this->getTotalExcludingTaxCents() + $this->getTotalTaxCents();
+    }
+
+    public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
+    public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
+    public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
 }
