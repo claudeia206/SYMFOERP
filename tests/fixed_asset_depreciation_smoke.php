@@ -40,4 +40,12 @@ try {
 }
 $sequence->assertPriorPeriodsPosted($rows, 2026, [2024, 2025]);
 
+try {
+    $sequence->assertPeriodComplete(new DateTimeImmutable('2026-10-31'), 2026);
+    throw new RuntimeException('A partial fiscal-year depreciation period must not be posted.');
+} catch (InvalidArgumentException) {
+}
+$sequence->assertPeriodComplete(new DateTimeImmutable('2026-12-31'), 2026);
+
+
 echo "Fixed asset exact-cent depreciation and posting-order smoke tests passed.\n";

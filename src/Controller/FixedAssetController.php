@@ -6,12 +6,14 @@ namespace App\Controller;
 use App\Service\AccountingAmount;
 use App\Service\AccountingPeriodGuard;
 use App\Service\DepreciationCalculator;
+use App\Service\FixedAssetDepreciationSequence;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use InvalidArgumentException;
 use Throwable;
 
 #[Route('/accounting/fixed-assets')]
@@ -219,6 +221,7 @@ final class FixedAssetController extends AbstractController
         if (!$this->isCsrfTokenValid('fixed_asset_depreciation_'.$id.'_'.$year,(string)$request->request->get('_token'))) throw $this->createAccessDeniedException();
         if($year<2000||$year>2100)throw $this->createNotFoundException();
         try {
+            (new FixedAssetDepreciationSequence())->assertPeriodComplete(new DateTimeImmutable('today'), $year);
             $db->beginTransaction();
             $periodGuard->assertOpenDate($db, $year.'-12-31');
             $asset=$db->fetchAssociative('SELECT * FROM app_fixed_asset WHERE id=? AND status=? FOR UPDATE',[$id,'active']);
@@ -233,7 +236,7 @@ final class FixedAssetController extends AbstractController
                 'SELECT fiscal_year FROM app_fixed_asset_depreciation WHERE asset_id=? AND fiscal_year<?',
                 [$id, $year]
             );
-            (new AppServiceFixedAssetDepreciationSequence())->assertPriorPeriodsPosted(
+            (new FixedAssetDepreciationSequence())->assertPriorPeriodsPosted(
                 $periods,
                 $year,
                 $postedPriorYears
