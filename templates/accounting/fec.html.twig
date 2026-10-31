@@ -10,12 +10,12 @@
 <section class="grid">
     <article class="card"><p class="muted">Écritures comptabilisées</p><h2>{{ summary.entries }}</h2></article>
     <article class="card"><p class="muted">Lignes exportables</p><h2>{{ summary.lines }}</h2></article>
-    <article class="card"><p class="muted">Total débit</p><h2>{{ summary.debit|number_format(2,',',' ') }} €</h2></article>
-    <article class="card"><p class="muted">Total crédit</p><h2>{{ summary.credit|number_format(2,',',' ') }} €</h2></article>
+    <article class="card"><p class="muted">Total débit</p><h2>{{ summary.debit }} €</h2></article>
+    <article class="card"><p class="muted">Total crédit</p><h2>{{ summary.credit }} €</h2></article>
 </section>
 <section class="card">
     <h2>Contrôles avant clôture</h2>
-    <p>{% if summary.difference is defined and summary.difference == 0 %}✓{% else %}⚠{% endif %} Équilibre global : {{ summary.difference|number_format(2,',',' ') }} € d’écart</p>
+    <p>{% if summary.difference is defined and summary.difference == 0 %}✓{% else %}⚠{% endif %} Équilibre global : {{ summary.difference }} € d’écart</p>
     <p>{% if unbalanced_count == 0 %}✓{% else %}⚠{% endif %} Écritures déséquilibrées : {{ unbalanced_count }}</p>
     <p>{% if draft_count == 0 %}✓{% else %}⚠{% endif %} Écritures non comptabilisées : {{ draft_count }}</p>
     {% if closed_at %}
