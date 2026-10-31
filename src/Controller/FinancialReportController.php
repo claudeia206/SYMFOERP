@@ -55,9 +55,9 @@ final class FinancialReportController extends AbstractController
             $total=AccountingAmount::toCents((string)$invoice['total']);
             $paid=AccountingAmount::toCents((string)$invoice['paid']);
             $remaining=max(0,AccountingAmount::addSignedCents($total,-$paid));
-            $invoice['total']=AccountingAmount::formatCents($total);
-            $invoice['paid']=AccountingAmount::formatCents($paid);
-            $invoice['remaining']=AccountingAmount::formatCents($remaining);
+            $invoice['total']=AccountingAmount::formatFrenchCents($total);
+            $invoice['paid']=AccountingAmount::formatFrenchCents($paid);
+            $invoice['remaining']=AccountingAmount::formatFrenchCents($remaining);
             $salesOutstanding=AccountingAmount::addSignedCents($salesOutstanding,$remaining);
             $invoice['overdue']=$remaining>0 && new DateTimeImmutable($invoice['due_date'])<$today;
             if($invoice['overdue']) { ++$salesOverdue; $overdueReceivables[]=$invoice; }
@@ -67,9 +67,9 @@ final class FinancialReportController extends AbstractController
             $total=AccountingAmount::toCents((string)$invoice['total']);
             $paid=AccountingAmount::toCents((string)$invoice['paid']);
             $remaining=max(0,AccountingAmount::addSignedCents($total,-$paid));
-            $invoice['total']=AccountingAmount::formatCents($total);
-            $invoice['paid']=AccountingAmount::formatCents($paid);
-            $invoice['remaining']=AccountingAmount::formatCents($remaining);
+            $invoice['total']=AccountingAmount::formatFrenchCents($total);
+            $invoice['paid']=AccountingAmount::formatFrenchCents($paid);
+            $invoice['remaining']=AccountingAmount::formatFrenchCents($remaining);
             $supplierOutstanding=AccountingAmount::addSignedCents($supplierOutstanding,$remaining);
             $invoice['overdue']=$remaining>0 && new DateTimeImmutable($invoice['due_date'])<$today;
             if($invoice['overdue']) { ++$supplierOverdue; $overduePayables[]=$invoice; }
@@ -80,12 +80,12 @@ final class FinancialReportController extends AbstractController
         $collected=AccountingAmount::toCents((string)$connection->fetchOne('SELECT COALESCE(SUM(amount),0) FROM app_sales_payment WHERE paid_at>=? AND paid_at<?',[$monthStart,$monthEnd]));
         $disbursed=AccountingAmount::toCents((string)$connection->fetchOne('SELECT COALESCE(SUM(amount),0) FROM app_supplier_payment WHERE paid_at>=? AND paid_at<?',[$monthStart,$monthEnd]));
         return $this->render('financial_report/index.html.twig',[
-            'sales_outstanding'=>AccountingAmount::formatCents($salesOutstanding),
+            'sales_outstanding'=>AccountingAmount::formatFrenchCents($salesOutstanding),
             'sales_overdue_count'=>$salesOverdue,
-            'supplier_outstanding'=>AccountingAmount::formatCents($supplierOutstanding),
+            'supplier_outstanding'=>AccountingAmount::formatFrenchCents($supplierOutstanding),
             'supplier_overdue_count'=>$supplierOverdue,
-            'collected_this_month'=>AccountingAmount::formatCents($collected),
-            'disbursed_this_month'=>AccountingAmount::formatCents($disbursed),
+            'collected_this_month'=>AccountingAmount::formatFrenchCents($collected),
+            'disbursed_this_month'=>AccountingAmount::formatFrenchCents($disbursed),
             'overdue_receivables'=>array_slice($overdueReceivables,0,10),
             'overdue_payables'=>array_slice($overduePayables,0,10),
         ]);
