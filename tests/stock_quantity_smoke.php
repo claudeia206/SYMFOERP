@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 require dirname(__DIR__).'/src/Service/StockQuantity.php';
 require dirname(__DIR__).'/src/Entity/Product.php';
+require dirname(__DIR__).'/src/Service/AccountingAmount.php';
+require dirname(__DIR__).'/src/Entity/SalesInvoiceLine.php';
+require dirname(__DIR__).'/src/Entity/SalesOrderLine.php';
+require dirname(__DIR__).'/src/Entity/SupplierInvoiceLine.php';
 
 use App\Service\StockQuantity;
 
@@ -66,6 +70,36 @@ $invalidVatValues['vat_rate'] = '100.01';
 try {
     (new \App\Entity\Product('SKU-STOCK-TEST', 'Produit stock test'))->update($invalidVatValues);
     throw new RuntimeException('VAT rate above 100 percent was accepted.');
+} catch (\InvalidArgumentException) {
+}
+
+$salesLine = new \App\Entity\SalesInvoiceLine('Ligne test', '1.000', '12.30', '20.00', 1);
+$assert($salesLine->getUnitPrice() === '12.30' && $salesLine->getVatRate() === '20.00', 'Sales invoice line decimals must be normalized exactly.');
+$supplierLine = new \App\Entity\SupplierInvoiceLine($product, 'Ligne test', '1.000', '12.30', '20.00', 1);
+$assert($supplierLine->getUnitPrice() === '12.30' && $supplierLine->getVatRate() === '20.00', 'Supplier invoice line decimals must be normalized exactly.');
+$orderLine = new \App\Entity\SalesOrderLine('Ligne test', '1.000', '12.30', '20.00', 1, $product);
+$assert($orderLine->getUnitPrice() === '12.30' && $orderLine->getVatRate() === '20.00', 'Sales order line decimals must be normalized exactly.');
+
+foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00'] as $invalidPrice) {
+    try {
+        new \App\Entity\SalesInvoiceLine('Ligne test', '1.000', $invalidPrice, '20.00', 1);
+        throw new RuntimeException('Invalid sales invoice unit price was accepted: '.$invalidPrice);
+    } catch (\InvalidArgumentException) {
+    }
+}
+try {
+    new \App\Entity\SalesInvoiceLine('Ligne test', '1.000', '12.30', '100.01', 1);
+    throw new RuntimeException('VAT rate above 100 percent was accepted on a sales invoice line.');
+} catch (\InvalidArgumentException) {
+}
+try {
+    new \App\Entity\SupplierInvoiceLine($product, 'Ligne test', '1.000', '1e3', '20.00', 1);
+    throw new RuntimeException('Scientific notation was accepted on a supplier invoice line.');
+} catch (\InvalidArgumentException) {
+}
+try {
+    new \App\Entity\SalesOrderLine('Ligne test', '1.000', '12.30', '100.01', 1, $product);
+    throw new RuntimeException('VAT rate above 100 percent was accepted on a sales order line.');
 } catch (\InvalidArgumentException) {
 }
 
