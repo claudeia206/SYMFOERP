@@ -102,12 +102,14 @@ final class FixedAssetController extends AbstractController
 
         // BOM UTF-8 pour une ouverture correcte dans Excel.
         fwrite($stream, "\xEF\xBB\xBF");
-        fputcsv($stream, [
+        // The fixed labels contain no CSV control characters, so keep the header
+        // unquoted while data rows below still use fputcsv for proper escaping.
+        fwrite($stream, implode(';', [
             'Code', 'Immobilisation', 'Date acquisition', 'Mise en service',
             'Coût brut', 'Amortissements comptabilisés', 'VNC comptable',
             'Durée (ans)', 'Dernier exercice amorti', 'Statut',
             'Date de sortie', 'Prix de cession',
-        ], ';', '"', '\\');
+        ])."\\r\\n");
 
         $safeText = static function (mixed $value): string {
             $value = (string) ($value ?? '');
