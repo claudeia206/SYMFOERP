@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\AccountingAmount;
 use App\Service\FecExportFormatter;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -38,16 +39,18 @@ final class FiscalClosingController extends AbstractController
         $period = $db->fetchAssociative('SELECT closed_at FROM app_accounting_fiscal_year WHERE fiscal_year = ?', [$year]);
         $debit = (string) ($summary['debit'] ?? '0.00');
         $credit = (string) ($summary['credit'] ?? '0.00');
-        $differenceCents = $this->decimalToCents($debit) - $this->decimalToCents($credit);
+        $debitCents = AccountingAmount::toCents($debit);
+        $creditCents = AccountingAmount::toCents($credit);
+        $differenceCents = AccountingAmount::addSignedCents($debitCents, -$creditCents);
 
         return $this->render('accounting/fec.html.twig', [
             'year' => $year,
             'summary' => [
                 'entries' => (int) ($summary['entries'] ?? 0),
                 'lines' => (int) ($summary['lines'] ?? 0),
-                'debit' => (float) $debit,
-                'credit' => (float) $credit,
-                'difference' => $differenceCents / 100,
+                'debit' => $this->formatFrenchCents($debitCents),
+                'credit' => $this->formatFrenchCents($creditCents),
+                'difference' => $this->formatFrenchCents($differenceCents),
             ],
             'draft_count' => $draftCount,
             'unbalanced_count' => $unbalanced,
@@ -211,12 +214,14 @@ final class FiscalClosingController extends AbstractController
         return $year;
     }
 
-    private function decimalToCents(string $amount): int
+    private function formatFrenchCents(int $cents): string
     {
-        if (!preg_match('/^\d{1,13}(?:\.\d{1,2})?$/D', $amount)) {
-            throw new RuntimeException('Total comptable non décimal.');
-        }
-        [$integer, $fraction] = array_pad(explode('.', $amount, 2), 2, '');
-        return ((int) $integer * 100) + (int) str_pad($fraction, 2, '0');
+        $formatted = AccountingAmount::formatCents($cents);
+        $negative = str_starts_with($formatted, '-');
+        $unsigned = $negative ? substr($formatted, 1) : $formatted;
+        [$integer, $fraction] = explode('.', $unsigned, 2);
+        $grouped = preg_replace('/\B(?=(\d{3})+(?!\d))/', ' ', $integer);
+
+        return ($negative ? '-' : '').$grouped.','.$fraction;
     }
 }
