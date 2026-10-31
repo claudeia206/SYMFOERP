@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\AccountingAmount;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
@@ -107,6 +108,19 @@ class CompanyProfile
         if ($siren !== '' && strlen($siren) !== 9) { throw new InvalidArgumentException('Le SIREN doit contenir 9 chiffres.'); }
         if ($siret !== '' && strlen($siret) !== 14) { throw new InvalidArgumentException('Le SIRET doit contenir 14 chiffres.'); }
         if ($siren !== '' && $siret !== '' && !str_starts_with($siret, $siren)) { throw new InvalidArgumentException('Le SIRET doit commencer par le SIREN saisi.'); }
+        $recoveryFeeInput = trim((string) ($data['recoveryFee'] ?? ''));
+        $recoveryFee = null;
+        if ($recoveryFeeInput !== '') {
+            try {
+                $recoveryFeeCents = AccountingAmount::toCents($recoveryFeeInput);
+            } catch (InvalidArgumentException) {
+                throw new InvalidArgumentException('L’indemnité de recouvrement doit être un montant décimal exact.');
+            }
+            if ($recoveryFeeCents < 0) {
+                throw new InvalidArgumentException('L’indemnité de recouvrement doit être positive ou nulle.');
+            }
+            $recoveryFee = AccountingAmount::formatCents($recoveryFeeCents);
+        }
         $this->legalName = trim((string) $data['legalName']);
         $this->address = trim((string) $data['address']);
         $this->postalCode = trim((string) $data['postalCode']);
@@ -122,8 +136,7 @@ class CompanyProfile
         $this->phone = trim((string) ($data['phone'] ?? '')) ?: null;
         $this->paymentTerms = trim((string) ($data['paymentTerms'] ?? '')) ?: null;
         $this->latePenaltyRate = trim((string) ($data['latePenaltyRate'] ?? '')) ?: null;
-        $this->recoveryFee = trim((string) ($data['recoveryFee'] ?? '')) ?: null;
-        if ($this->recoveryFee !== null && (!is_numeric($this->recoveryFee) || (float) $this->recoveryFee < 0)) { throw new InvalidArgumentException('L’indemnité de recouvrement doit être un montant numérique positif ou nul.'); }
+        $this->recoveryFee = $recoveryFee;
         $this->vatRegimeNote = trim((string) ($data['vatRegimeNote'] ?? '')) ?: null;
         $delay = filter_var($data['paymentDelayDays'] ?? 30, FILTER_VALIDATE_INT);
         if ($delay === false || $delay < 0 || $delay > 365) { throw new InvalidArgumentException('Le délai de paiement doit être compris entre 0 et 365 jours.'); }
