@@ -147,7 +147,7 @@ final class SalesInvoiceController extends AbstractController
 
         try {
             $amount = trim((string) $request->request->get('amount', ''));
-            $date = new DateTimeImmutable((string) $request->request->get('paid_at', ''));
+            $date = $this->parseFormDate((string) $request->request->get('paid_at', ''), 'Date de règlement');
             $method = (string) $request->request->get('method', '');
             $reference = (string) $request->request->get('reference', '');
             $note = (string) $request->request->get('note', '');
@@ -171,6 +171,21 @@ final class SalesInvoiceController extends AbstractController
         }
 
         return $this->redirectToRoute('app_sales_invoice_show', ['id' => $invoice->getId()]);
+    }
+
+    private function parseFormDate(string $value, string $label): DateTimeImmutable
+    {
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/D', $value)) {
+            throw new InvalidArgumentException($label.' : format attendu AAAA-MM-JJ.');
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        $errors = DateTimeImmutable::getLastErrors();
+        if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) || $date->format('Y-m-d') !== $value) {
+            throw new InvalidArgumentException($label.' : date calendrier invalide.');
+        }
+
+        return $date;
     }
 
     #[Route('/{id}', name: 'app_sales_invoice_show', requirements: ['id' => '\\d+'], methods: ['GET'])]
