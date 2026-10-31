@@ -22,13 +22,23 @@ final class VatDeclarationController extends AbstractController
         foreach($months as &$month){
             $monthCollected=AccountingAmount::toCents((string)$month['collected']);
             $monthDeductible=AccountingAmount::toCents((string)$month['deductible']);
-            $month['collected']=AccountingAmount::formatCents($monthCollected);
-            $month['deductible']=AccountingAmount::formatCents($monthDeductible);
-            $month['net']=AccountingAmount::formatCents(AccountingAmount::addSignedCents($monthCollected,-$monthDeductible));
+            $month['collected']=AccountingAmount::formatFrenchCents($monthCollected);
+            $month['deductible']=AccountingAmount::formatFrenchCents($monthDeductible);
+            $monthNet=AccountingAmount::addSignedCents($monthCollected,-$monthDeductible);
+            $month['net']=AccountingAmount::formatFrenchCents($monthNet);
+            $month['net_abs']=AccountingAmount::formatFrenchCents(abs($monthNet));
+            $month['net_label']=$monthNet>0?'à payer':($monthNet<0?'crédit':'—');
             $collectedCents=AccountingAmount::addSignedCents($collectedCents,$monthCollected);$deductibleCents=AccountingAmount::addSignedCents($deductibleCents,$monthDeductible);
         }
         unset($month);
-        return $this->render('vat_declaration/index.html.twig',['months'=>$months,'from'=>$from,'to'=>$to,'collected'=>AccountingAmount::formatCents($collectedCents),'deductible'=>AccountingAmount::formatCents($deductibleCents),'net'=>AccountingAmount::formatCents(AccountingAmount::addSignedCents($collectedCents,-$deductibleCents))]);
+        $netCents=AccountingAmount::addSignedCents($collectedCents,-$deductibleCents);
+        return $this->render('vat_declaration/index.html.twig',[
+            'months'=>$months,'from'=>$from,'to'=>$to,
+            'collected'=>AccountingAmount::formatFrenchCents($collectedCents),
+            'deductible'=>AccountingAmount::formatFrenchCents($deductibleCents),
+            'net_abs'=>AccountingAmount::formatFrenchCents(abs($netCents)),
+            'net_label'=>$netCents>=0?'TVA nette à payer':'Crédit de TVA théorique',
+        ]);
     }
     #[Route('/export.csv',name:'app_vat_declaration_export',methods:['GET'])]
     public function export(Connection $db,Request $request):Response
