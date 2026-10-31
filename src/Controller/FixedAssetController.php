@@ -59,7 +59,7 @@ final class FixedAssetController extends AbstractController
             $plans[(int) $asset['id']] = $asOf < $serviceDate
                 ? []
                 : $calculator->straightLine(
-                    (float) $asset['acquisition_cost'], (float) $asset['residual_value'],
+                    (string) $asset['acquisition_cost'], (string) $asset['residual_value'],
                     (int) $asset['useful_life_years'], $serviceDate, $asOf
                 );
         }
@@ -67,7 +67,7 @@ final class FixedAssetController extends AbstractController
         $journals = $db->fetchAllAssociative('SELECT id,code,name FROM app_accounting_journal ORDER BY code');
         $posted = $db->fetchAllAssociative('SELECT asset_id,fiscal_year,amount FROM app_fixed_asset_depreciation ORDER BY fiscal_year');
         $postedMap = [];
-        foreach ($posted as $item) $postedMap[(int)$item['asset_id']][(string)$item['fiscal_year']] = (float)$item['amount'];
+        foreach ($posted as $item) $postedMap[(int)$item['asset_id']][(string)$item['fiscal_year']] = (string)$item['amount'];
         return $this->render('accounting/fixed_assets.html.twig', [
             'assets'=>$assets, 'plans'=>$plans, 'as_of'=>$asOf->format('Y-m-d'),
             'accounts'=>$accounts, 'journals'=>$journals, 'posted_map'=>$postedMap,
@@ -197,7 +197,7 @@ final class FixedAssetController extends AbstractController
             if(!$asset)throw new \InvalidArgumentException('Immobilisation active introuvable.');
             if($db->fetchOne('SELECT id FROM app_fixed_asset_depreciation WHERE asset_id=? AND fiscal_year=?',[$id,$year]))throw new \InvalidArgumentException('Dotation déjà comptabilisée pour cet exercice.');
             foreach(['asset_account_id','accumulated_account_id','expense_account_id','journal_id'] as $field) if(empty($asset[$field])) throw new \InvalidArgumentException('Paramétrage comptable incomplet.');
-            $periods=$calculator->straightLine((float)$asset['acquisition_cost'],(float)$asset['residual_value'],(int)$asset['useful_life_years'],new DateTimeImmutable($asset['in_service_date']),new DateTimeImmutable($year.'-12-31'));
+            $periods=$calculator->straightLine((string)$asset['acquisition_cost'],(string)$asset['residual_value'],(int)$asset['useful_life_years'],new DateTimeImmutable($asset['in_service_date']),new DateTimeImmutable($year.'-12-31'));
             $period=null;
             foreach($periods as $candidate)if((int)$candidate['period']===$year)$period=$candidate;
             if(!$period || $period['amount']<=0)throw new \InvalidArgumentException('Aucune dotation à comptabiliser sur cet exercice.');
@@ -211,7 +211,7 @@ final class FixedAssetController extends AbstractController
             $description=sprintf('Dotation amortissement %s - %d',$asset['code'],$year);
             $reference=sprintf('AMORT-%s-%d',$asset['code'],$year);
             $db->insert('app_journal_entry',['journal_id'=>$asset['journal_id'],'entry_number'=>$entryNumber,'entry_date'=>$entryDate,'reference'=>$reference,'description'=>$description,'status'=>'posted','created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
-            $entryId=(int)$db->lastInsertId();$amount=number_format((float)$period['amount'],2,'.','');
+            $entryId=(int)$db->lastInsertId();$amount=(string)$period['amount'];
             $db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$asset['expense_account_id'],'label'=>$description,'debit'=>$amount,'credit'=>'0.00']);
             $db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$asset['accumulated_account_id'],'label'=>$description,'debit'=>'0.00','credit'=>$amount]);
             $db->insert('app_fixed_asset_depreciation',['asset_id'=>$id,'fiscal_year'=>$year,'amount'=>$amount,'journal_entry_id'=>$entryId,'created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
@@ -243,7 +243,7 @@ final class FixedAssetController extends AbstractController
             foreach(['asset_account_id','accumulated_account_id','disposal_bank_account_id','disposal_gain_account_id','disposal_loss_account_id','journal_id'] as $field)
                 if(empty($asset[$field]))throw new \InvalidArgumentException('Paramétrage de cession incomplet.');
             $asOf=new DateTimeImmutable($date);
-            $plan=$calculator->straightLine((float)$asset['acquisition_cost'],(float)$asset['residual_value'],(int)$asset['useful_life_years'],new DateTimeImmutable($asset['in_service_date']),$asOf);
+            $plan=$calculator->straightLine((string)$asset['acquisition_cost'],(string)$asset['residual_value'],(int)$asset['useful_life_years'],new DateTimeImmutable($asset['in_service_date']),$asOf);
             $posted=$db->fetchAllAssociative('SELECT fiscal_year,amount FROM app_fixed_asset_depreciation WHERE asset_id=? ORDER BY fiscal_year FOR UPDATE',[$id]);
             $postedByYear=[];foreach($posted as $row)$postedByYear[(int)$row['fiscal_year']]=(float)$row['amount'];
             $accumulated=0.0;
