@@ -78,6 +78,9 @@ final class AccountingAmount
                 throw new InvalidArgumentException('Le cumul des montants dépasse la capacité entière prise en charge.');
             }
             $sum += $amount;
+            if ($sum === PHP_INT_MIN) {
+                throw new InvalidArgumentException('Le cumul signé minimal ne peut pas être formaté en centimes.');
+            }
         }
 
         return $sum;
