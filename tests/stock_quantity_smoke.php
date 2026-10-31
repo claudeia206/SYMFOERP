@@ -76,6 +76,11 @@ foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00', '0.00'] as $invalid
     }
 }
 try {
+    new \App\Entity\SalesPayment($invoiceStub, '1.00', new \DateTimeImmutable('2026-01-01'), 'unknown');
+    throw new RuntimeException('Invalid customer payment method was accepted.');
+} catch (\InvalidArgumentException) {
+}
+try {
     new \App\Entity\SupplierPayment($supplierInvoiceStub, '1.00', new \DateTimeImmutable('2026-01-01'), 'unknown');
     throw new RuntimeException('Invalid supplier payment method was accepted.');
 } catch (\InvalidArgumentException) {
