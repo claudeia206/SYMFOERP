@@ -19,13 +19,13 @@ foreach ([
     ['12', '12.00'],
     ['12.3', '12.30'],
     ['0012.30', '12.30'],
-    ['9999999999999.99', '9999999999999.99'],
+    ['999999999999.99', '999999999999.99'],
     [42, '42.00'],
 ] as [$input, $expected]) {
     expectFec($formatter->formatAmount($input) === $expected, 'FEC amount formatting mismatch.');
 }
 
-foreach (['', ' ', '-1.00', '+1.00', '1,00', '1.001', '1e3', '10000000000000.00', 1.25, null, true] as $invalid) {
+foreach (['', ' ', '-1.00', '+1.00', '1,00', '1.001', '1e3', '1000000000000.00', '9999999999999.99', 1.25, null, true] as $invalid) {
     $rejected = false;
     try {
         $formatter->formatAmount($invalid);
