@@ -165,7 +165,8 @@ final class FixedAssetController extends AbstractController
         $parsedService=DateTimeImmutable::createFromFormat('!Y-m-d',$serviceDate);
         $assetAccount = $this->parsePositiveInt($request->request->get('asset_account_id')); $accumAccount = $this->parsePositiveInt($request->request->get('accumulated_account_id'));
         $expenseAccount = $this->parsePositiveInt($request->request->get('expense_account_id')); $journal = $this->parsePositiveInt($request->request->get('journal_id'));
-        $acquisitionCounterpart = $this->parsePositiveInt($request->request->get('acquisition_counterpart_account_id'));\n        $bankAccount = $this->parsePositiveInt($request->request->get('disposal_bank_account_id')); $gainAccount = $this->parsePositiveInt($request->request->get('disposal_gain_account_id')); $lossAccount = $this->parsePositiveInt($request->request->get('disposal_loss_account_id'));
+        $acquisitionCounterpart = $this->parsePositiveInt($request->request->get('acquisition_counterpart_account_id'));
+        $bankAccount = $this->parsePositiveInt($request->request->get('disposal_bank_account_id')); $gainAccount = $this->parsePositiveInt($request->request->get('disposal_gain_account_id')); $lossAccount = $this->parsePositiveInt($request->request->get('disposal_loss_account_id'));
         if ($years === null || $assetAccount === null || $accumAccount === null || $expenseAccount === null || $journal === null || $acquisitionCounterpart === null || $bankAccount === null || $gainAccount === null || $lossAccount === null || $code==='' || mb_strlen($code)>64 || $name==='' || mb_strlen($name)>255 || !$parsedAcquisition || $parsedAcquisition->format('Y-m-d')!==$acquisitionDate || !$parsedService || $parsedService->format('Y-m-d')!==$serviceDate || $parsedAcquisition>$parsedService || $cost===null || $residual===null || $cost<=0 || $residual<0 || $residual>=$cost || $years<1 || $years>100 || min($assetAccount,$accumAccount,$expenseAccount,$journal,$acquisitionCounterpart,$bankAccount,$gainAccount,$lossAccount)<=0 || count(array_unique([$assetAccount,$accumAccount,$expenseAccount,$acquisitionCounterpart,$bankAccount,$gainAccount,$lossAccount]))!==7) {
             $this->addFlash('error','Vérifiez les données, les comptes doivent être distincts et le journal renseigné.');
             return $this->redirectToRoute('app_fixed_assets');
@@ -178,7 +179,7 @@ final class FixedAssetController extends AbstractController
             $periodGuard->assertOpenDate($db, $acquisitionDate);
             $db->fetchOne('SELECT id FROM app_accounting_journal WHERE id=? FOR UPDATE', [$journal]);
             $journalCode=(string)$db->fetchOne('SELECT code FROM app_accounting_journal WHERE id=?', [$journal]);
-            if ($journalCode==='') throw new \\InvalidArgumentException('Journal comptable introuvable.');
+            if ($journalCode==='') throw new \InvalidArgumentException('Journal comptable introuvable.');
             $db->insert('app_fixed_asset',[
                 'code'=>$code,'name'=>$name,'acquisition_cost'=>AccountingAmount::formatCents(AccountingAmount::toCents($cost)),'residual_value'=>AccountingAmount::formatCents(AccountingAmount::toCents($residual)),
                 'useful_life_years'=>$years,'acquisition_date'=>$acquisitionDate,'in_service_date'=>$serviceDate,'status'=>'active',
@@ -202,7 +203,7 @@ final class FixedAssetController extends AbstractController
             $db->update('app_fixed_asset',['acquisition_journal_entry_id'=>$entryId],['id'=>$assetId]);
             $db->commit();
             $this->addFlash('success',sprintf('Immobilisation enregistrée et acquisition comptabilisée (%s-%06d).',$journalCode,$entryNumber));
-        } catch (\\InvalidArgumentException $e) {
+        } catch (\InvalidArgumentException $e) {
             if($db->isTransactionActive())$db->rollBack();
             $this->addFlash('error',$e->getMessage());
         } catch (Throwable) {
@@ -276,8 +277,8 @@ final class FixedAssetController extends AbstractController
             $accumulatedCents=0;
             foreach($plan as $period){
                 $periodYear=(int)$period['period'];
-                if(!isset($postedByYear[$periodYear]))throw new \\InvalidArgumentException(sprintf('Comptabilisez d’abord la dotation %d avant la sortie.',$periodYear));
-                if($postedByYear[$periodYear]!==AccountingAmount::toCents((string)$period['amount']))throw new \\InvalidArgumentException(sprintf('La dotation %d ne correspond plus au plan calculé.',$periodYear));
+                if(!isset($postedByYear[$periodYear]))throw new \InvalidArgumentException(sprintf('Comptabilisez d’abord la dotation %d avant la sortie.',$periodYear));
+                if($postedByYear[$periodYear]!==AccountingAmount::toCents((string)$period['amount']))throw new \InvalidArgumentException(sprintf('La dotation %d ne correspond plus au plan calculé.',$periodYear));
                 $accumulatedCents+=$postedByYear[$periodYear];
             }
             $costCents=AccountingAmount::toCents((string)$asset['acquisition_cost']);
@@ -379,7 +380,7 @@ final class FixedAssetController extends AbstractController
 
         try {
             return AccountingAmount::formatCents(AccountingAmount::toCents($raw));
-        } catch (\\InvalidArgumentException) {
+        } catch (\InvalidArgumentException) {
             return null;
         }
     }
