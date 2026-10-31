@@ -47,8 +47,6 @@ if [[ "$ready" -ne 1 ]]; then
     exit 1
 fi
 
-# Run maintenance commands directly in the already healthy Symfony container.
-# This preserves its exact environment and avoids Compose's one-off TTY behavior.
 console() {
     echo ">>> Symfony Console: $*"
     docker exec --workdir /app symfoerp-symfony php -d display_errors=1 /app/bin/console "$@" 2>&1
@@ -62,7 +60,7 @@ docker exec --workdir /app symfoerp-symfony test -f /app/bin/console
 console --version
 echo "Migrations Doctrine détectées avant installation :"
 console doctrine:migrations:list --no-ansi -vvv
-console doctrine:migrations:status --show-versions --no-ansi -vvv
+console doctrine:migrations:status --no-ansi -vvv
 console doctrine:migrations:migrate --no-interaction --no-ansi -vvv
 database_check='$url = parse_url(getenv("DATABASE_URL"));
 $pdo = new PDO(
@@ -87,14 +85,14 @@ console doctrine:schema:validate
 
 read -r -p "E-mail du premier administrateur : " admin_email
 read -r -s -p "Mot de passe administrateur (12 caractères minimum) : " admin_password
-printf '\n'
+printf '\\n'
 if [[ -z "$admin_email" || ${#admin_password} -lt 12 ]]; then
     echo "E-mail requis et mot de passe d'au moins 12 caractères." >&2
     exit 1
 fi
-docker exec \
-    -e "SYMFOERP_ADMIN_EMAIL=$admin_email" \
-    -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \
+docker exec \\
+    -e "SYMFOERP_ADMIN_EMAIL=$admin_email" \\
+    -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \\
     --workdir /app symfoerp-symfony php -d display_errors=1 /app/bin/console app:user:create </dev/null
 unset admin_password
 echo
