@@ -81,6 +81,8 @@ echo "Vérification de la base utilisée par le conteneur CLI :"
 docker exec --workdir /app symfoerp-symfony php -r "$database_check"
 echo "Vérification de la même base depuis le conteneur HTTP Symfony :"
 docker exec symfoerp-symfony php -r "$database_check"
+echo "Différentiel Doctrine (diagnostic SQL en lecture seule) :"
+console doctrine:schema:update --dump-sql --no-interaction --no-ansi -vvv
 console doctrine:schema:validate
 
 read -r -p "E-mail du premier administrateur : " admin_email
