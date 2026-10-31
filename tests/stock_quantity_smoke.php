@@ -12,6 +12,8 @@ require dirname(__DIR__).'/src/Entity/SalesQuoteLine.php';
 require dirname(__DIR__).'/src/Entity/PurchaseOrderLine.php';
 require dirname(__DIR__).'/src/Entity/SalesPayment.php';
 require dirname(__DIR__).'/src/Entity/SupplierPayment.php';
+require dirname(__DIR__).'/src/Entity/SalesInvoice.php';
+require dirname(__DIR__).'/src/Entity/SupplierInvoice.php';
 
 use App\Service\StockQuantity;
 
