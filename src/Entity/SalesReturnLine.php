@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Entity;
+use App\Service\StockQuantity;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 #[ORM\Entity]
@@ -15,8 +16,9 @@ class SalesReturnLine
     #[ORM\Column(type:'decimal',precision:10,scale:3)] private string $quantity;
     public function __construct(SalesOrderLine $orderLine,string $quantity)
     {
-        if(!is_numeric($quantity)||round((float)$quantity,3)<=0||(float)$quantity>(float)$orderLine->getReturnableQuantity()+0.000001) throw new InvalidArgumentException('La quantité retournée doit être positive et ne peut pas dépasser la quantité déjà livrée non retournée.');
-        $this->orderLine=$orderLine; $this->description=$orderLine->getDescription(); $this->quantity=number_format((float)$quantity,3,'.','');
+        $milliunits = StockQuantity::toMilliunits($quantity);
+        if ($milliunits <= 0 || $milliunits > StockQuantity::toMilliunits($orderLine->getReturnableQuantity())) throw new InvalidArgumentException('La quantité retournée doit être positive et ne peut pas dépasser la quantité déjà livrée non retournée.');
+        $this->orderLine=$orderLine; $this->description=$orderLine->getDescription(); $this->quantity=StockQuantity::format($milliunits);
     }
     public function getId(): ?int { return $this->id; }
     public function setSalesReturn(SalesReturn $salesReturn): self { $this->salesReturn=$salesReturn; return $this; }
