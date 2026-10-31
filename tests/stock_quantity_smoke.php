@@ -23,14 +23,14 @@ foreach (['1e3', '1,25', '1.0001', '-1', '', '1000000000'] as $invalid) {
     try {
         StockQuantity::toMilliunits($invalid);
         throw new RuntimeException('Invalid stock quantity was accepted: '.$invalid);
-    } catch (\\InvalidArgumentException) {
+    } catch (\InvalidArgumentException) {
     }
 }
 
 try {
     StockQuantity::toMilliunits('-0.001');
     throw new RuntimeException('Negative quantity was accepted for an inbound quantity.');
-} catch (\\InvalidArgumentException) {
+} catch (\InvalidArgumentException) {
 }
 
 echo "Exact stock quantity smoke checks passed.\n";
