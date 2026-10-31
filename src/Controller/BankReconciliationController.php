@@ -56,7 +56,7 @@ final class BankReconciliationController extends AbstractController
                         $fingerprint=hash('sha256',$date->format('Y-m-d')."|".$label."|".$amount."|".$reference);
                         $count=$db->executeStatement('INSERT IGNORE INTO app_bank_transaction (transaction_date,label,amount,reference,fingerprint,imported_at) VALUES (?,?,?,?,?,?)',[$date->format('Y-m-d'),$label,$amount,$reference!==''?$reference:null,$fingerprint,(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
                         if($count===1)++$inserted;else ++$duplicates;
-                    } catch(\Throwable){++$invalid;}
+                    } catch(\InvalidArgumentException){++$invalid;}
                 }
                 $db->commit();
             }catch(\Throwable $e){$db->rollBack();throw $e;}
