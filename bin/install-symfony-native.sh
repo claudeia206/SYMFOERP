@@ -124,7 +124,6 @@ $SUDO tee /etc/apache2/sites-available/symfoerp.conf >/dev/null <<EOF
 EOF
 
 $SUDO a2enmod rewrite
-$SUDO a2dissite 000-default >/dev/null 2>&1 || true
 $SUDO a2ensite symfoerp
 $SUDO apache2ctl configtest
 $SUDO systemctl reload apache2
