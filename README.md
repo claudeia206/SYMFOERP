@@ -31,24 +31,36 @@ docker compose --env-file .env.docker down
 
 ## Installation manuelle
 
+Après avoir créé `.env.docker` à partir de `.env.docker.example` et remplacé les secrets, démarrer les services :
+
 ```bash
-cp .env.docker.example .env.docker
-# Remplacer les valeurs secrètes avant le démarrage.
 docker compose --env-file .env.docker up -d --build
-docker compose --env-file .env.docker run --rm --no-deps --entrypoint php symfony /app/bin/console doctrine:migrations:migrate --no-interaction
-docker compose --env-file .env.docker run --rm --no-deps --entrypoint php symfony /app/bin/console doctrine:schema:validate
 ```
 
-Créer le premier administrateur en transmettant les identifiants via l'environnement du processus :
+Les commandes console doivent être exécutées dans un conteneur PHP CLI séparé du serveur HTTP. Exemple pour appliquer les migrations et valider le schéma :
+
+```bash
+set -a
+. ./.env.docker
+set +a
+NETWORK="$(docker inspect --format '{{range $name, $network := .NetworkSettings.Networks}}{{printf "%s" $name}}{{end}}' symfoerp-symfony)"
+IMAGE="$(docker inspect --format '{{.Image}}' symfoerp-symfony)"
+DATABASE_URL="mysql://${SYMFONY_DB_USER}:${SYMFONY_DB_PASSWORD}@db_symfony:3306/${SYMFONY_DB_NAME}?serverVersion=mariadb-11.4.2&charset=utf8mb4"
+docker run --rm --network "$NETWORK" -e APP_ENV=dev -e APP_SECRET="$APP_SECRET" -e DATABASE_URL="$DATABASE_URL" "$IMAGE" php /app/bin/console doctrine:migrations:migrate --no-interaction
+docker run --rm --network "$NETWORK" -e APP_ENV=dev -e APP_SECRET="$APP_SECRET" -e DATABASE_URL="$DATABASE_URL" "$IMAGE" php /app/bin/console doctrine:schema:validate
+```
+
+Pour créer le premier administrateur, transmettre les identifiants au conteneur CLI via l'environnement, sans les inscrire dans l'historique des commandes :
 
 ```bash
 read -r -p "E-mail administrateur : " SYMFOERP_ADMIN_EMAIL
 read -r -s -p "Mot de passe (12 caractères minimum) : " SYMFOERP_ADMIN_PASSWORD
 echo
-docker compose --env-file .env.docker run --rm --no-deps \
+docker run --rm --network "$NETWORK" \
+  -e APP_ENV=dev -e APP_SECRET="$APP_SECRET" -e DATABASE_URL="$DATABASE_URL" \
   -e SYMFOERP_ADMIN_EMAIL="$SYMFOERP_ADMIN_EMAIL" \
   -e SYMFOERP_ADMIN_PASSWORD="$SYMFOERP_ADMIN_PASSWORD" \
-  --entrypoint php symfony /app/bin/console app:user:create
+  "$IMAGE" php /app/bin/console app:user:create
 unset SYMFOERP_ADMIN_EMAIL SYMFOERP_ADMIN_PASSWORD
 ```
 
