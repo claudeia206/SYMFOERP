@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Service\StockQuantity;
+use App\Service\AccountingAmount;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 
@@ -43,14 +44,16 @@ class SupplierInvoiceLine
     {
         $description = trim($description);
         $quantityMilliunits = StockQuantity::toMilliunits($quantity);
-        if ($description === '' || mb_strlen($description) > 255 || $quantityMilliunits <= 0 || $quantityMilliunits > 9_999_999_999 || !is_numeric($unitPrice) || (float) $unitPrice < 0 || !is_numeric($vatRate) || (float) $vatRate < 0 || (float) $vatRate > 100) {
+        $unitPriceCents = AccountingAmount::toCents($unitPrice);
+        $vatRateCents = AccountingAmount::toCents($vatRate);
+        if ($description === '' || mb_strlen($description) > 255 || $quantityMilliunits <= 0 || $quantityMilliunits > 9_999_999_999 || $unitPriceCents < 0 || $unitPriceCents > 999999999999 || $vatRateCents < 0 || $vatRateCents > 10000) {
             throw new InvalidArgumentException('Ligne de facture fournisseur invalide.');
         }
         $this->product = $product;
         $this->description = $description;
         $this->quantity = StockQuantity::format($quantityMilliunits);
-        $this->unitPrice = number_format((float) $unitPrice, 2, '.', '');
-        $this->vatRate = number_format((float) $vatRate, 2, '.', '');
+        $this->unitPrice = AccountingAmount::formatCents($unitPriceCents);
+        $this->vatRate = AccountingAmount::formatCents($vatRateCents);
         $this->position = max(1, $position);
     }
     public function getId(): ?int { return $this->id; }
