@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controller;
+use App\Service\AccountingAmount;
 use App\Service\AccountingPeriodGuard;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -19,12 +20,19 @@ final class GeneralLedgerController extends AbstractController
         $to=(string)$request->query->get('to',(new DateTimeImmutable('today'))->format('Y-m-d'));
         $this->validatePeriod($from,$to);
         $accounts=$db->fetchAllAssociative('SELECT a.id,a.code,a.name,a.account_class,COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END),0) AS debit,COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END),0) AS credit FROM app_accounting_account a LEFT JOIN app_journal_entry_line l ON l.account_id=a.id LEFT JOIN app_journal_entry e ON e.id=l.entry_id AND e.status=? AND e.entry_date BETWEEN ? AND ? WHERE a.is_active=1 GROUP BY a.id,a.code,a.name,a.account_class ORDER BY a.code',['posted',$from,$to]);
-        $debitTotal=0.0;$creditTotal=0.0;
-        foreach($accounts as &$account){$account['debit']=(float)$account['debit'];$account['credit']=(float)$account['credit'];$account['balance']=round($account['debit']-$account['credit'],2);$debitTotal+=$account['debit'];$creditTotal+=$account['credit'];}
+        $debitTotal=0;$creditTotal=0;
+        foreach($accounts as &$account){
+            $debit=AccountingAmount::toCents((string)$account['debit']);
+            $credit=AccountingAmount::toCents((string)$account['credit']);
+            $account['debit']=AccountingAmount::formatCents($debit);
+            $account['credit']=AccountingAmount::formatCents($credit);
+            $account['balance']=AccountingAmount::formatCents($debit-$credit);
+            $debitTotal+=$debit;$creditTotal+=$credit;
+        }
         unset($account);
         $journals=$db->fetchAllAssociative('SELECT id,code,name FROM app_accounting_journal ORDER BY code');
         $entries=$db->fetchAllAssociative('SELECT e.id,e.entry_number,e.entry_date,e.reference,e.description,j.code AS journal_code,j.name AS journal_name,COALESCE(SUM(l.debit),0) AS debit,COALESCE(SUM(l.credit),0) AS credit FROM app_journal_entry e INNER JOIN app_accounting_journal j ON j.id=e.journal_id INNER JOIN app_journal_entry_line l ON l.entry_id=e.id WHERE e.status=? AND e.entry_date BETWEEN ? AND ? GROUP BY e.id,e.entry_number,e.entry_date,e.reference,e.description,j.code,j.name ORDER BY e.entry_date DESC,e.id DESC LIMIT 100',['posted',$from,$to]);
-        return $this->render('general_ledger/index.html.twig',['accounts'=>$accounts,'journals'=>$journals,'entries'=>$entries,'from'=>$from,'to'=>$to,'debit_total'=>round($debitTotal,2),'credit_total'=>round($creditTotal,2)]);
+        return $this->render('general_ledger/index.html.twig',['accounts'=>$accounts,'journals'=>$journals,'entries'=>$entries,'from'=>$from,'to'=>$to,'debit_total'=>AccountingAmount::formatCents($debitTotal),'credit_total'=>AccountingAmount::formatCents($creditTotal)]);
     }
 
     #[Route('/entries',name:'app_general_ledger_entry_create',methods:['POST'])]
@@ -63,7 +71,7 @@ final class GeneralLedgerController extends AbstractController
                 $number=(int)$db->fetchOne('SELECT COALESCE(MAX(entry_number),0)+1 FROM app_journal_entry WHERE journal_id=?',[$journalId]);
                 $db->insert('app_journal_entry',['journal_id'=>$journalId,'entry_number'=>$number,'entry_date'=>$date,'reference'=>$reference!==''?$reference:null,'description'=>$description,'status'=>'posted','created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
                 $entryId=(int)$db->lastInsertId();
-                foreach($lines as $line)$db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$line['account_id'],'label'=>$line['label'],'debit'=>number_format($line['debit']/100,2,'.',''),'credit'=>number_format($line['credit']/100,2,'.','')]);
+                foreach($lines as $line)$db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$line['account_id'],'label'=>$line['label'],'debit'=>AccountingAmount::formatCents($line['debit']),'credit'=>AccountingAmount::formatCents($line['credit'])]);
                 $db->commit();
             }catch(Throwable $e){$db->rollBack();throw $e;}
             $this->addFlash('success',sprintf('Écriture %s-%06d enregistrée et équilibrée.',$db->fetchOne('SELECT code FROM app_accounting_journal WHERE id=?',[$journalId]),$number));
@@ -80,7 +88,14 @@ final class GeneralLedgerController extends AbstractController
         $account=$db->fetchAssociative('SELECT * FROM app_accounting_account WHERE id=?',[$id]);
         if(!$account)throw $this->createNotFoundException();
         $lines=$db->fetchAllAssociative('SELECT e.entry_date,j.code AS journal_code,e.entry_number,e.reference,e.description,l.label,l.debit,l.credit FROM app_journal_entry_line l INNER JOIN app_journal_entry e ON e.id=l.entry_id INNER JOIN app_accounting_journal j ON j.id=e.journal_id WHERE l.account_id=? AND e.status=? AND e.entry_date BETWEEN ? AND ? ORDER BY e.entry_date,e.id,l.id',[$id,'posted',$from,$to]);
-        $balance=0.0;foreach($lines as &$line){$balance=round($balance+(float)$line['debit']-(float)$line['credit'],2);$line['balance']=$balance;}unset($line);
+        $balanceCents=0;foreach($lines as &$line){
+            $debit=AccountingAmount::toCents((string)$line['debit']);
+            $credit=AccountingAmount::toCents((string)$line['credit']);
+            $balanceCents+=$debit-$credit;
+            $line['debit']=AccountingAmount::formatCents($debit);
+            $line['credit']=AccountingAmount::formatCents($credit);
+            $line['balance']=AccountingAmount::formatCents($balanceCents);
+        }unset($line);$balance=AccountingAmount::formatCents($balanceCents);
         return $this->render('general_ledger/account.html.twig',['account'=>$account,'lines'=>$lines,'from'=>$from,'to'=>$to,'balance'=>$balance]);
     }
 
