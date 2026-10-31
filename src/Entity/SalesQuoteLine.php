@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\StockQuantity;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 
@@ -46,7 +47,8 @@ class SalesQuoteLine
         if ($description === '' || mb_strlen($description) > 255) {
             throw new InvalidArgumentException('Each quote line needs a description of at most 255 characters.');
         }
-        if (!is_numeric($quantity) || (float) $quantity <= 0 || (float) $quantity > 9999999.999) {
+        $quantityMilliunits = StockQuantity::toMilliunits($quantity);
+        if ($quantityMilliunits <= 0 || $quantityMilliunits > 9_999_999_999) {
             throw new InvalidArgumentException('Quantity must be greater than zero and within the supported range.');
         }
         if (!is_numeric($unitPrice) || (float) $unitPrice < 0 || (float) $unitPrice > 9999999999.99) {
@@ -56,7 +58,7 @@ class SalesQuoteLine
             throw new InvalidArgumentException('VAT rate must be between 0 and 100.');
         }
         $this->description = $description;
-        $this->quantity = number_format((float) $quantity, 3, '.', '');
+        $this->quantity = StockQuantity::format($quantityMilliunits);
         $this->unitPrice = number_format((float) $unitPrice, 2, '.', '');
         $this->vatRate = number_format((float) $vatRate, 2, '.', '');
         $this->position = max(1, $position);
