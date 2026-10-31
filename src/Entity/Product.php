@@ -94,11 +94,11 @@ class Product
         }
         $this->purchasePrice = $this->money($data['purchase_price'] ?? null, 'Prix d’achat');
         $this->salePrice = $this->money($data['sale_price'] ?? null, 'Prix de vente');
-        $vat = $data['vat_rate'] ?? null;
-        if (!is_numeric($vat) || (float) $vat < 0 || (float) $vat > 100) {
+        $vatCents = $this->decimalToCents($data['vat_rate'] ?? null, 'Taux de TVA', 3);
+        if ($vatCents > 10000) {
             throw new InvalidArgumentException('Le taux de TVA doit être compris entre 0 et 100.');
         }
-        $this->vatRate = number_format((float) $vat, 2, '.', '');
+        $this->vatRate = $this->formatCents($vatCents);
         $this->stockTracked = isset($data['stock_tracked']) && (string) $data['stock_tracked'] === '1';
         $threshold = $data['stock_alert_threshold'] ?? '0';
         $this->stockAlertThreshold = StockQuantity::format(StockQuantity::toMilliunits($threshold));
@@ -150,9 +150,28 @@ class Product
 
     private function money(mixed $value, string $label): string
     {
-        if (!is_numeric($value) || (float) $value < 0 || (float) $value > 9999999999.99) {
-            throw new InvalidArgumentException($label.' doit être un montant positif ou nul.');
+        return $this->formatCents($this->decimalToCents($value, $label, 10));
+    }
+
+    private function decimalToCents(mixed $value, string $label, int $maxWholeDigits): int
+    {
+        if (!is_string($value) && !is_int($value)) {
+            throw new InvalidArgumentException($label.' doit être un nombre décimal valide.');
         }
-        return number_format((float) $value, 2, '.', '');
+
+        $raw = trim((string) $value);
+        $pattern = '/^(?:0|[1-9]\\\\d{0,'.($maxWholeDigits - 1).' })(?:\\\\.\\\\d{1,2})?$/D';
+        $pattern = str_replace(' ', '', $pattern);
+        if (!preg_match($pattern, $raw)) {
+            throw new InvalidArgumentException($label.' doit être positif ou nul, avec deux décimales maximum.');
+        }
+
+        [$whole, $fraction] = array_pad(explode('.', $raw, 2), 2, '');
+        return ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
+    }
+
+    private function formatCents(int $cents): string
+    {
+        return intdiv($cents, 100).'.'.str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 }
