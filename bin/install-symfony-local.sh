@@ -49,7 +49,7 @@ fi
 
 # Run maintenance commands inside the already configured Symfony service.
 console() {
-    docker compose --env-file .env.docker exec --no-TTY --interactive=false symfony php bin/console "$@"
+    docker compose --env-file .env.docker exec --no-TTY symfony php bin/console "$@" </dev/null
 }
 echo "Migrations Doctrine détectées avant installation :"
 console doctrine:migrations:list
@@ -71,7 +71,7 @@ if ($hasUserTable !== 1) {
 $userCount = (int) $pdo->query("SELECT COUNT(*) FROM app_user")->fetchColumn();
 echo json_encode($database + ["app_user_rows" => $userCount], JSON_THROW_ON_ERROR) . PHP_EOL;'
 echo "Vérification de la base utilisée par le conteneur CLI :"
-docker compose --env-file .env.docker exec --no-TTY --interactive=false symfony php -r "$database_check"
+docker compose --env-file .env.docker exec --no-TTY symfony php -r "$database_check" </dev/null
 echo "Vérification de la même base depuis le conteneur HTTP Symfony :"
 docker compose --env-file .env.docker exec --no-TTY --interactive=false symfony php -r "$database_check"
 console doctrine:schema:validate
@@ -86,7 +86,7 @@ fi
 docker compose --env-file .env.docker exec --no-TTY --interactive=false \
     -e "SYMFOERP_ADMIN_EMAIL=$admin_email" \
     -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \
-    symfony php bin/console app:user:create
+    symfony php bin/console app:user:create </dev/null
 unset admin_password
 echo
 echo "Installation SYMFOERP terminée : http://localhost:8000/login"
