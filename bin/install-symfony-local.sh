@@ -94,8 +94,8 @@ trap cleanup_admin_env EXIT
     printf 'SYMFOERP_ADMIN_PASSWORD=%s\n' "$admin_password"
 } > "$admin_env_file"
 unset admin_password
-docker compose --env-file .env.docker exec --no-TTY \
-    --env-file "$admin_env_file" symfony php bin/console app:user:create
+docker compose --env-file .env.docker exec --no-TTY symfony \
+    sh -c '. /dev/stdin; exec php bin/console app:user:create' < "$admin_env_file"
 rm -f "$admin_env_file"
 trap - EXIT
 
