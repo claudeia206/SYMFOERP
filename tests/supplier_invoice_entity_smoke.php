@@ -43,6 +43,7 @@ expectSupplierInvoice($invoice->getLines()->count() === 1, 'Received quantities 
 expectSupplierInvoice($invoice->getLines()->first()->getQuantity() === '3.000', 'Only received quantity may be invoiced.');
 expectSupplierInvoice($invoice->getTotalExcludingTax() === 75.0, 'Supplier invoice must snapshot purchase prices.');
 expectSupplierInvoice($invoice->getTotalIncludingTax() === 90.0, 'Supplier invoice VAT total must be calculated.');
+expectSupplierInvoice($invoice->getTotalExcludingTaxCents() === 7500 && $invoice->getTotalTaxCents() === 1500 && $invoice->getTotalIncludingTaxCents() === 9000, 'Supplier invoice totals must remain exact in cents.');
 $normalizedPayment = new SupplierPayment($invoice, '0.5', new DateTimeImmutable('2026-10-10'), 'cash');
 expectSupplierInvoice($normalizedPayment->getAmount() === '0.50', 'Supplier payment amounts must be normalized exactly.');
 foreach (['0', '-1.00', '+1.00', '01.00', '1,00', '1.001', '1e2', '10000000000.00'] as $invalidAmount) {
@@ -57,13 +58,13 @@ $invoice->receive(new DateTimeImmutable('2026-10-01'), new DateTimeImmutable('20
 $payment = new SupplierPayment($invoice, '30.00', new DateTimeImmutable('2026-10-10'), 'bank_transfer', 'VIR-001');
 $invoice->addPayment($payment);
 expectSupplierInvoice($invoice->getStatus() === SupplierInvoice::STATUS_PARTIALLY_PAID, 'Partial supplier payment status is incorrect.');
-expectSupplierInvoice($invoice->getPaidAmount() === 30.0 && $invoice->getRemainingAmount() === 60.0, 'Supplier payment balance is incorrect.');
+expectSupplierInvoice($invoice->getPaidAmountCents() === 3000 && $invoice->getRemainingAmountCents() === 6000, 'Supplier payment balance is incorrect.');
 $invoice->addPayment(new SupplierPayment($invoice, '60.00', new DateTimeImmutable('2026-10-15'), 'bank_transfer'));
 expectSupplierInvoice($invoice->getStatus() === SupplierInvoice::STATUS_PAID, 'Fully paid supplier invoice must be marked paid.');
 $boundaryInvoice = new SupplierInvoice($order, 'F-2026-002');
 $boundaryInvoice->receive(new DateTimeImmutable('2026-10-01'), new DateTimeImmutable('2026-10-31'));
 $boundaryInvoice->addPayment(new SupplierPayment($boundaryInvoice, '89.99', new DateTimeImmutable('2026-10-10'), 'bank_transfer'));
-expectSupplierInvoice($boundaryInvoice->getRemainingAmount() === 0.01, 'A one-cent supplier balance must remain outstanding exactly.');
+expectSupplierInvoice($boundaryInvoice->getRemainingAmountCents() === 1, 'A one-cent supplier balance must remain outstanding exactly.');
 try {
     $boundaryInvoice->addPayment(new SupplierPayment($boundaryInvoice, '0.02', new DateTimeImmutable('2026-10-10'), 'cash'));
     throw new RuntimeException('A supplier payment one cent above the balance was accepted.');
