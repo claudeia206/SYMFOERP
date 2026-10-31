@@ -154,7 +154,7 @@ final class GeneralLedgerController extends AbstractController
         $value=trim($value);
         $grouping='[ \\x{00A0}\\x{202F}]';
         if(!preg_match('/^(?:0|[1-9]\\d{0,11}|[1-9]\\d{0,2}(?:'.$grouping.'\\d{3})+)(?:[,.]\\d{1,2})?$/uD',$value)){
-            throw new \\InvalidArgumentException('Montant invalide : groupement des milliers et deux décimales maximum.');
+            throw new \InvalidArgumentException('Montant invalide : groupement des milliers et deux décimales maximum.');
         }
         $normalized=preg_replace('/'.$grouping.'/u','',$value);
         $normalized=str_replace(',','.',$normalized);
