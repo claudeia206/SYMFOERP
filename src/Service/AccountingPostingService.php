@@ -14,8 +14,8 @@ final class AccountingPostingService
         if(!$invoice) throw new RuntimeException('Facture client émise introuvable pour comptabilisation.');
         $groups=$this->db->fetchAllAssociative('SELECT vat_rate,SUM(ROUND(quantity*unit_price,2)) AS net,SUM(ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS tax FROM app_sales_invoice_line WHERE invoice_id=? GROUP BY vat_rate ORDER BY vat_rate',[$invoiceId]);
         $lines=[];$totalNet=0;$totalTax=0;
-        foreach($groups as $group){$net=$this->cents($group['net']);$tax=$this->cents($group['tax']);if($net>0)$lines[]=['account'=>'707000','label'=>'Vente HT – TVA '.$group['vat_rate'].'%','debit'=>0,'credit'=>$net];if($tax>0)$lines[]=['account'=>'445710','label'=>'TVA collectée – '.$group['vat_rate'].'%','debit'=>0,'credit'=>$tax];$totalNet+=$net;$totalTax+=$tax;}
-        if($totalNet+$totalTax<=0)throw new RuntimeException('La facture ne comporte aucun montant comptabilisable.');
+        foreach($groups as $group){$net=$this->cents($group['net']);$tax=$this->cents($group['tax']);if($net>0)$lines[]=['account'=>'707000','label'=>'Vente HT – TVA '.$group['vat_rate'].'%','debit'=>0,'credit'=>$net];if($tax>0)$lines[]=['account'=>'445710','label'=>'TVA collectée – '.$group['vat_rate'].'%','debit'=>0,'credit'=>$tax];$totalNet=AccountingAmount::addCents($totalNet,$net);$totalTax=AccountingAmount::addCents($totalTax,$tax);}
+        if(AccountingAmount::addCents($totalNet,$totalTax)<=0)throw new RuntimeException('La facture ne comporte aucun montant comptabilisable.');
         array_unshift($lines,['account'=>'411000','label'=>'Client '.$invoice['number'],'debit'=>$totalNet+$totalTax,'credit'=>0]);
         $this->post('sales_invoice',$invoiceId,'VE',$invoice['invoice_date'],$invoice['number'],'Facture client '.$invoice['number'],$lines);
     }
@@ -82,7 +82,7 @@ final class AccountingPostingService
                 if(!is_int($lineDebit)||!is_int($lineCredit)||$lineDebit<0||$lineCredit<0||(($lineDebit>0)===($lineCredit>0)))throw new RuntimeException('Montants de ligne comptable invalides.');
                 $account=$db->fetchAssociative('SELECT id FROM app_accounting_account WHERE code=? AND is_active=1 FOR UPDATE',[$line['account']]);
                 if(!$account)throw new RuntimeException('Compte '.$line['account'].' absent ou inactif.');
-                $debit+=$lineDebit;$credit+=$lineCredit;
+                $debit=AccountingAmount::addCents($debit,$lineDebit);$credit=AccountingAmount::addCents($credit,$lineCredit);
                 $resolved[]=['account_id'=>(int)$account['id'],'label'=>$line['label'],'debit'=>$lineDebit,'credit'=>$lineCredit];
             }
             if($debit<=0||$debit!==$credit)throw new RuntimeException('Écriture automatique déséquilibrée.');
