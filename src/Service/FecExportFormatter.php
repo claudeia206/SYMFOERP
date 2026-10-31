@@ -37,7 +37,7 @@ final class FecExportFormatter
     public function sanitizeField(mixed $value): string
     {
         $value = (string) ($value ?? '');
-        $value = str_replace(["\r", "\n", '|'], [' ', ' ', '/'], $value);
+        $value = str_replace(["\r", "\n", "\t", '|'], [' ', ' ', ' ', '/'], $value);
         $sanitized = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', ' ', $value);
 
         if ($sanitized === null) {
