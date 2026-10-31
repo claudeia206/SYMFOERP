@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Entity;
+use App\Service\StockQuantity;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 #[ORM\Entity]
@@ -21,9 +22,12 @@ class SalesCreditNoteLine
     #[ORM\Column(name:'vat_rate',type:'decimal',precision:5,scale:2)] private string $vatRate;
     public function __construct(SalesCreditNote $creditNote,SalesInvoiceLine $invoiceLine,string $quantity)
     {
-        if(!is_numeric($quantity)||(float)$quantity<=0||(float)$quantity>9999999.999) throw new InvalidArgumentException('La quantité de l’avoir doit être positive.');
+        $quantityMilliunits = StockQuantity::toMilliunits($quantity);
+        if ($quantityMilliunits <= 0 || $quantityMilliunits > 9_999_999_999) {
+            throw new InvalidArgumentException('La quantité de l’avoir doit être positive et respecter la précision de la base.');
+        }
         $this->creditNote=$creditNote; $this->invoiceLine=$invoiceLine; $this->description=$invoiceLine->getDescription();
-        $this->quantity=number_format((float)$quantity,3,'.',''); $this->unitPrice=$invoiceLine->getUnitPrice(); $this->vatRate=$invoiceLine->getVatRate();
+        $this->quantity=StockQuantity::format($quantityMilliunits); $this->unitPrice=$invoiceLine->getUnitPrice(); $this->vatRate=$invoiceLine->getVatRate();
     }
     public function getId(): ?int { return $this->id; }
     public function getCreditNote(): SalesCreditNote { return $this->creditNote; }

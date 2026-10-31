@@ -4,6 +4,7 @@ declare(strict_types=1);
 use App\Entity\SalesCreditNote;
 use App\Entity\SalesCreditNoteLine;
 use App\Entity\SalesInvoice;
+use App\Entity\SalesInvoiceLine;
 use App\Entity\SalesOrder;
 use App\Entity\SalesQuote;
 use App\Entity\SalesQuoteLine;
@@ -44,6 +45,19 @@ expectCredit($note->getTotalTax() === 5.0, 'Credit note VAT must use the origina
 expectCredit($note->getTotalIncludingTax() === 30.0, 'Credit note total must include VAT.');
 expectCredit($line->getCreditedQuantity() === '0.500', 'Credited quantity must be tracked on the invoice line.');
 expectCredit($line->getCreditEligibleQuantity() === '1.500', 'Credit eligibility must exclude previous credits.');
+$precisionLine = new SalesInvoiceLine('Précision quantité', '1.000', '1.00', '20.00', 2);
+$precisionLine->recordCredit('0.001');
+$precisionLine->recordCredit('0.002');
+expectCredit($precisionLine->getCreditedQuantity() === '0.003', 'Repeated milliunit credits must add exactly without float drift.');
+expectCredit($precisionLine->getCreditEligibleQuantity() === '0.997', 'Remaining credit quantity must use exact milliunit subtraction.');
+foreach (['1e-3', '0.0001', '1,000'] as $invalidQuantity) {
+    try {
+        $precisionLine->recordCredit($invalidQuantity);
+        throw new RuntimeException('Invalid credit quantity format was accepted: '.$invalidQuantity);
+    } catch (InvalidArgumentException) {
+    }
+}
+
 expectCredit($invoice->getCreditedAmount() === 30.0, 'Invoice must aggregate issued credit notes.');
 expectCredit($invoice->getRemainingAmount() === 90.0, 'Credit notes must reduce the invoice receivable.');
 try {

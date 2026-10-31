@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\StockQuantity;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 
@@ -49,8 +50,9 @@ class SalesInvoiceLine
         if ($description === '' || mb_strlen($description) > 255) {
             throw new InvalidArgumentException('Invoice line description is required (255 characters maximum).');
         }
-        if (!is_numeric($quantity) || (float) $quantity <= 0 || (float) $quantity > 9999999.999) {
-            throw new InvalidArgumentException('Invoice line quantity must be positive.');
+        $quantityMilliunits = StockQuantity::toMilliunits($quantity);
+        if ($quantityMilliunits <= 0 || $quantityMilliunits > 9_999_999_999) {
+            throw new InvalidArgumentException('Invoice line quantity must be positive and fit the database precision.');
         }
         if (!is_numeric($unitPrice) || (float) $unitPrice < 0 || (float) $unitPrice > 9999999999.99) {
             throw new InvalidArgumentException('Invoice line unit price is invalid.');
@@ -60,7 +62,7 @@ class SalesInvoiceLine
         }
         $this->product = $product;
         $this->description = $description;
-        $this->quantity = number_format((float) $quantity, 3, '.', '');
+        $this->quantity = StockQuantity::format($quantityMilliunits);
         $this->unitPrice = number_format((float) $unitPrice, 2, '.', '');
         $this->vatRate = number_format((float) $vatRate, 2, '.', '');
         $this->position = max(1, $position);
@@ -75,13 +77,20 @@ class SalesInvoiceLine
     public function getVatRate(): string { return $this->vatRate; }
     public function getPosition(): int { return $this->position; }
     public function getCreditedQuantity(): string { return $this->creditedQuantity; }
-    public function getCreditEligibleQuantity(): string { return number_format(max(0.0, (float) $this->quantity - (float) $this->creditedQuantity), 3, '.', ''); }
+    public function getCreditEligibleQuantity(): string
+    {
+        return StockQuantity::format(max(0, StockQuantity::toMilliunits($this->quantity) - StockQuantity::toMilliunits($this->creditedQuantity)));
+    }
     public function recordCredit(string $quantity): self
     {
-        if (!is_numeric($quantity) || round((float) $quantity, 3) <= 0 || (float) $quantity > (float) $this->getCreditEligibleQuantity() + 0.000001) {
+        $quantityMilliunits = StockQuantity::toMilliunits($quantity);
+        $eligibleMilliunits = StockQuantity::toMilliunits($this->getCreditEligibleQuantity());
+        if ($quantityMilliunits <= 0 || $quantityMilliunits > $eligibleMilliunits) {
             throw new InvalidArgumentException('La quantité de l’avoir dépasse la quantité encore facturable sur cette ligne.');
         }
-        $this->creditedQuantity = number_format((float) $this->creditedQuantity + (float) $quantity, 3, '.', '');
+        $this->creditedQuantity = StockQuantity::format(
+            StockQuantity::toMilliunits($this->creditedQuantity) + $quantityMilliunits
+        );
         return $this;
     }
     public function getTotalExcludingTax(): float { return round((float) $this->quantity * (float) $this->unitPrice, 2); }
