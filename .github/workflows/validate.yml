@@ -360,7 +360,7 @@ jobs:
           supplier_invoice_id = re.search(r'href="/purchases/invoices/(\d+)"', supplier_invoice_html)
           assert supplier_invoice_id, "Supplier invoice draft was not created"
           supplier_detail = client.open(base + "/purchases/invoices/" + supplier_invoice_id.group(1)).read().decode()
-          supplier_receive_form = re.search(r'<form method="post" action="/purchases/invoices/' + supplier_invoice_id.group(1) + r'/receive">.*?</form>', supplier_detail, re.S)
+          supplier_receive_form = re.search(r'<form method="post" action="/purchases/invoices/' + supplier_invoice_id.group(1) + r'/receive"[^>]*>.*?</form>', supplier_detail, re.S)
           assert supplier_receive_form, "Supplier invoice validation form missing"
           supplier_receive_token = re.search(r'name="_token" value="([^"]+)"', supplier_receive_form.group(0))
           assert supplier_receive_token, "Supplier invoice validation CSRF token missing"
@@ -369,7 +369,7 @@ jobs:
               "due_date": (date.today() + timedelta(days=30)).isoformat(),
           }).encode())).read().decode()
           assert "validée et comptabilisée" in supplier_received, "Supplier invoice was not automatically posted"
-          supplier_payment_form = re.search(r'<form method="post" action="/purchases/invoices/' + supplier_invoice_id.group(1) + r'/payments">.*?</form>', supplier_received, re.S)
+          supplier_payment_form = re.search(r'<form method="post" action="/purchases/invoices/' + supplier_invoice_id.group(1) + r'/payments"[^>]*>.*?</form>', supplier_received, re.S)
           assert supplier_payment_form, "Supplier payment form missing after validation"
           supplier_payment_token = re.search(r'name="_token" value="([^"]+)"', supplier_payment_form.group(0))
           assert supplier_payment_token, "Supplier payment CSRF token missing"
