@@ -58,7 +58,7 @@ final class FinancialReportController extends AbstractController
             $invoice['total']=AccountingAmount::formatCents($total);
             $invoice['paid']=AccountingAmount::formatCents($paid);
             $invoice['remaining']=AccountingAmount::formatCents($remaining);
-            $salesOutstanding+=$remaining;
+            $salesOutstanding=AccountingAmount::addSignedCents($salesOutstanding,$remaining);
             $invoice['overdue']=$remaining>0 && new DateTimeImmutable($invoice['due_date'])<$today;
             if($invoice['overdue']) { ++$salesOverdue; $overdueReceivables[]=$invoice; }
         }
@@ -70,7 +70,7 @@ final class FinancialReportController extends AbstractController
             $invoice['total']=AccountingAmount::formatCents($total);
             $invoice['paid']=AccountingAmount::formatCents($paid);
             $invoice['remaining']=AccountingAmount::formatCents($remaining);
-            $supplierOutstanding+=$remaining;
+            $supplierOutstanding=AccountingAmount::addSignedCents($supplierOutstanding,$remaining);
             $invoice['overdue']=$remaining>0 && new DateTimeImmutable($invoice['due_date'])<$today;
             if($invoice['overdue']) { ++$supplierOverdue; $overduePayables[]=$invoice; }
         }
