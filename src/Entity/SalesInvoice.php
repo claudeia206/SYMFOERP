@@ -214,10 +214,14 @@ class SalesInvoice
     public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
     public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
 
+    public function getPaidAmountCents(): int
+    {
+        return array_reduce($this->payments->toArray(), static fn (int $sum, SalesPayment $payment): int => AccountingAmount::addCents($sum, self::decimalToCents($payment->getAmount())), 0);
+    }
+
     public function getPaidAmount(): float
     {
-        $cents = array_reduce($this->payments->toArray(), static fn (int $sum, SalesPayment $payment): int => AccountingAmount::addCents($sum, self::decimalToCents($payment->getAmount())), 0);
-        return $cents / 100;
+        return $this->getPaidAmountCents() / 100;
     }
 
     public function getRemainingAmount(): float
@@ -225,11 +229,11 @@ class SalesInvoice
         return $this->getRemainingAmountCents() / 100;
     }
 
-    private function getRemainingAmountCents(): int
+    public function getRemainingAmountCents(): int
     {
         $totalCents = $this->getTotalIncludingTaxCents();
-        $paidCents = array_reduce($this->payments->toArray(), static fn (int $sum, SalesPayment $payment): int => $sum + self::decimalToCents($payment->getAmount()), 0);
-        $creditedCents = array_reduce($this->creditNotes->toArray(), static fn (int $sum, SalesCreditNote $note): int => $sum + $note->getTotalIncludingTaxCents(), 0);
+        $paidCents = $this->getPaidAmountCents();
+        $creditedCents = array_reduce($this->creditNotes->toArray(), static fn (int $sum, SalesCreditNote $note): int => AccountingAmount::addCents($sum, $note->getTotalIncludingTaxCents()), 0);
         return max(0, $totalCents - $paidCents - $creditedCents);
     }
 
