@@ -47,7 +47,7 @@ SQL,[$limit->format('Y-m-d')]);
             $greeting='Bonjour '.$row['customer_name'].",\n\n";
             $body=$daysLate===0
                 ?'Nous vous rappelons que la facture '.$row['number'].' d’un montant restant dû de '.$localizedRemaining." € arrive à échéance le ".$due->format('d/m/Y').".\n\n"
-                :'Sauf erreur de notre part, la facture '.$row['number'].' présente un solde restant dû de '.number_format($remaining,2,',',' ')." € et était payable le ".$due->format('d/m/Y').".\n\n";
+                :'Sauf erreur de notre part, la facture '.$row['number'].' présente un solde restant dû de '.$localizedRemaining." € et était payable le ".$due->format('d/m/Y').".\n\n";
             $body.='Nous vous remercions de bien vouloir procéder à son règlement ou de nous contacter en cas de difficulté.'."\n\nCordialement";
             $row['remaining']=$remaining;$row['days_late']=$daysLate;$row['stage']=$stage;$row['subject']=$subject;
             $row['mailto']=$row['email']? 'mailto:'.rawurlencode($row['email']).'?subject='.rawurlencode($subject).'&body='.rawurlencode($greeting.$body):null;
