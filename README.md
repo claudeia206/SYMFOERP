@@ -15,7 +15,8 @@ La validation automatisée sur environnement vierge couvre :
 - génération PDF des devis et factures, création et paiement d'une facture client, émission d'un avoir ;
 - catalogue produits, commandes fournisseurs, réception, factures fournisseurs et paiements ;
 - écritures automatiques liées aux factures et règlements clients/fournisseurs ;
-- accès aux écrans de grand livre, TVA, balance âgée, rapprochement bancaire et reporting.
+- export FEC, calcul exact des dotations aux amortissements et contrôles des périodes comptables ;
+- accès aux écrans de grand livre, états financiers, TVA, balance âgée, rapprochement bancaire, relances clients et reporting.
 
 **Important :** cette alpha n'est pas une version de production ni une certification comptable/fiscale. Les parcours non couverts par les tests automatisés doivent être vérifiés pendant la recette. La première installation sur le poste de test doit encore être effectuée par l'utilisateur.
 
@@ -26,7 +27,8 @@ Prérequis : Git, Docker Engine avec Docker Compose v2, OpenSSL et curl.
 ```bash
 git clone https://github.com/claudeia206/SYMFOERP.git
 cd SYMFOERP
-git switch feature/symfony-native-install
+git switch main
+git pull --ff-only origin main
 bash bin/install-symfony-local.sh
 ```
 
@@ -102,8 +104,8 @@ unset SYMFOERP_ADMIN_EMAIL SYMFOERP_ADMIN_PASSWORD
 - Ventes : devis, commandes, livraisons, factures, avoirs et règlements.
 - Produits : catalogue, suivi des stocks et mouvements.
 - Achats : commandes, réceptions, factures fournisseurs et paiements.
-- Finance : rapprochement bancaire, trésorerie et rapports.
-- Comptabilité : écritures automatiques, grand livre, TVA, balance âgée et périodes comptables.
+- Finance : rapprochement bancaire, trésorerie, relances clients et rapports.
+- Comptabilité : écritures automatiques, grand livre, états financiers, TVA, balance âgée, immobilisations (acquisition, amortissement, cession), export FEC et périodes comptables.
 - Administration : comptes utilisateurs et rôles.
 
 ## Validation
