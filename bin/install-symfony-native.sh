@@ -33,14 +33,14 @@ echo "==> Installation des outils de base"
 $SUDO apt-get update
 $SUDO apt-get install -y software-properties-common ca-certificates curl git unzip acl apache2 mariadb-server mariadb-client
 
-PHP_VERSION="$(apt-cache policy php8.3-cli 2>/dev/null | sed -nE 's/^[[:space:]]*(Candidate|Candidat)[[:space:]]*:[[:space:]]*([^[:space:]]+).*/\\2/p' | head -n1)"
+PHP_VERSION="$(apt-cache policy php8.3-cli 2>/dev/null | sed -nE 's/^[[:space:]]*(Candidate|Candidat)[[:space:]]*:[[:space:]]*([^[:space:]]+).*/\2/p' | head -n1)"
 if [[ -z "$PHP_VERSION" || "$PHP_VERSION" == "(none)" ]]; then
   echo "PHP 8.3 absent des dépôts configurés ; activation du PPA PHP pour Ubuntu $UBUNTU_CODENAME."
   $SUDO add-apt-repository -y ppa:ondrej/php
   $SUDO apt-get update
 fi
 
-PHP_VERSION="$(apt-cache policy php8.3-cli 2>/dev/null | sed -nE 's/^[[:space:]]*(Candidate|Candidat)[[:space:]]*:[[:space:]]*([^[:space:]]+).*/\\2/p' | head -n1)"
+PHP_VERSION="$(apt-cache policy php8.3-cli 2>/dev/null | sed -nE 's/^[[:space:]]*(Candidate|Candidat)[[:space:]]*:[[:space:]]*([^[:space:]]+).*/\2/p' | head -n1)"
 if [[ -z "$PHP_VERSION" || "$PHP_VERSION" == "(none)" ]]; then
   echo "Impossible de trouver PHP 8.3. Aucun déploiement applicatif n'a été effectué." >&2
   exit 1
