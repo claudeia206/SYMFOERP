@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\AccountingAmount;
 use App\Service\AccountingPeriodGuard;
 use App\Service\DepreciationCalculator;
 use DateTimeImmutable;
