@@ -341,7 +341,7 @@ jobs:
           assert purchase_id, "Purchase order was not created"
           purchase_parser = TokenParser()
           purchase_parser.feed(purchase_html)
-          receive_token = re.search(r'<form method="post" action="/purchases/' + purchase_id.group(1) + r'/receive">.*?name="_token" value="([^"]+)"', purchase_html, re.S)
+          receive_token = re.search(r'<form method="post" action="/purchases/' + purchase_id.group(1) + r'/receive"[^>]*>.*?name="_token" value="([^"]+)"', purchase_html, re.S)
           assert receive_token, "Purchase receipt CSRF token missing"
           received_line = re.search(r'name="received\[(\d+)\]"', purchase_html)
           assert received_line, "Purchase order receipt quantity input missing"
