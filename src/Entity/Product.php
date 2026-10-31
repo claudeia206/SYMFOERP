@@ -160,8 +160,7 @@ class Product
         }
 
         $raw = trim((string) $value);
-        $pattern = '/^(?:0|[1-9]\\\\d{0,'.($maxWholeDigits - 1).' })(?:\\\\.\\\\d{1,2})?$/D';
-        $pattern = str_replace(' ', '', $pattern);
+        $pattern = '/^(?:0|[1-9][0-9]{0,'.($maxWholeDigits - 1).'})(?:[.][0-9]{1,2})?$/D';
         if (!preg_match($pattern, $raw)) {
             throw new InvalidArgumentException($label.' doit être positif ou nul, avec deux décimales maximum.');
         }
