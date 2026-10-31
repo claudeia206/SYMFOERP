@@ -50,8 +50,12 @@ fi
 # Run maintenance commands directly in the already healthy Symfony container.
 # This preserves its exact environment and avoids Compose's one-off TTY behavior.
 console() {
-    docker exec symfoerp-symfony php bin/console "$@"
+    docker exec --workdir /app symfoerp-symfony php -d display_errors=1 /app/bin/console "$@"
 }
+echo "Diagnostic CLI Symfony :"
+docker exec --workdir /app symfoerp-symfony php -r 'echo "PHP CLI OK; cwd=" . getcwd() . PHP_EOL;'
+docker exec --workdir /app symfoerp-symfony test -f /app/bin/console
+console --version
 echo "Migrations Doctrine détectées avant installation :"
 console doctrine:migrations:list
 console doctrine:migrations:status --show-versions
@@ -72,7 +76,7 @@ if ($hasUserTable !== 1) {
 $userCount = (int) $pdo->query("SELECT COUNT(*) FROM app_user")->fetchColumn();
 echo json_encode($database + ["app_user_rows" => $userCount], JSON_THROW_ON_ERROR) . PHP_EOL;'
 echo "Vérification de la base utilisée par le conteneur CLI :"
-docker exec symfoerp-symfony php -r "$database_check"
+docker exec --workdir /app symfoerp-symfony php -r "$database_check"
 echo "Vérification de la même base depuis le conteneur HTTP Symfony :"
 docker exec symfoerp-symfony php -r "$database_check"
 console doctrine:schema:validate
@@ -87,7 +91,7 @@ fi
 docker exec \
     -e "SYMFOERP_ADMIN_EMAIL=$admin_email" \
     -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \
-    symfoerp-symfony php bin/console app:user:create </dev/null
+    --workdir /app symfoerp-symfony php -d display_errors=1 /app/bin/console app:user:create </dev/null
 unset admin_password
 echo
 echo "Installation SYMFOERP terminée : http://localhost:8000/login"
