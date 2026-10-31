@@ -78,7 +78,7 @@ final class FiscalClosingController extends AbstractController
 
         $rows = $db->fetchAllAssociative(
             'SELECT j.code AS journal_code, j.name AS journal_name, e.entry_number,
-                    e.entry_date, a.code AS account_code, a.name AS account_name,
+                    e.entry_date, e.created_at, a.code AS account_code, a.name AS account_name,
                     e.reference, e.description, l.label, l.debit, l.credit
              FROM app_journal_entry e
              INNER JOIN app_accounting_journal j ON j.id=e.journal_id
@@ -97,6 +97,12 @@ final class FiscalClosingController extends AbstractController
                 throw new RuntimeException('Une date d’écriture est invalide : export FEC interrompu.');
             }
             $formattedDate = $date->format('Ymd');
+            $createdAt = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', substr((string) $row['created_at'], 0, 19));
+            $createdAtErrors = DateTimeImmutable::getLastErrors();
+            if ($createdAt === false || ($createdAtErrors !== false && ($createdAtErrors['warning_count'] > 0 || $createdAtErrors['error_count'] > 0))) {
+                throw new RuntimeException('Une date de validation est invalide : export FEC interrompu.');
+            }
+            $validationDate = $createdAt->format('Ymd');
             $fecRows[] = [
                 $row['journal_code'],
                 $row['journal_name'],
@@ -113,7 +119,7 @@ final class FiscalClosingController extends AbstractController
                 $formatter->formatAmount((string) $row['credit']),
                 '',
                 '',
-                $formattedDate,
+                $validationDate,
                 '',
                 '',
             ];
