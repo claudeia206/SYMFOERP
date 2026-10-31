@@ -221,12 +221,7 @@ final class FixedAssetController extends AbstractController
         if (!$this->isCsrfTokenValid('fixed_asset_depreciation_'.$id.'_'.$year,(string)$request->request->get('_token'))) throw $this->createAccessDeniedException();
         if($year<2000||$year>2100)throw $this->createNotFoundException();
         try {
-            $asOfInput = (string) $request->request->get('as_of', (new DateTimeImmutable('today'))->format('Y-m-d'));
-            $asOf = DateTimeImmutable::createFromFormat('!Y-m-d', $asOfInput);
-            if (!$asOf || $asOf->format('Y-m-d') !== $asOfInput) {
-                throw new InvalidArgumentException('Date de simulation invalide.');
-            }
-            (new FixedAssetDepreciationSequence())->assertPeriodComplete($asOf, $year);
+            (new FixedAssetDepreciationSequence())->assertPeriodComplete(new DateTimeImmutable('today'), $year);
             $db->beginTransaction();
             $periodGuard->assertOpenDate($db, $year.'-12-31');
             $asset=$db->fetchAssociative('SELECT * FROM app_fixed_asset WHERE id=? AND status=? FOR UPDATE',[$id,'active']);
