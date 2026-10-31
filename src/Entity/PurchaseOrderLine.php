@@ -70,8 +70,9 @@ public function setPurchaseOrder(PurchaseOrder $order): self { $this->purchaseOr
     public function getRemainingQuantity(): string { return StockQuantity::format(max(0, StockQuantity::toMilliunits($this->quantity) - StockQuantity::toMilliunits($this->receivedQuantity))); }
     public function getUnitPrice(): string { return $this->unitPrice; }
     public function getVatRate(): string { return $this->vatRate; }
-    public function getTotalExcludingTax(): float { return (float) $this->quantity * (float) $this->unitPrice; }
-    public function getTotalIncludingTax(): float { return $this->getTotalExcludingTax() * (1 + (float) $this->vatRate / 100); }
+    public function getTotalExcludingTax(): float { return round((float) $this->quantity * (float) $this->unitPrice, 2); }
+    public function getTotalTax(): float { return round($this->getTotalExcludingTax() * (float) $this->vatRate / 100, 2); }
+    public function getTotalIncludingTax(): float { return $this->getTotalExcludingTax() + $this->getTotalTax(); }
     public function receive(string $quantity): self
     {
         $received = StockQuantity::toMilliunits($quantity);
