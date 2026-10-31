@@ -38,7 +38,7 @@ final class FinancialReportController extends AbstractController
             FROM app_supplier_invoice i
             INNER JOIN app_third_party t ON t.id=i.supplier_id
             LEFT JOIN (
-                SELECT invoice_id,SUM(ROUND(quantity*unit_price*(1+vat_rate/100),2)) AS total
+                SELECT invoice_id,SUM(ROUND(quantity*unit_price,2)+ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS total
                 FROM app_supplier_invoice_line GROUP BY invoice_id
             ) amounts ON amounts.invoice_id=i.id
             LEFT JOIN (
