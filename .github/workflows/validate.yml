@@ -107,7 +107,7 @@ jobs:
       - name: Apply migrations and test authenticated third-party access
         run: |
           set -eu
-          trap 'docker compose --env-file .env.docker exec --no-TTY symfony sh -lc "tail -n 160 var/log/dev.log" || true' ERR
+          trap 'echo "=== Symfony and MariaDB container logs (last 300 lines) ==="; docker compose --env-file .env.docker logs --no-color --tail=300 symfony db_symfony || true' ERR
           # Exercise the same first-install path used by developers, not a parallel CI-only sequence.
           printf '%s\n%s\n' 'ci-admin@example.test' 'CI-Only-Password-2026' | bash bin/install-symfony-local.sh
           # Confirm the installer created the account and that Doctrine's schema is consistent.
