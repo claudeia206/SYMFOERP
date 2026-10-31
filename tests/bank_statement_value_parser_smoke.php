@@ -43,7 +43,7 @@ $amountCases = [
 foreach ($amountCases as [$value, $expected]) {
     expectBankParser($parser->parseAmountToCents($value) === $expected, 'Bank amount parsing failed: '.$value);
 }
-foreach (['', '0', '-0.00', '+1.00', '1e3', '1.001', '1,2.3', '01.00', '10000000000.00', 'abc', '1 2', '12 34', '1 € 00', '1 2345,00', '1,2,3', '123 456 789 012,00'] as $invalidAmount) {
+foreach (['', '0', '-0.00', '+1.00', '1e3', '1.001', '1,2.3', '01.00', '10000000000.00', 'abc', '1 2', '12 34', '1 € 00', '1 2345,00', '1,2,3', '123 456 789 012,00', '1.23,45', '12.34,56', '1.234.56', '1.234,567'] as $invalidAmount) {
     try {
         $parser->parseAmountToCents($invalidAmount);
         throw new RuntimeException('Invalid bank amount accepted: '.$invalidAmount);
