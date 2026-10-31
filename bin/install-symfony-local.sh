@@ -47,9 +47,18 @@ if [[ "$ready" -ne 1 ]]; then
     exit 1
 fi
 
-# Run Symfony console in disposable CLI containers, separate from the long-running HTTP server.
+# Run the exact application image in PHP CLI mode on the existing Compose network.
+set -a
+. ./.env.docker
+set +a
+symfoerp_network="$(docker inspect --format '{{range $name, $network := .NetworkSettings.Networks}}{{printf "%s" $name}}{{end}}' symfoerp-symfony)"
+symfoerp_image="$(docker inspect --format '{{.Image}}' symfoerp-symfony)"
+symfoerp_database_url="mysql://${SYMFONY_DB_USER}:${SYMFONY_DB_PASSWORD}@db_symfony:3306/${SYMFONY_DB_NAME}?serverVersion=mariadb-11.4.2&charset=utf8mb4"
 console() {
-    docker compose --env-file .env.docker run --rm --no-deps --entrypoint php symfony /app/bin/console "$@"
+    docker run --rm --network "$symfoerp_network" \
+        -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" \
+        -e DATABASE_URL="$symfoerp_database_url" \
+        "$symfoerp_image" php /app/bin/console "$@"
 }
 console doctrine:migrations:migrate --no-interaction
 console doctrine:schema:validate
@@ -61,10 +70,12 @@ if [[ -z "$admin_email" || ${#admin_password} -lt 12 ]]; then
     echo "E-mail requis et mot de passe d'au moins 12 caractères." >&2
     exit 1
 fi
-docker compose --env-file .env.docker run --rm --no-deps \
+docker run --rm --network "$symfoerp_network" \
+    -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" \
+    -e DATABASE_URL="$symfoerp_database_url" \
     -e SYMFOERP_ADMIN_EMAIL="$admin_email" \
     -e SYMFOERP_ADMIN_PASSWORD="$admin_password" \
-    --entrypoint php symfony /app/bin/console app:user:create
+    "$symfoerp_image" php /app/bin/console app:user:create
 unset admin_password
 
 echo
