@@ -40,13 +40,14 @@ WHERE i.status IN ('received','partially_paid','overdue')
 HAVING remaining>0
 ORDER BY i.due_date,i.id
 SQL);
-        foreach([$receivables,$payables] as &$groupRows){
-            foreach($groupRows as &$row){
-                $row['total']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$row['total']));
-            }
-            unset($row);
+        foreach($receivables as &$row){
+            $row['total']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$row['total']));
         }
-        unset($groupRows);
+        unset($row);
+        foreach($payables as &$row){
+            $row['total']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$row['total']));
+        }
+        unset($row);
         $receivableTotals=$this->summarize($receivables,$today);
         $payableTotals=$this->summarize($payables,$today);
         return $this->render('accounting/aging.html.twig',[
