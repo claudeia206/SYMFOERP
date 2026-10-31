@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\StockQuantity;
+
 use App\Repository\PurchaseOrderRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -95,8 +97,10 @@ class PurchaseOrder
         $allReceived = true;
         $anyReceived = false;
         foreach ($this->lines as $line) {
-            if ((float) $line->getReceivedQuantity() > 0) { $anyReceived = true; }
-            if ((float) $line->getReceivedQuantity() + 0.000001 < (float) $line->getQuantity()) { $allReceived = false; }
+            $received = StockQuantity::toMilliunits($line->getReceivedQuantity());
+            $ordered = StockQuantity::toMilliunits($line->getQuantity());
+            if ($received > 0) { $anyReceived = true; }
+            if ($received < $ordered) { $allReceived = false; }
         }
         $this->status = $allReceived ? self::STATUS_RECEIVED : ($anyReceived ? self::STATUS_PARTIALLY_RECEIVED : self::STATUS_SENT);
     }
