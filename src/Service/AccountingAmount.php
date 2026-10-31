@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\\Service;
+namespace App\Service;
 
 use InvalidArgumentException;
 
@@ -14,7 +14,7 @@ final class AccountingAmount
         }
 
         $value = (string) $amount;
-        if (!preg_match('/^-?(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,2})?$/D', $value)) {
+        if (!preg_match('/^-?(?:0|[1-9]\d{0,12})(?:\.\d{1,2})?$/D', $value)) {
             throw new InvalidArgumentException('Montant comptable invalide : 13 chiffres et deux décimales maximum.');
         }
 
