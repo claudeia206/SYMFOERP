@@ -43,6 +43,17 @@ expectPurchase($order->getStatus() === PurchaseOrder::STATUS_PARTIALLY_RECEIVED,
 $line->receive('6');
 $order->refreshReceiptStatus();
 expectPurchase($order->getStatus() === PurchaseOrder::STATUS_RECEIVED, 'Full receipt must close the order.');
+
+$precisionOrder = new PurchaseOrder($supplier);
+$precisionLine = new PurchaseOrderLine($product, '1.001', 1);
+$precisionOrder->addLine($precisionLine);
+$precisionOrder->setStatus(PurchaseOrder::STATUS_SENT);
+$precisionLine->receive('1.000');
+$precisionOrder->refreshReceiptStatus();
+expectPurchase($precisionOrder->getStatus() === PurchaseOrder::STATUS_PARTIALLY_RECEIVED, 'A one-milliunit remainder must keep the purchase order partially received.');
+$precisionLine->receive('0.001');
+$precisionOrder->refreshReceiptStatus();
+expectPurchase($precisionOrder->getStatus() === PurchaseOrder::STATUS_RECEIVED, 'The final milliunit must complete the purchase order exactly.');
 foreach ([
     fn () => $line->receive('0.001'),
     fn () => new PurchaseOrderLine($product, '0.0004', 3),
