@@ -62,12 +62,12 @@ console() {
 }
 console doctrine:migrations:migrate --no-interaction
 echo "Vérification de la base utilisée par le conteneur CLI :"
-console doctrine:query:sql 'SELECT DATABASE() AS database_name, @@hostname AS database_host'
-console doctrine:query:sql "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_user'"
-console doctrine:query:sql 'SELECT COUNT(*) AS app_user_rows FROM app_user'
+console dbal:run-sql 'SELECT DATABASE() AS database_name, @@hostname AS database_host'
+console dbal:run-sql "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_user'"
+console dbal:run-sql 'SELECT COUNT(*) AS app_user_rows FROM app_user'
 echo "Vérification de la même base depuis le conteneur HTTP Symfony :"
-docker compose --env-file .env.docker exec --no-TTY symfony php /app/bin/console doctrine:query:sql 'SELECT DATABASE() AS database_name, @@hostname AS database_host'
-docker compose --env-file .env.docker exec --no-TTY symfony php /app/bin/console doctrine:query:sql "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_user'"
+docker compose --env-file .env.docker exec --no-TTY symfony php /app/bin/console dbal:run-sql 'SELECT DATABASE() AS database_name, @@hostname AS database_host'
+docker compose --env-file .env.docker exec --no-TTY symfony php /app/bin/console dbal:run-sql "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_user'"
 console doctrine:schema:validate
 
 read -r -p "E-mail du premier administrateur : " admin_email
