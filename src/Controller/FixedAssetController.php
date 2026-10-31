@@ -390,7 +390,7 @@ final class FixedAssetController extends AbstractController
         }
 
         $raw = trim((string) $value);
-        if (preg_match('/^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,2})?$/D', $raw) !== 1) {
+        if (preg_match('/^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,2})?$/D', $raw) !== 1) {
             return null;
         }
 
