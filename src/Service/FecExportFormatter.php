@@ -21,7 +21,7 @@ final class FecExportFormatter
         }
 
         $value = (string) $amount;
-        if (!preg_match('/^\d{1,13}(?:\.\d{1,2})?$/D', $value)) {
+        if (!preg_match('/^\d{1,12}(?:\.\d{1,2})?$/D', $value)) {
             throw new RuntimeException('Montant FEC invalide ou précision supérieure à deux décimales.');
         }
 
