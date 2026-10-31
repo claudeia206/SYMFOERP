@@ -70,13 +70,23 @@ if [[ -z "$admin_email" || ${#admin_password} -lt 12 ]]; then
     echo "E-mail requis et mot de passe d'au moins 12 caractères." >&2
     exit 1
 fi
-docker run --rm --network "$symfoerp_network" \
+admin_env_file="$(mktemp)"
+chmod 600 "$admin_env_file"
+cleanup_admin_env() {
+    rm -f "$admin_env_file"
+}
+trap cleanup_admin_env EXIT
+{
+    printf 'SYMFOERP_ADMIN_EMAIL=%s\\n' "$admin_email"
+    printf 'SYMFOERP_ADMIN_PASSWORD=%s\\n' "$admin_password"
+} > "$admin_env_file"
+unset admin_password
+docker run --rm --network "$symfoerp_network" --env-file "$admin_env_file" \
     -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" \
     -e DATABASE_URL="$symfoerp_database_url" \
-    -e SYMFOERP_ADMIN_EMAIL="$admin_email" \
-    -e SYMFOERP_ADMIN_PASSWORD="$admin_password" \
     "$symfoerp_image" php /app/bin/console app:user:create
-unset admin_password
+rm -f "$admin_env_file"
+trap - EXIT
 
 echo
 echo "Installation SYMFOERP terminée : http://localhost:8000/login"
