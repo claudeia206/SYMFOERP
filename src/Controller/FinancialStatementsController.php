@@ -76,9 +76,9 @@ SQL, [$to, $to, $from, $to, $from, $to, $to]);
                 $key = $signed >= 0 ? 'assets' : 'liabilities';
                 $add($groups, $totals, $key, $row, abs($signed));
             } elseif ($class === '6') {
-                $add($groups, $totals, 'expenses', $row, $periodDebit - $periodCredit);
+                $add($groups, $totals, 'expenses', $row, AccountingAmount::addSignedCents($periodDebit, -$periodCredit));
             } elseif ($class === '7') {
-                $add($groups, $totals, 'income', $row, $periodCredit - $periodDebit);
+                $add($groups, $totals, 'income', $row, AccountingAmount::addSignedCents($periodCredit, -$periodDebit));
             }
         }
 
