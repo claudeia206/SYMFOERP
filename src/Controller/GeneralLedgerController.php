@@ -37,11 +37,11 @@ final class GeneralLedgerController extends AbstractController
             $openingCredit=AccountingAmount::toCents((string)$account['opening_credit']);
             $debit=AccountingAmount::toCents((string)$account['debit']);
             $credit=AccountingAmount::toCents((string)$account['credit']);
-            $account['opening_balance']=AccountingAmount::formatCents($openingDebit-$openingCredit);
+            $account['opening_balance']=AccountingAmount::formatCents(AccountingAmount::addSignedCents($openingDebit,-$openingCredit));
             $account['debit']=AccountingAmount::formatCents($debit);
             $account['credit']=AccountingAmount::formatCents($credit);
-            $account['balance']=AccountingAmount::formatCents($openingDebit-$openingCredit+$debit-$credit);
-            $debitTotal+=$debit;$creditTotal+=$credit;
+            $account['balance']=AccountingAmount::formatCents(AccountingAmount::addSignedCents($openingDebit,-$openingCredit,$debit,-$credit));
+            $debitTotal=AccountingAmount::addSignedCents($debitTotal,$debit);$creditTotal=AccountingAmount::addSignedCents($creditTotal,$credit);
         }
         unset($account);
         $journals=$db->fetchAllAssociative('SELECT id,code,name FROM app_accounting_journal ORDER BY code');
@@ -71,7 +71,7 @@ final class GeneralLedgerController extends AbstractController
                 $debit=$this->toCents((string)($line['debit']??'0'));$credit=$this->toCents((string)($line['credit']??'0'));
                 if($accountId===null&&$debit===0&&$credit===0&&trim((string)($line['label']??''))==='')continue;
                 if($accountId===null||$label===''||mb_strlen($label)>255||(($debit>0)===($credit>0)))throw new \InvalidArgumentException('Chaque ligne doit avoir un compte, un libellé et un seul montant au débit ou au crédit.');
-                $lines[]=['account_id'=>$accountId,'label'=>$label,'debit'=>$debit,'credit'=>$credit];$debitCents+=$debit;$creditCents+=$credit;
+                $lines[]=['account_id'=>$accountId,'label'=>$label,'debit'=>$debit,'credit'=>$credit];$debitCents=AccountingAmount::addSignedCents($debitCents,$debit);$creditCents=AccountingAmount::addSignedCents($creditCents,$credit);
             }
             if($debitCents<=0||$debitCents!==$creditCents)throw new \InvalidArgumentException('Écriture déséquilibrée : le total débit doit être égal au total crédit.');
             $db->beginTransaction();
@@ -108,13 +108,13 @@ final class GeneralLedgerController extends AbstractController
              WHERE l.account_id=? AND e.status=? AND e.entry_date < ?',
             [$id,'posted',$from]
         ) ?: ['debit'=>'0.00','credit'=>'0.00'];
-        $openingCents=AccountingAmount::toCents((string)$opening['debit'])-AccountingAmount::toCents((string)$opening['credit']);
+        $openingCents=AccountingAmount::addSignedCents(AccountingAmount::toCents((string)$opening['debit']),-AccountingAmount::toCents((string)$opening['credit']));
         $lines=$db->fetchAllAssociative('SELECT e.entry_date,j.code AS journal_code,e.entry_number,e.reference,e.description,l.label,l.debit,l.credit FROM app_journal_entry_line l INNER JOIN app_journal_entry e ON e.id=l.entry_id INNER JOIN app_accounting_journal j ON j.id=e.journal_id WHERE l.account_id=? AND e.status=? AND e.entry_date BETWEEN ? AND ? ORDER BY e.entry_date,e.id,l.id',[$id,'posted',$from,$to]);
         $balanceCents=$openingCents;
         foreach($lines as &$line){
             $debit=AccountingAmount::toCents((string)$line['debit']);
             $credit=AccountingAmount::toCents((string)$line['credit']);
-            $balanceCents+=$debit-$credit;
+            $balanceCents=AccountingAmount::addSignedCents($balanceCents,$debit,-$credit);
             $line['debit']=AccountingAmount::formatCents($debit);
             $line['credit']=AccountingAmount::formatCents($credit);
             $line['balance']=AccountingAmount::formatCents($balanceCents);
