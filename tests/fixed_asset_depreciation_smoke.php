@@ -63,8 +63,8 @@ foreach ($scenarios as [$startDate, $years]) {
     $previousAccumulated = 0;
     $previousYear = 0;
     foreach ($scenarioRows as $scenarioRow) {
-        $amount = App\\Service\\AccountingAmount::toCents($scenarioRow['amount']);
-        $accumulated = App\\Service\\AccountingAmount::toCents($scenarioRow['accumulated']);
+        $amount = App\Service\AccountingAmount::toCents($scenarioRow['amount']);
+        $accumulated = App\Service\AccountingAmount::toCents($scenarioRow['accumulated']);
         if ($amount <= 0 || $accumulated < $previousAccumulated || (int) $scenarioRow['period'] <= $previousYear) {
             throw new RuntimeException('Depreciation rows must be positive, cumulative and ordered by calendar year.');
         }
