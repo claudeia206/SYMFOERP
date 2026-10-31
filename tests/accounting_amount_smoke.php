@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use App\\Service\\AccountingAmount;
+use App\Service\AccountingAmount;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
@@ -40,4 +40,4 @@ foreach (['', ' ', '+1.00', '01.00', '1,00', '1.001', '1e3', '10000000000000.00'
     }
 }
 
-echo "Accounting exact-cent arithmetic smoke tests passed.\\n";
+echo "Accounting exact-cent arithmetic smoke tests passed.\n";
