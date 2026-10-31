@@ -66,12 +66,12 @@ SQL,[$customerId,$asOf->format('Y-m-d'),$customerId,$asOf->format('Y-m-d'),$cust
             $amountCents=AccountingAmount::toCents((string)$row['amount']);
             $isDebit=$row['kind']==='invoice';
             $balanceCents=AccountingAmount::addSignedCents($balanceCents,$isDebit?$amountCents:-$amountCents);
-            $result[]=$row+[
+            $result[]=array_replace($row,[
                 'amount'=>AccountingAmount::formatFrenchCents($amountCents),
                 'debit'=>AccountingAmount::formatFrenchCents($isDebit?$amountCents:0),
                 'credit'=>AccountingAmount::formatFrenchCents($isDebit?0:$amountCents),
                 'balance'=>AccountingAmount::formatFrenchCents($balanceCents),
-            ];
+            ]);
         }
         return [$result,AccountingAmount::formatFrenchCents($balanceCents)];
     }
