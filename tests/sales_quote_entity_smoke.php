@@ -73,6 +73,8 @@ try {
 foreach ([
     fn () => new SalesQuoteLine('', '1', '10.00', '20.00', 1),
     fn () => new SalesQuoteLine('Quantité invalide', '0', '10.00', '20.00', 1),
+    fn () => new SalesQuoteLine('Notation scientifique', '1e3', '10.00', '20.00', 1),
+    fn () => new SalesQuoteLine('Trop de décimales', '0.0001', '10.00', '20.00', 1),
     fn () => new SalesQuoteLine('TVA invalide', '1', '10.00', '120.00', 1),
 ] as $invalidLine) {
     try {

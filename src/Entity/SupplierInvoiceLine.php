@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\StockQuantity;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 
@@ -41,12 +42,13 @@ class SupplierInvoiceLine
     public function __construct(Product $product, string $description, string $quantity, string $unitPrice, string $vatRate, int $position)
     {
         $description = trim($description);
-        if ($description === '' || mb_strlen($description) > 255 || !is_numeric($quantity) || (float) $quantity <= 0 || !is_numeric($unitPrice) || (float) $unitPrice < 0 || !is_numeric($vatRate) || (float) $vatRate < 0 || (float) $vatRate > 100) {
+        $quantityMilliunits = StockQuantity::toMilliunits($quantity);
+        if ($description === '' || mb_strlen($description) > 255 || $quantityMilliunits <= 0 || $quantityMilliunits > 9_999_999_999 || !is_numeric($unitPrice) || (float) $unitPrice < 0 || !is_numeric($vatRate) || (float) $vatRate < 0 || (float) $vatRate > 100) {
             throw new InvalidArgumentException('Ligne de facture fournisseur invalide.');
         }
         $this->product = $product;
         $this->description = $description;
-        $this->quantity = number_format((float) $quantity, 3, '.', '');
+        $this->quantity = StockQuantity::format($quantityMilliunits);
         $this->unitPrice = number_format((float) $unitPrice, 2, '.', '');
         $this->vatRate = number_format((float) $vatRate, 2, '.', '');
         $this->position = max(1, $position);

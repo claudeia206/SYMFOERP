@@ -6,6 +6,7 @@ use App\Entity\Product;
 use App\Entity\PurchaseOrder;
 use App\Entity\PurchaseOrderLine;
 use App\Entity\SupplierInvoice;
+use App\Entity\SupplierInvoiceLine;
 use App\Entity\SupplierPayment;
 use App\Entity\ThirdParty;
 
@@ -21,6 +22,14 @@ $product = new Product('SKU-FAF', 'Composant');
 $product->update(['sku'=>'SKU-FAF','name'=>'Composant','unit'=>'pièce','purchase_price'=>'25.00','sale_price'=>'40','vat_rate'=>'20','stock_tracked'=>'1','stock_alert_threshold'=>'0','active'=>'1']);
 $order = new PurchaseOrder($supplier);
 $line = new PurchaseOrderLine($product, '5', 1);
+foreach (['1e3', '0.0001', '1,000'] as $invalidQuantity) {
+    try {
+        new SupplierInvoiceLine($product, 'Quantité invalide', $invalidQuantity, '25.00', '20.00', 1);
+        throw new RuntimeException('Invalid supplier invoice quantity was accepted: '.$invalidQuantity);
+    } catch (InvalidArgumentException) {
+    }
+}
+
 $order->addLine($line);
 $order->setStatus(PurchaseOrder::STATUS_SENT);
 try {
