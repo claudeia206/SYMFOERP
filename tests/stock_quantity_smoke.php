@@ -48,6 +48,10 @@ $productValues = [
 $product = new \App\Entity\Product('SKU-STOCK-TEST', 'Produit stock test');
 $product->update($productValues);
 $assert($product->getPurchasePrice() === '9999999999.99', 'Maximum product price must be stored without float conversion.');
+$maximumVatValues = $productValues;
+$maximumVatValues['vat_rate'] = '100.00';
+$product->update($maximumVatValues);
+$assert($product->getVatRate() === '100.00', 'A VAT rate of exactly 100 percent must be accepted.');
 foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00', 1.25] as $invalidPrice) {
     $invalidValues = $productValues;
     $invalidValues['purchase_price'] = $invalidPrice;
