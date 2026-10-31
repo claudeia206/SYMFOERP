@@ -299,13 +299,15 @@ final class FixedAssetController extends AbstractController
             $description=sprintf('Sortie immobilisation %s - cession %s',$asset['code'],$date);
             $db->insert('app_journal_entry',['journal_id'=>$journalId,'entry_number'=>$number,'entry_date'=>$date,'reference'=>'CESSION-'.$asset['code'],'description'=>$description,'status'=>'posted','created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
             $entryId=(int)$db->lastInsertId();
-            $lines=[
-                ['account_id'=>$asset['disposal_bank_account_id'],'label'=>'Prix de cession '.$asset['code'],'debit'=>AccountingAmount::formatCents($proceedsCents),'credit'=>'0.00'],
-                ['account_id'=>$asset['accumulated_account_id'],'label'=>'Reprise amortissements '.$asset['code'],'debit'=>AccountingAmount::formatCents($accumulatedCents),'credit'=>'0.00'],
-                ['account_id'=>$asset['asset_account_id'],'label'=>'Sortie valeur brute '.$asset['code'],'debit'=>'0.00','credit'=>AccountingAmount::formatCents($costCents)],
-            ];
-            if($gainCents>=0)$lines[]=['account_id'=>$asset['disposal_gain_account_id'],'label'=>'Plus-value de cession '.$asset['code'],'debit'=>'0.00','credit'=>AccountingAmount::formatCents($gainCents)];
-            else $lines[]=['account_id'=>$asset['disposal_loss_account_id'],'label'=>'Moins-value de cession '.$asset['code'],'debit'=>AccountingAmount::formatCents(abs($gainCents)),'credit'=>'0.00'];
+            // Never persist zero/zero lines: the journal schema requires exactly one
+            // positive side per line. A free disposal or a zero rounded depreciation
+            // amount must simply omit that line.
+            $lines=[];
+            if($proceedsCents>0)$lines[]=['account_id'=>$asset['disposal_bank_account_id'],'label'=>'Prix de cession '.$asset['code'],'debit'=>AccountingAmount::formatCents($proceedsCents),'credit'=>'0.00'];
+            if($accumulatedCents>0)$lines[]=['account_id'=>$asset['accumulated_account_id'],'label'=>'Reprise amortissements '.$asset['code'],'debit'=>AccountingAmount::formatCents($accumulatedCents),'credit'=>'0.00'];
+            $lines[]=['account_id'=>$asset['asset_account_id'],'label'=>'Sortie valeur brute '.$asset['code'],'debit'=>'0.00','credit'=>AccountingAmount::formatCents($costCents)];
+            if($gainCents>0)$lines[]=['account_id'=>$asset['disposal_gain_account_id'],'label'=>'Plus-value de cession '.$asset['code'],'debit'=>'0.00','credit'=>AccountingAmount::formatCents($gainCents)];
+            elseif($gainCents<0)$lines[]=['account_id'=>$asset['disposal_loss_account_id'],'label'=>'Moins-value de cession '.$asset['code'],'debit'=>AccountingAmount::formatCents(abs($gainCents)),'credit'=>'0.00'];
             foreach($lines as $line)$db->insert('app_journal_entry_line',['entry_id'=>$entryId]+$line);
             $db->update('app_fixed_asset',['status'=>'disposed','disposal_date'=>$date,'disposal_proceeds'=>AccountingAmount::formatCents($proceedsCents),'disposal_journal_entry_id'=>$entryId],['id'=>$id]);
             $db->commit();
