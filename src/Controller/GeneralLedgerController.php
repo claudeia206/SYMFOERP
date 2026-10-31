@@ -28,7 +28,6 @@ final class GeneralLedgerController extends AbstractController
              FROM app_accounting_account a
              LEFT JOIN app_journal_entry_line l ON l.account_id=a.id
              LEFT JOIN app_journal_entry e ON e.id=l.entry_id AND e.status=?
-             WHERE a.is_active=1
              GROUP BY a.id,a.code,a.name,a.account_class ORDER BY a.code',
             [$from,$from,$from,$to,$from,$to,'posted']
         );
