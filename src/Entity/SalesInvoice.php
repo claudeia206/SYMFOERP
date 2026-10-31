@@ -194,17 +194,24 @@ class SalesInvoice
         return $this;
     }
 
-    public function getTotalExcludingTax(): float
+    public function getTotalExcludingTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (float $sum, SalesInvoiceLine $line): float => $sum + $line->getTotalExcludingTax(), 0.0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesInvoiceLine $line): int => $sum + $line->getTotalExcludingTaxCents(), 0);
     }
 
-    public function getTotalTax(): float
+    public function getTotalTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (float $sum, SalesInvoiceLine $line): float => $sum + $line->getTotalTax(), 0.0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesInvoiceLine $line): int => $sum + $line->getTotalTaxCents(), 0);
     }
 
-    public function getTotalIncludingTax(): float { return round($this->getTotalExcludingTax() + $this->getTotalTax(), 2); }
+    public function getTotalIncludingTaxCents(): int
+    {
+        return $this->getTotalExcludingTaxCents() + $this->getTotalTaxCents();
+    }
+
+    public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
+    public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
+    public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
 
     public function getPaidAmount(): float
     {
@@ -219,7 +226,7 @@ class SalesInvoice
 
     private function getRemainingAmountCents(): int
     {
-        $totalCents = self::decimalToCents($this->getTotalIncludingTax());
+        $totalCents = $this->getTotalIncludingTaxCents();
         $paidCents = array_reduce($this->payments->toArray(), static fn (int $sum, SalesPayment $payment): int => $sum + self::decimalToCents($payment->getAmount()), 0);
         $creditedCents = array_reduce($this->creditNotes->toArray(), static fn (int $sum, SalesCreditNote $note): int => $sum + self::decimalToCents($note->getTotalIncludingTax()), 0);
         return max(0, $totalCents - $paidCents - $creditedCents);
