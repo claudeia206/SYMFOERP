@@ -66,11 +66,21 @@ final class FixedAssetController extends AbstractController
                     (int) $asset['useful_life_years'], $serviceDate, $asOf
                 );
         }
+        foreach($assets as &$asset){
+            $asset['acquisition_cost_display']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$asset['acquisition_cost']));
+            foreach($plans[(int)$asset['id']] as &$line){
+                $line['amount_display']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents($line['amount']));
+                $line['accumulated_display']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents($line['accumulated']));
+                $line['net_book_value_display']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents($line['net_book_value']));
+            }
+            unset($line);
+        }
+        unset($asset);
         $accounts = $db->fetchAllAssociative('SELECT id,code,name FROM app_accounting_account WHERE is_active=1 ORDER BY code');
         $journals = $db->fetchAllAssociative('SELECT id,code,name FROM app_accounting_journal ORDER BY code');
         $posted = $db->fetchAllAssociative('SELECT asset_id,fiscal_year,amount FROM app_fixed_asset_depreciation ORDER BY fiscal_year');
         $postedMap = [];
-        foreach ($posted as $item) $postedMap[(int)$item['asset_id']][(string)$item['fiscal_year']] = (string)$item['amount'];
+        foreach ($posted as $item) $postedMap[(int)$item['asset_id']][(string)$item['fiscal_year']] = AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$item['amount']));
         return $this->render('accounting/fixed_assets.html.twig', [
             'assets'=>$assets, 'plans'=>$plans, 'as_of'=>$asOf->format('Y-m-d'),
             'accounts'=>$accounts, 'journals'=>$journals, 'posted_map'=>$postedMap,
