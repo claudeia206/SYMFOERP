@@ -13,6 +13,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use InvalidArgumentException;
 use Throwable;
 
 #[Route('/accounting/fixed-assets')]
@@ -223,7 +224,7 @@ final class FixedAssetController extends AbstractController
             $asOfInput = (string) $request->request->get('as_of', (new DateTimeImmutable('today'))->format('Y-m-d'));
             $asOf = DateTimeImmutable::createFromFormat('!Y-m-d', $asOfInput);
             if (!$asOf || $asOf->format('Y-m-d') !== $asOfInput) {
-                throw new \\InvalidArgumentException('Date de simulation invalide.');
+                throw new InvalidArgumentException('Date de simulation invalide.');
             }
             (new FixedAssetDepreciationSequence())->assertPeriodComplete($asOf, $year);
             $db->beginTransaction();
