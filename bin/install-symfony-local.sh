@@ -49,7 +49,7 @@ fi
 
 # Run maintenance commands inside the already configured Symfony service.
 console() {
-    docker compose --env-file .env.docker exec --no-TTY symfony php bin/console "$@" </dev/null
+    docker compose --env-file .env.docker run --rm --no-deps --entrypoint php symfony bin/console "$@"
 }
 echo "Migrations Doctrine détectées avant installation :"
 console doctrine:migrations:list
@@ -71,7 +71,7 @@ if ($hasUserTable !== 1) {
 $userCount = (int) $pdo->query("SELECT COUNT(*) FROM app_user")->fetchColumn();
 echo json_encode($database + ["app_user_rows" => $userCount], JSON_THROW_ON_ERROR) . PHP_EOL;'
 echo "Vérification de la base utilisée par le conteneur CLI :"
-docker compose --env-file .env.docker exec --no-TTY symfony php -r "$database_check" </dev/null
+docker compose --env-file .env.docker run --rm --no-deps --entrypoint php symfony -r "$database_check"
 echo "Vérification de la même base depuis le conteneur HTTP Symfony :"
 docker compose --env-file .env.docker exec --no-TTY --interactive=false symfony php -r "$database_check"
 console doctrine:schema:validate
