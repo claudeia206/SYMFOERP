@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Service\AccountingPostingService;
+use App\Controller\GeneralLedgerController;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
@@ -55,7 +56,7 @@ foreach ([
     expectPostingValidation($rejected, 'Invalid monetary input was accepted: '.var_export($invalid, true));
 }
 
-$ledgerController = (new ReflectionClass(App\Controller\\GeneralLedgerController::class))->newInstanceWithoutConstructor();
+$ledgerController = (new ReflectionClass(GeneralLedgerController::class))->newInstanceWithoutConstructor();
 $ledgerAmount = (new ReflectionClass(App\Controller\\GeneralLedgerController::class))->getMethod('toCents');
 $ledgerAmount->setAccessible(true);
 foreach ([
