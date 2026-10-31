@@ -94,9 +94,9 @@ if [[ -z "$admin_email" || ${#admin_password} -lt 12 ]]; then
     echo "E-mail requis et mot de passe d'au moins 12 caractères." >&2
     exit 1
 fi
-docker exec \\
-    -e "SYMFOERP_ADMIN_EMAIL=$admin_email" \\
-    -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \\
+docker exec \
+    -e "SYMFOERP_ADMIN_EMAIL=$admin_email" \
+    -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \
     --workdir /app symfoerp-symfony php -d display_errors=1 /app/bin/console app:user:create </dev/null
 unset admin_password
 echo
