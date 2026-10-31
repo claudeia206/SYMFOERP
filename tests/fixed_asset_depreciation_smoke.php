@@ -74,6 +74,20 @@ foreach ($scenarios as [$startDate, $years]) {
         }
         $previousAccumulated = $accumulated;
         $previousYear = (int) $scenarioRow['period'];
+        $snapshotRows = $calculator->straightLine(
+            '12345.67',
+            '123.45',
+            $years,
+            $scenarioStart,
+            new DateTimeImmutable($scenarioRow['period'] . '-12-31')
+        );
+        $snapshot = $snapshotRows[array_key_last($snapshotRows)] ?? null;
+        if ($snapshot === null
+            || $snapshot['amount'] !== $scenarioRow['amount']
+            || $snapshot['accumulated'] !== $scenarioRow['accumulated']
+            || $snapshot['net_book_value'] !== $scenarioRow['net_book_value']) {
+            throw new RuntimeException('A finalized calendar-year depreciation amount must not change in later simulations.');
+        }
     }
     if ($allocated !== 1222222 || $scenarioRows[array_key_last($scenarioRows)]['net_book_value'] !== '123.45') {
         throw new RuntimeException(sprintf('Depreciation did not preserve residual value for %s / %d years.', $startDate, $years));
