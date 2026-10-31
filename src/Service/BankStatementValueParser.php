@@ -8,6 +8,26 @@ use InvalidArgumentException;
 
 final class BankStatementValueParser
 {
+    /**
+     * Normalize CSV column names, including the UTF-8 BOM commonly emitted by Excel.
+     *
+     * @param list<mixed> $headers
+     * @return list<string>
+     */
+    public function normalizeHeaders(array $headers): array
+    {
+        return array_map(
+            static fn (mixed $value): string => strtolower(trim((string) $value)),
+            array_map(
+                static fn (mixed $value, int $index): string => $index === 0
+                    ? preg_replace('/^\\xEF\\xBB\\xBF/', '', (string) $value) ?? (string) $value
+                    : (string) $value,
+                $headers,
+                array_keys($headers)
+            )
+        );
+    }
+
     public function parseDate(string $value): DateTimeImmutable
     {
         foreach (['!Y-m-d' => 'Y-m-d', '!d/m/Y' => 'd/m/Y'] as $inputFormat => $roundTripFormat) {
