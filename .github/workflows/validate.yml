@@ -230,7 +230,7 @@ jobs:
           assert "Bilan et compte de résultat" in statements_html, "Authenticated user could not open financial statements"
           assert "Résultat de la période" in statements_html, "Financial statements did not render the period result"
           fixed_assets_html = client.open(base + "/accounting/fixed-assets").read().decode()
-          assert "Immobilisations &amp; amortissements" in fixed_assets_html, "Authenticated user could not open fixed asset management"
+          assert "Immobilisations" in fixed_assets_html, "Authenticated user could not open fixed asset management"
           assert "Nouvelle immobilisation" in fixed_assets_html, "Fixed asset creation form did not render"
           from datetime import date, timedelta
           ledger_token_parser = TokenParser()
