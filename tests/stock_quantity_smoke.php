@@ -5,7 +5,6 @@ declare(strict_types=1);
 require dirname(__DIR__).'/src/Service/StockQuantity.php';
 
 use App\Service\StockQuantity;
-use InvalidArgumentException;
 
 $assert = static function (bool $condition, string $message): void {
     if (!$condition) {
@@ -24,7 +23,7 @@ foreach (['1e3', '1,25', '1.0001', '-1', '', '1000000000'] as $invalid) {
     try {
         StockQuantity::toMilliunits($invalid);
         throw new RuntimeException('Invalid stock quantity was accepted: '.$invalid);
-    } catch (InvalidArgumentException) {
+    } catch (\\InvalidArgumentException) {
     }
 }
 
