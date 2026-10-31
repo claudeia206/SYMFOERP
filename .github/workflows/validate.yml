@@ -123,6 +123,7 @@ jobs:
           import http.cookiejar
           import urllib.parse
           import urllib.request
+          import re
           from html.parser import HTMLParser
 
           base = "http://127.0.0.1:8000"
