@@ -116,10 +116,10 @@ final class FixedAssetController extends AbstractController
         };
 
         foreach ($assets as $asset) {
-            $cost = (float) $asset['acquisition_cost'];
-            $residual = (float) $asset['residual_value'];
-            $accumulated = (float) $asset['total_depreciation'];
-            $netBookValue = max($residual, round($cost - $accumulated, 2));
+            $cost = AccountingAmount::toCents((string) $asset['acquisition_cost']);
+            $residual = AccountingAmount::toCents((string) $asset['residual_value']);
+            $accumulated = AccountingAmount::toCents((string) $asset['total_depreciation']);
+            $netBookValue = max($residual, $cost - $accumulated);
 
             fputcsv($stream, [
                 $safeText($asset['code']),
