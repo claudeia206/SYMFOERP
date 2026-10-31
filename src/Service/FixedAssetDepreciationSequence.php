@@ -33,4 +33,15 @@ final class FixedAssetDepreciationSequence
             }
         }
     }
+    public function assertPeriodComplete(\DateTimeImmutable $asOf, int $targetYear): void
+    {
+        $periodEnd = new \DateTimeImmutable($targetYear.'-12-31');
+        if ($asOf < $periodEnd) {
+            throw new InvalidArgumentException(sprintf(
+                'La simulation doit aller jusqu’au 31/12/%d avant de comptabiliser la dotation.',
+                $targetYear
+            ));
+        }
+    }
+
 }
