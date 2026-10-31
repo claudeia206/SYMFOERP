@@ -6,6 +6,7 @@ namespace App\Controller;
 use App\Service\AccountingAmount;
 use App\Service\AccountingPeriodGuard;
 use App\Service\DepreciationCalculator;
+use App\Service\FixedAssetDepreciationSequence;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -219,6 +220,12 @@ final class FixedAssetController extends AbstractController
         if (!$this->isCsrfTokenValid('fixed_asset_depreciation_'.$id.'_'.$year,(string)$request->request->get('_token'))) throw $this->createAccessDeniedException();
         if($year<2000||$year>2100)throw $this->createNotFoundException();
         try {
+            $asOfInput = (string) $request->request->get('as_of', (new DateTimeImmutable('today'))->format('Y-m-d'));
+            $asOf = DateTimeImmutable::createFromFormat('!Y-m-d', $asOfInput);
+            if (!$asOf || $asOf->format('Y-m-d') !== $asOfInput) {
+                throw new \\InvalidArgumentException('Date de simulation invalide.');
+            }
+            (new FixedAssetDepreciationSequence())->assertPeriodComplete($asOf, $year);
             $db->beginTransaction();
             $periodGuard->assertOpenDate($db, $year.'-12-31');
             $asset=$db->fetchAssociative('SELECT * FROM app_fixed_asset WHERE id=? AND status=? FOR UPDATE',[$id,'active']);
@@ -233,7 +240,7 @@ final class FixedAssetController extends AbstractController
                 'SELECT fiscal_year FROM app_fixed_asset_depreciation WHERE asset_id=? AND fiscal_year<?',
                 [$id, $year]
             );
-            (new AppServiceFixedAssetDepreciationSequence())->assertPriorPeriodsPosted(
+            (new FixedAssetDepreciationSequence())->assertPriorPeriodsPosted(
                 $periods,
                 $year,
                 $postedPriorYears
