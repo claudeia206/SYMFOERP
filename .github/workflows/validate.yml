@@ -64,6 +64,8 @@ jobs:
 
       - name: Test customer credit notes and receivables
         run: docker run --rm symfoerp-symfony:ci php tests/sales_credit_note_entity_smoke.php
+      - name: Test customer payment reminder validation
+        run: docker run --rm symfoerp-symfony:ci php tests/payment_reminder_input_smoke.php
 
       - name: Test bank transaction reconciliation
         run: docker run --rm symfoerp-symfony:ci php tests/bank_transaction_entity_smoke.php
@@ -215,6 +217,9 @@ jobs:
           assert "Reporting financier" in report_html, "Authenticated user could not open financial reporting"
           bank_html = client.open(base + "/finance/bank").read().decode()
           assert "Rapprochement bancaire" in bank_html, "Authenticated user could not open bank reconciliation"
+          reminders_html = client.open(base + "/sales/reminders").read().decode()
+          assert "Relances des factures clients" in reminders_html, "Authenticated user could not open customer payment reminders"
+          assert "Historique des 100 dernières relances" in reminders_html, "Customer payment reminder history did not render"
           cash_flow_html = client.open(base + "/reports/cash-flow").read().decode()
           assert "Prévision de trésorerie" in cash_flow_html, "Authenticated user could not open cash flow forecast"
           ledger_html = client.open(base + "/accounting").read().decode()
