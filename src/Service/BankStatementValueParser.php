@@ -52,10 +52,15 @@ final class BankStatementValueParser
         $value = preg_replace('/\s*€$/u', '', $value) ?? $value;
         $grouping = '[ \x{00A0}\x{202F}]';
         $validFormat = '/^-?(?:0|[1-9]\d{0,9}|[1-9]\d{0,2}(?:'.$grouping.'\d{3})+)(?:[.,]\d{1,2})?$/uD';
-        if (!preg_match($validFormat, $value)) {
+        $frenchDotGrouping = '/^-?[1-9]\d{0,2}(?:\.\d{3})+,\d{1,2}$/D';
+        if (!preg_match($validFormat, $value) && !preg_match($frenchDotGrouping, $value)) {
             throw new InvalidArgumentException('Montant bancaire invalide ou séparateurs de milliers incorrects.');
         }
 
+        // In French bank exports, dots group thousands while commas mark decimals.
+        if (str_contains($value, ',')) {
+            $value = str_replace('.', '', $value);
+        }
         $value = str_replace([" ", "\u{00A0}", "\u{202F}", ','], ['', '', '', '.'], $value);
         if (!preg_match('/^-?(?:0|[1-9]\\d{0,9})(?:\\.\\d{1,2})?$/D', $value)) {
             throw new InvalidArgumentException('Montant bancaire hors limites.');
