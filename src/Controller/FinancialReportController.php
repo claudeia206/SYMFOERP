@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controller;
+use App\Service\AccountingAmount;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -48,35 +49,43 @@ final class FinancialReportController extends AbstractController
             ORDER BY i.due_date ASC,i.id ASC
             SQL);
         $today=new DateTimeImmutable('today');
-        $salesOutstanding=0.0; $salesOverdue=0; $supplierOutstanding=0.0; $supplierOverdue=0;
+        $salesOutstanding=0; $salesOverdue=0; $supplierOutstanding=0; $supplierOverdue=0;
         $overdueReceivables=[]; $overduePayables=[];
         foreach($sales as &$invoice) {
-            $invoice['total']=(float)$invoice['total']; $invoice['paid']=(float)$invoice['paid'];
-            $invoice['remaining']=max(0.0,round($invoice['total']-$invoice['paid'],2));
-            $salesOutstanding+=$invoice['remaining'];
-            $invoice['overdue']=$invoice['remaining']>0.001 && new DateTimeImmutable($invoice['due_date'])<$today;
+            $total=AccountingAmount::toCents((string)$invoice['total']);
+            $paid=AccountingAmount::toCents((string)$invoice['paid']);
+            $remaining=max(0,$total-$paid);
+            $invoice['total']=AccountingAmount::formatCents($total);
+            $invoice['paid']=AccountingAmount::formatCents($paid);
+            $invoice['remaining']=AccountingAmount::formatCents($remaining);
+            $salesOutstanding+=$remaining;
+            $invoice['overdue']=$remaining>0 && new DateTimeImmutable($invoice['due_date'])<$today;
             if($invoice['overdue']) { ++$salesOverdue; $overdueReceivables[]=$invoice; }
         }
         unset($invoice);
         foreach($purchases as &$invoice) {
-            $invoice['total']=(float)$invoice['total']; $invoice['paid']=(float)$invoice['paid'];
-            $invoice['remaining']=max(0.0,round($invoice['total']-$invoice['paid'],2));
-            $supplierOutstanding+=$invoice['remaining'];
-            $invoice['overdue']=$invoice['remaining']>0.001 && new DateTimeImmutable($invoice['due_date'])<$today;
+            $total=AccountingAmount::toCents((string)$invoice['total']);
+            $paid=AccountingAmount::toCents((string)$invoice['paid']);
+            $remaining=max(0,$total-$paid);
+            $invoice['total']=AccountingAmount::formatCents($total);
+            $invoice['paid']=AccountingAmount::formatCents($paid);
+            $invoice['remaining']=AccountingAmount::formatCents($remaining);
+            $supplierOutstanding+=$remaining;
+            $invoice['overdue']=$remaining>0 && new DateTimeImmutable($invoice['due_date'])<$today;
             if($invoice['overdue']) { ++$supplierOverdue; $overduePayables[]=$invoice; }
         }
         unset($invoice);
         $monthStart=$today->modify('first day of this month')->format('Y-m-d');
         $monthEnd=$today->modify('first day of next month')->format('Y-m-d');
-        $collected=(float)$connection->fetchOne('SELECT COALESCE(SUM(amount),0) FROM app_sales_payment WHERE paid_at>=? AND paid_at<?',[$monthStart,$monthEnd]);
-        $disbursed=(float)$connection->fetchOne('SELECT COALESCE(SUM(amount),0) FROM app_supplier_payment WHERE paid_at>=? AND paid_at<?',[$monthStart,$monthEnd]);
+        $collected=AccountingAmount::toCents((string)$connection->fetchOne('SELECT COALESCE(SUM(amount),0) FROM app_sales_payment WHERE paid_at>=? AND paid_at<?',[$monthStart,$monthEnd]));
+        $disbursed=AccountingAmount::toCents((string)$connection->fetchOne('SELECT COALESCE(SUM(amount),0) FROM app_supplier_payment WHERE paid_at>=? AND paid_at<?',[$monthStart,$monthEnd]));
         return $this->render('financial_report/index.html.twig',[
-            'sales_outstanding'=>round($salesOutstanding,2),
+            'sales_outstanding'=>AccountingAmount::formatCents($salesOutstanding),
             'sales_overdue_count'=>$salesOverdue,
-            'supplier_outstanding'=>round($supplierOutstanding,2),
+            'supplier_outstanding'=>AccountingAmount::formatCents($supplierOutstanding),
             'supplier_overdue_count'=>$supplierOverdue,
-            'collected_this_month'=>round($collected,2),
-            'disbursed_this_month'=>round($disbursed,2),
+            'collected_this_month'=>AccountingAmount::formatCents($collected),
+            'disbursed_this_month'=>AccountingAmount::formatCents($disbursed),
             'overdue_receivables'=>array_slice($overdueReceivables,0,10),
             'overdue_payables'=>array_slice($overduePayables,0,10),
         ]);

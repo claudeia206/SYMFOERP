@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controller;
+use App\Service\AccountingAmount;
 use App\Entity\CompanyProfile;
 use App\Entity\ThirdParty;
 use DateTimeImmutable;
@@ -36,7 +37,7 @@ final class CustomerAccountStatementController extends AbstractController
         return new Response($dompdf->output(),200,['Content-Type'=>'application/pdf','Content-Disposition'=>'inline; filename="releve-client-'.$thirdParty->getId().'.pdf"','X-Content-Type-Options'=>'nosniff']);
     }
 
-    /** @return array{0:list<array<string,mixed>>,1:float} */
+    /** @return array{0:list<array<string,mixed>>,1:string} */
     private function buildStatement(Connection $db,int $customerId,DateTimeImmutable $asOf):array
     {
         $rows=$db->fetchAllAssociative(<<<'SQL'
@@ -60,13 +61,18 @@ SELECT movement_date,kind,document,description,amount,sort_order,source_id FROM 
  GROUP BY n.id,n.credit_date,n.number
 ) movements ORDER BY movement_date ASC,sort_order ASC,source_id ASC
 SQL,[$customerId,$asOf->format('Y-m-d'),$customerId,$asOf->format('Y-m-d'),$customerId,$asOf->format('Y-m-d')]);
-        $balance=0.0;$result=[];
+        $balanceCents=0;$result=[];
         foreach($rows as $row){
-            $amount=round((float)$row['amount'],2);
+            $amountCents=AccountingAmount::toCents((string)$row['amount']);
             $isDebit=$row['kind']==='invoice';
-            $balance=round($balance+($isDebit?$amount:-$amount),2);
-            $result[]=$row+['debit'=>$isDebit?$amount:0.0,'credit'=>$isDebit?0.0:$amount,'balance'=>$balance];
+            $balanceCents+=$isDebit?$amountCents:-$amountCents;
+            $result[]=$row+[
+                'amount'=>AccountingAmount::formatCents($amountCents),
+                'debit'=>AccountingAmount::formatCents($isDebit?$amountCents:0),
+                'credit'=>AccountingAmount::formatCents($isDebit?0:$amountCents),
+                'balance'=>AccountingAmount::formatCents($balanceCents),
+            ];
         }
-        return [$result,$balance];
+        return [$result,AccountingAmount::formatCents($balanceCents)];
     }
 }

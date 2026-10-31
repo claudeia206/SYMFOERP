@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controller;
+use App\Service\AccountingAmount;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -16,7 +17,7 @@ final class CashFlowForecastController extends AbstractController
         $weeks=[];
         for($i=0;$i<13;$i++){
             $start=$firstMonday->modify("+{$i} weeks");
-            $weeks[$start->format('Y-m-d')]=['start'=>$start,'end'=>$start->modify('+6 days'),'inflows'=>0.0,'outflows'=>0.0,'overdue_inflows'=>0.0,'overdue_outflows'=>0.0];
+            $weeks[$start->format('Y-m-d')]=['start'=>$start,'end'=>$start->modify('+6 days'),'inflows'=>0,'outflows'=>0,'overdue_inflows'=>0,'overdue_outflows'=>0];
         }
         $sales=$db->fetchAllAssociative(<<<'SQL'
 SELECT i.due_date,GREATEST(0,COALESCE(a.total,0)-COALESCE(c.total,0)-COALESCE(p.paid,0)) AS remaining
@@ -33,10 +34,10 @@ LEFT JOIN (SELECT invoice_id,SUM(ROUND(quantity*unit_price,2)+ROUND(ROUND(quanti
 LEFT JOIN (SELECT invoice_id,SUM(amount) paid FROM app_supplier_payment GROUP BY invoice_id) p ON p.invoice_id=i.id
 WHERE i.status NOT IN ('draft','cancelled')
 SQL);
-        $overdueIn=0.0;$overdueOut=0.0;
+        $overdueIn=0;$overdueOut=0;
         foreach([['rows'=>$sales,'direction'=>'in'],['rows'=>$purchases,'direction'=>'out']] as $group){
             foreach($group['rows'] as $row){
-                $amount=round((float)$row['remaining'],2);if($amount<=0.001)continue;
+                $amount=AccountingAmount::toCents((string)$row['remaining']);if($amount<=0)continue;
                 $due=new DateTimeImmutable($row['due_date']);
                 $isOverdue=$due<$today;
                 if($isOverdue){$due=$today;if($group['direction']==='in')$overdueIn+=$amount;else $overdueOut+=$amount;}
@@ -47,15 +48,21 @@ SQL);
                 if($isOverdue){$overdueKey=$group['direction']==='in'?'overdue_inflows':'overdue_outflows';$weeks[$weekStart][$overdueKey]+=$amount;}
             }
         }
-        $cumulative=0.0;$forecast=[];
+        $cumulative=0;$forecast=[];$totalInflows=0;$totalOutflows=0;
         foreach($weeks as $week){
-            $in=round($week['inflows'],2);$out=round($week['outflows'],2);$net=round($in-$out,2);$cumulative=round($cumulative+$net,2);
-            $forecast[]=['start'=>$week['start'],'end'=>$week['end'],'inflows'=>$in,'outflows'=>$out,'net'=>$net,'cumulative_net'=>$cumulative,'overdue_inflows'=>round($week['overdue_inflows'],2),'overdue_outflows'=>round($week['overdue_outflows'],2)];
+            $in=$week['inflows'];$out=$week['outflows'];$net=$in-$out;$cumulative+=$net;
+            $totalInflows+=$in;$totalOutflows+=$out;
+            $forecast[]=['start'=>$week['start'],'end'=>$week['end'],
+                'inflows'=>AccountingAmount::formatCents($in),'outflows'=>AccountingAmount::formatCents($out),
+                'net'=>AccountingAmount::formatCents($net),'cumulative_net'=>AccountingAmount::formatCents($cumulative),
+                'overdue_inflows'=>AccountingAmount::formatCents($week['overdue_inflows']),
+                'overdue_outflows'=>AccountingAmount::formatCents($week['overdue_outflows'])];
         }
         return $this->render('cash_flow_forecast/index.html.twig',[
-            'forecast'=>$forecast,'overdue_inflows'=>round($overdueIn,2),'overdue_outflows'=>round($overdueOut,2),
-            'total_inflows'=>round(array_sum(array_column($forecast,'inflows')),2),
-            'total_outflows'=>round(array_sum(array_column($forecast,'outflows')),2),
+            'forecast'=>$forecast,'overdue_inflows'=>AccountingAmount::formatCents($overdueIn),
+            'overdue_outflows'=>AccountingAmount::formatCents($overdueOut),
+            'total_inflows'=>AccountingAmount::formatCents($totalInflows),
+            'total_outflows'=>AccountingAmount::formatCents($totalOutflows),
         ]);
     }
 }

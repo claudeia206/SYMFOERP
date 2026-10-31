@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controller;
+use App\Service\AccountingAmount;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,10 +18,17 @@ final class VatDeclarationController extends AbstractController
     {
         [$from,$to]=$this->period($request);
         $months=$this->rows($db,$from,$to);
-        $collected=0.0;$deductible=0.0;
-        foreach($months as &$month){$month['collected']=(float)$month['collected'];$month['deductible']=(float)$month['deductible'];$month['net']=round($month['collected']-$month['deductible'],2);$collected+=$month['collected'];$deductible+=$month['deductible'];}
+        $collectedCents=0;$deductibleCents=0;
+        foreach($months as &$month){
+            $monthCollected=AccountingAmount::toCents((string)$month['collected']);
+            $monthDeductible=AccountingAmount::toCents((string)$month['deductible']);
+            $month['collected']=AccountingAmount::formatCents($monthCollected);
+            $month['deductible']=AccountingAmount::formatCents($monthDeductible);
+            $month['net']=AccountingAmount::formatCents($monthCollected-$monthDeductible);
+            $collectedCents+=$monthCollected;$deductibleCents+=$monthDeductible;
+        }
         unset($month);
-        return $this->render('vat_declaration/index.html.twig',['months'=>$months,'from'=>$from,'to'=>$to,'collected'=>round($collected,2),'deductible'=>round($deductible,2),'net'=>round($collected-$deductible,2)]);
+        return $this->render('vat_declaration/index.html.twig',['months'=>$months,'from'=>$from,'to'=>$to,'collected'=>AccountingAmount::formatCents($collectedCents),'deductible'=>AccountingAmount::formatCents($deductibleCents),'net'=>AccountingAmount::formatCents($collectedCents-$deductibleCents)]);
     }
     #[Route('/export.csv',name:'app_vat_declaration_export',methods:['GET'])]
     public function export(Connection $db,Request $request):Response
@@ -30,7 +38,11 @@ final class VatDeclarationController extends AbstractController
         if($handle===false)throw new \RuntimeException('Impossible de préparer l’export CSV.');
         fwrite($handle,"\xEF\xBB\xBF");
         fputcsv($handle,['Période','TVA collectée (€)','TVA déductible (€)','TVA nette (€)'],';');
-        foreach($rows as $row){$collected=(float)$row['collected'];$deductible=(float)$row['deductible'];fputcsv($handle,[$row['period'],number_format($collected,2,'.',''),number_format($deductible,2,'.',''),number_format($collected-$deductible,2,'.','')],';');}
+        foreach($rows as $row){
+            $collected=AccountingAmount::toCents((string)$row['collected']);
+            $deductible=AccountingAmount::toCents((string)$row['deductible']);
+            fputcsv($handle,[$row['period'],AccountingAmount::formatCents($collected),AccountingAmount::formatCents($deductible),AccountingAmount::formatCents($collected-$deductible)],';');
+        }
         rewind($handle);$csv=stream_get_contents($handle);fclose($handle);
         return new Response($csv===false?'':$csv,200,['Content-Type'=>'text/csv; charset=UTF-8','Content-Disposition'=>'attachment; filename="declaration-tva-'.$from.'-'.$to.'.csv"','X-Content-Type-Options'=>'nosniff']);
     }

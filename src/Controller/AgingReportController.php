@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controller;
+use App\Service\AccountingAmount;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -48,16 +49,18 @@ SQL);
     }
     private function summarize(array &$rows,string $today):array
     {
-        $totals=['current'=>0.0,'d1_30'=>0.0,'d31_60'=>0.0,'d61_90'=>0.0,'d90'=>0.0,'total'=>0.0];
+        $totals=['current'=>0,'d1_30'=>0,'d31_60'=>0,'d61_90'=>0,'d90'=>0,'total'=>0];
         foreach($rows as &$row){
             $days=(int)(new DateTimeImmutable($row['due_date']))->diff(new DateTimeImmutable($today))->format('%r%a');
             $row['days_overdue']=max(0,$days);
             $bucket=$days<=0?'current':($days<=30?'d1_30':($days<=60?'d31_60':($days<=90?'d61_90':'d90')));
-            $row['bucket']=$bucket;$row['remaining']=(float)$row['remaining'];
-            $totals[$bucket]+=$row['remaining'];$totals['total']+=$row['remaining'];
+            $row['bucket']=$bucket;
+            $remaining=AccountingAmount::toCents((string)$row['remaining']);
+            $row['remaining']=AccountingAmount::formatCents($remaining);
+            $totals[$bucket]+=$remaining;$totals['total']+=$remaining;
         }
         unset($row);
-        foreach($totals as &$amount)$amount=round($amount,2);
+        foreach($totals as &$amount)$amount=AccountingAmount::formatCents($amount);
         unset($amount);
         return $totals;
     }
