@@ -10,7 +10,7 @@ use App\Entity\SalesOrder;
 use App\Entity\SalesReturn;
 use App\Repository\SalesOrderRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\LockMode;
+use Doctrine\DBAL\LockMode;
 use InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;

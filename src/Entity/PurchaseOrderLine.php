@@ -58,8 +58,9 @@ class PurchaseOrderLine
     }
 
     public function getId(): ?int { return $this->id; }
+    
     public function getPosition(): int { return $this->position; }
-    public function setPurchaseOrder(PurchaseOrder $order): self { $this->purchaseOrder = $order; return $this; }
+public function setPurchaseOrder(PurchaseOrder $order): self { $this->purchaseOrder = $order; return $this; }
     public function getProduct(): Product { return $this->product; }
     public function getDescription(): string { return $this->description; }
     public function getQuantity(): string { return $this->quantity; }

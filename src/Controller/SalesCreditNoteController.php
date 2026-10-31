@@ -10,7 +10,7 @@ use App\Entity\SalesInvoice;
 use App\Service\AccountingPostingService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\LockMode;
+use Doctrine\DBAL\LockMode;
 use InvalidArgumentException;
 use Dompdf\Dompdf;
 use Dompdf\Options;
