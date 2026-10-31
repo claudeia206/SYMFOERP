@@ -254,7 +254,7 @@ jobs:
           assert "Solde antérieur" in account_statement and "100,00 € D" in account_statement, "General ledger opening balance was not carried forward"
           assert "75,00 € débiteur" in account_statement, "General ledger closing balance did not include current-period movement"
           trial_balance = client.open(base + "/accounting?from=" + movement_date + "&to=" + movement_date).read().decode()
-          trial_row = re.search(r'<tr>\\s*<td><a href="/accounting/accounts/' + customer_account.group(1) + r'[^"]*">411000</a>.*?</tr>', trial_balance, re.S)
+          trial_row = re.search(r'<tr>\s*<td><a href="/accounting/accounts/' + customer_account.group(1) + r'[^"]*">411000</a>.*?</tr>', trial_balance, re.S)
           assert "Solde antérieur D/C" in trial_balance and trial_row, "Trial balance opening balance column or customer row is missing"
           assert "100,00 € D" in trial_row.group(0) and "75,00 € D" in trial_row.group(0), "Trial balance did not include brought-forward and closing account balances"
           vat_html = client.open(base + "/accounting/vat").read().decode()
