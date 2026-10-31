@@ -8,6 +8,7 @@ use App\Entity\SalesDelivery;
 use App\Entity\SalesDeliveryLine;
 use App\Entity\SalesOrder;
 use App\Entity\SalesReturn;
+use App\Service\StockQuantity;
 use App\Repository\SalesOrderRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
@@ -75,16 +76,28 @@ final class SalesOrderController extends AbstractController
     private function registerDelivery(SalesOrder $order,array $quantities,string $notes,EntityManagerInterface $em): SalesDelivery
     {
         $delivery=new SalesDelivery($order,$notes); $count=0;
+        $products = [];
+        foreach ($order->getLines() as $line) {
+            $product = $line->getProduct();
+            if ($product !== null && $product->isStockTracked() && $product->getId() !== null) {
+                $products[$product->getId()] = $product;
+            }
+        }
+        ksort($products, SORT_NUMERIC);
+        foreach ($products as $product) {
+            $em->lock($product, LockMode::PESSIMISTIC_WRITE);
+            $em->refresh($product);
+        }
         foreach($order->getLines() as $line) {
             $raw=trim((string)($quantities[(string)$line->getId()]??''));
             if($raw==='') continue;
-            if(!is_numeric($raw)||round((float)$raw,3)<=0) throw new InvalidArgumentException('Chaque quantité livrée doit être un nombre strictement positif.');
-            $quantity=number_format((float)$raw,3,'.','');
+            $milliunits = StockQuantity::toMilliunits($raw);
+            if ($milliunits <= 0) throw new InvalidArgumentException('Chaque quantité livrée doit être un nombre strictement positif.');
+            $quantity = StockQuantity::format($milliunits);
             $deliveryLine=new SalesDeliveryLine($line,$quantity);
             $product=$line->getProduct();
             if($product!==null&&$product->isStockTracked()) {
-                $em->lock($product,LockMode::PESSIMISTIC_WRITE);
-                $out=number_format(-(float)$quantity,3,'.','');
+                $out = StockQuantity::format(-$milliunits);
                 $product->adjustStock($out);
                 $em->persist(new ProductStockMovement($product,$out,'sale',sprintf('Livraison commande %s · ligne %d',$order->getNumber()??('#'.$order->getId()),$line->getId())));
             }
