@@ -60,7 +60,10 @@ console() {
         -e DATABASE_URL="$symfoerp_database_url" \
         "$symfoerp_image" php /app/bin/console "$@"
 }
-console doctrine:migrations:migrate --no-interaction
+echo "Migrations Doctrine détectées avant installation :"
+console doctrine:migrations:list --show-versions
+console doctrine:migrations:status --show-versions
+console doctrine:migrations:migrate --no-interaction -vvv
 database_check='$url = parse_url(getenv("DATABASE_URL"));
 $pdo = new PDO(
     "mysql:host=" . $url["host"] . ";port=" . ($url["port"] ?? 3306) . ";dbname=" . ltrim($url["path"], "/") . ";charset=utf8mb4",
