@@ -57,7 +57,7 @@ foreach ([
 }
 
 $ledgerController = (new ReflectionClass(GeneralLedgerController::class))->newInstanceWithoutConstructor();
-$ledgerAmount = (new ReflectionClass(App\Controller\\GeneralLedgerController::class))->getMethod('toCents');
+$ledgerAmount = (new ReflectionClass(GeneralLedgerController::class))->getMethod('toCents');
 $ledgerAmount->setAccessible(true);
 foreach ([
     ['12,34', 1234],
