@@ -30,6 +30,7 @@ foreach ([
     [999999999999999, '9999999999999.99'],
 ] as [$value, $expected]) {
     expectAccountingAmount(AccountingAmount::formatCents($value) === $expected, 'Exact cent formatting failed.');
+}
 
 expectAccountingAmount(AccountingAmount::addCents(1200, 345) === 1545, 'Exact-cent addition failed.');
 expectAccountingAmount(AccountingAmount::addCents(99999999999999) === 99999999999999, 'Maximum journal amount must be supported.');
@@ -39,7 +40,6 @@ foreach ([[-1], [99999999999999, 1]] as $invalidSum) {
         throw new RuntimeException('Out-of-range accounting total accepted.');
     } catch (InvalidArgumentException) {
     }
-}
 }
 
 foreach (['', ' ', '+1.00', '01.00', '1,00', '1.001', '1e3', '10000000000000.00', 1.25, null, true] as $invalid) {
