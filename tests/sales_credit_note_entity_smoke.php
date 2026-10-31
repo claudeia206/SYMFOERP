@@ -43,6 +43,7 @@ $invoice->addCreditNote($note);
 expectCredit($note->getTotalExcludingTax() === 25.0, 'Credit note subtotal must use the invoiced unit price.');
 expectCredit($note->getTotalTax() === 5.0, 'Credit note VAT must use the original VAT rate.');
 expectCredit($note->getTotalIncludingTax() === 30.0, 'Credit note total must include VAT.');
+expectCredit($note->getTotalExcludingTaxCents() === 2500 && $note->getTotalTaxCents() === 500 && $note->getTotalIncludingTaxCents() === 3000, 'Credit note totals must remain exact in cents.');
 expectCredit($line->getCreditedQuantity() === '0.500', 'Credited quantity must be tracked on the invoice line.');
 expectCredit($line->getCreditEligibleQuantity() === '1.500', 'Credit eligibility must exclude previous credits.');
 $precisionLine = new SalesInvoiceLine('Précision quantité', '1.000', '1.00', '20.00', 2);
@@ -59,6 +60,7 @@ foreach (['1e-3', '0.0001', '1,000'] as $invalidQuantity) {
 }
 
 expectCredit($invoice->getCreditedAmount() === 30.0, 'Invoice must aggregate issued credit notes.');
+expectCredit($invoice->getCreditedAmountCents() === 3000 && $invoice->getRemainingAmountCents() === 9000, 'Credited and remaining invoice balances must remain exact in cents.');
 expectCredit($invoice->getRemainingAmount() === 90.0, 'Credit notes must reduce the invoice receivable.');
 try {
     $line->recordCredit('1.501');
