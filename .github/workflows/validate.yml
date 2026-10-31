@@ -235,7 +235,7 @@ jobs:
           fixed_asset_csv_response = client.open(base + "/accounting/fixed-assets/export.csv")
           fixed_asset_csv = fixed_asset_csv_response.read()
           assert fixed_asset_csv_response.headers.get_content_type() == "text/csv", "Fixed asset register export returned the wrong content type"
-          assert fixed_asset_csv.startswith(b"\\xef\\xbb\\xbf"), "Fixed asset register CSV is missing its UTF-8 BOM"
+          assert fixed_asset_csv.startswith(b"\xef\xbb\xbf"), "Fixed asset register CSV is missing its UTF-8 BOM"
           fixed_asset_csv_header = fixed_asset_csv.decode("utf-8-sig").splitlines()[0].split(";")
           assert len(fixed_asset_csv_header) == 12 and fixed_asset_csv_header[0] == "Code" and fixed_asset_csv_header[6] == "VNC comptable", "Fixed asset register CSV header is incomplete"
           fixed_asset_filtered = client.open(base + "/accounting/fixed-assets?q=CI-ABSENT-ASSET&status=active").read().decode()
