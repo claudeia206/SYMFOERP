@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Service\StockQuantity;
+use App\Service\AccountingAmount;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 
@@ -54,17 +55,19 @@ class SalesInvoiceLine
         if ($quantityMilliunits <= 0 || $quantityMilliunits > 9_999_999_999) {
             throw new InvalidArgumentException('Invoice line quantity must be positive and fit the database precision.');
         }
-        if (!is_numeric($unitPrice) || (float) $unitPrice < 0 || (float) $unitPrice > 9999999999.99) {
+        $unitPriceCents = AccountingAmount::toCents($unitPrice);
+        $vatRateCents = AccountingAmount::toCents($vatRate);
+        if ($unitPriceCents < 0 || $unitPriceCents > 999999999999) {
             throw new InvalidArgumentException('Invoice line unit price is invalid.');
         }
-        if (!is_numeric($vatRate) || (float) $vatRate < 0 || (float) $vatRate > 100) {
+        if ($vatRateCents < 0 || $vatRateCents > 10000) {
             throw new InvalidArgumentException('Invoice line VAT rate is invalid.');
         }
         $this->product = $product;
         $this->description = $description;
         $this->quantity = StockQuantity::format($quantityMilliunits);
-        $this->unitPrice = number_format((float) $unitPrice, 2, '.', '');
-        $this->vatRate = number_format((float) $vatRate, 2, '.', '');
+        $this->unitPrice = AccountingAmount::formatCents($unitPriceCents);
+        $this->vatRate = AccountingAmount::formatCents($vatRateCents);
         $this->position = max(1, $position);
     }
 
