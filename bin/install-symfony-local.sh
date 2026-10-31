@@ -61,13 +61,28 @@ console() {
         "$symfoerp_image" php /app/bin/console "$@"
 }
 console doctrine:migrations:migrate --no-interaction
+database_check='\$url = parse_url(getenv("DATABASE_URL"));
+\$pdo = new PDO(
+    "mysql:host={\$url["host"]};port=" . (\$url["port"] ?? 3306) . ";dbname=" . ltrim(\$url["path"], "/") . ";charset=utf8mb4",
+    rawurldecode(\$url["user"]),
+    rawurldecode(\$url["pass"]),
+    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+);
+\$database = \$pdo->query("SELECT DATABASE() AS database_name, @@hostname AS database_host")->fetch(PDO::FETCH_ASSOC);
+\$hasUserTable = (int) \$pdo->query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = \"app_user\"")->fetchColumn();
+if (\$hasUserTable !== 1) {
+    fwrite(STDERR, "La table app_user est absente de la base " . \$database["database_name"] . PHP_EOL);
+    exit(1);
+}
+\$userCount = (int) \$pdo->query("SELECT COUNT(*) FROM app_user")->fetchColumn();
+echo json_encode(\$database + ["app_user_rows" => \$userCount], JSON_THROW_ON_ERROR) . PHP_EOL;'
 echo "Vérification de la base utilisée par le conteneur CLI :"
-console dbal:run-sql 'SELECT DATABASE() AS database_name, @@hostname AS database_host'
-console dbal:run-sql "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_user'"
-console dbal:run-sql 'SELECT COUNT(*) AS app_user_rows FROM app_user'
+docker run --rm --network "$symfoerp_network" \
+    -e APP_ENV=dev -e APP_DEBUG=1 -e APP_SECRET="$APP_SECRET" \
+    -e DATABASE_URL="$symfoerp_database_url" \
+    "$symfoerp_image" php -r "$database_check"
 echo "Vérification de la même base depuis le conteneur HTTP Symfony :"
-docker compose --env-file .env.docker exec --no-TTY symfony php /app/bin/console dbal:run-sql 'SELECT DATABASE() AS database_name, @@hostname AS database_host'
-docker compose --env-file .env.docker exec --no-TTY symfony php /app/bin/console dbal:run-sql "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_user'"
+docker compose --env-file .env.docker exec --no-TTY symfony php -r "$database_check"
 console doctrine:schema:validate
 
 read -r -p "E-mail du premier administrateur : " admin_email
