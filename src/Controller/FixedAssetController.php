@@ -109,7 +109,7 @@ final class FixedAssetController extends AbstractController
             'Coût brut', 'Amortissements comptabilisés', 'VNC comptable',
             'Durée (ans)', 'Dernier exercice amorti', 'Statut',
             'Date de sortie', 'Prix de cession',
-        ])."\\r\\n");
+        ])."\r\n");
 
         $safeText = static function (mixed $value): string {
             $value = (string) ($value ?? '');
