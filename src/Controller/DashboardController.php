@@ -32,6 +32,7 @@ final class DashboardController extends AbstractController
                 ['name' => 'Bilan et compte de résultat', 'description' => 'Synthèse des comptes de classes 1 à 7', 'status' => 'Disponible', 'route' => 'app_financial_statements'],
                 ['name' => 'Rapprochement bancaire', 'description' => 'Import CSV et rapprochement des règlements', 'status' => 'Disponible', 'route' => 'app_bank_reconciliation'],
                 ['name' => 'Prévision de trésorerie', 'description' => 'Projection des flux sur 13 semaines', 'status' => 'Disponible', 'route' => 'app_cash_flow_forecast'],
+                ['name' => 'Relances clients', 'description' => 'Suivi des factures échues et historique des relances', 'status' => 'Disponible', 'route' => 'app_sales_payment_reminders'],
             ],
         ]);
     }
