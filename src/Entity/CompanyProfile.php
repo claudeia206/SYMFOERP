@@ -108,7 +108,11 @@ class CompanyProfile
         if ($siren !== '' && strlen($siren) !== 9) { throw new InvalidArgumentException('Le SIREN doit contenir 9 chiffres.'); }
         if ($siret !== '' && strlen($siret) !== 14) { throw new InvalidArgumentException('Le SIRET doit contenir 14 chiffres.'); }
         if ($siren !== '' && $siret !== '' && !str_starts_with($siret, $siren)) { throw new InvalidArgumentException('Le SIRET doit commencer par le SIREN saisi.'); }
-        $recoveryFeeInput = trim((string) ($data['recoveryFee'] ?? ''));
+        $recoveryFeeRaw = $data['recoveryFee'] ?? '';
+        if (!is_string($recoveryFeeRaw) && !is_int($recoveryFeeRaw)) {
+            throw new InvalidArgumentException('L’indemnité de recouvrement doit être un montant décimal exact.');
+        }
+        $recoveryFeeInput = trim((string) $recoveryFeeRaw);
         $recoveryFee = null;
         if ($recoveryFeeInput !== '') {
             try {
