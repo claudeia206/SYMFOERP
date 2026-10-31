@@ -11,7 +11,7 @@ Ouvrir un terminal :
 ```bash
 cat /etc/os-release
 . /etc/os-release
-printf 'Mint: %s\nUbuntu base: %s\n' "$VERSION_CODENAME" "${UBUNTU_CODENAME:-non détectée}"
+printf 'Mint: %s\\nUbuntu base: %s\\n' "$VERSION_CODENAME" "${UBUNTU_CODENAME:-non détectée}"
 ```
 
 Le script exige que `UBUNTU_CODENAME` soit renseigné. Il utilise le dépôt Ubuntu correspondant, et non le nom de code Linux Mint.
@@ -79,7 +79,9 @@ tail -f var/log/dev.log
 
 Vérifier la santé HTTP :
 
-```curl -i http://127.0.0.1:8080/healthz```
+```bash
+curl -i http://127.0.0.1:8080/healthz
+```
 
 Appliquer les migrations après une mise à jour du code :
 
@@ -92,6 +94,8 @@ Vider le cache :
 ```bash
 php bin/console cache:clear
 ```
+
+**Important — gestion du schéma :** les tables comptables et de séquençage utilisées directement par les services DBAL sont volontairement exclues du périmètre de Doctrine ORM. Les migrations Doctrine restent leur source de vérité. N'utilisez jamais `doctrine:schema:update --force` pour synchroniser la base ; appliquez les migrations versionnées après sauvegarde.
 
 ## 6. Sauvegarde de la base
 
