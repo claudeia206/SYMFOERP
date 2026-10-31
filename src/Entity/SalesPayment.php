@@ -49,7 +49,9 @@ class SalesPayment
         if ($amountInCents <= 0 || $amountInCents > 999999999999) {
             throw new InvalidArgumentException('Montant de règlement invalide.');
         }
-        [$whole, $fraction] = array_pad(explode('.', $amount, 2), 2, '');
+        if (!in_array($method, self::METHODS, true)) {
+            throw new InvalidArgumentException('Moyen de règlement invalide.');
+        }
         if (!in_array($method, self::METHODS, true)) {
             throw new InvalidArgumentException('Unsupported payment method.');
         }
