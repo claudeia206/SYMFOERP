@@ -100,4 +100,18 @@ try {
 } catch (InvalidArgumentException) {
 }
 
+$invalidAmounts = [1.25, '1,25', '1e3', '01.00', '1.234', '10000000000000.00'];
+foreach ($invalidAmounts as $invalidAmount) {
+    try {
+        App\\Service\\AccountingAmount::toCents($invalidAmount);
+        throw new RuntimeException('Invalid accounting amount was accepted: ' . var_export($invalidAmount, true));
+    } catch (InvalidArgumentException) {
+    }
+}
+if (App\\Service\\AccountingAmount::toCents('-0.01') !== -1
+    || App\\Service\\AccountingAmount::formatCents(-12345) !== '-123.45'
+    || App\\Service\\AccountingAmount::formatCents(0) !== '0.00') {
+    throw new RuntimeException('Accounting amount conversion must preserve sign and exact cents.');
+}
+
 echo "Fixed asset exact-cent depreciation and posting-order smoke tests passed.\n";
