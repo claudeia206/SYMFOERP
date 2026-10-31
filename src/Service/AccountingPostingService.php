@@ -16,7 +16,7 @@ final class AccountingPostingService
         $lines=[];$totalNet=0;$totalTax=0;
         foreach($groups as $group){$net=$this->cents($group['net']);$tax=$this->cents($group['tax']);if($net>0)$lines[]=['account'=>'707000','label'=>'Vente HT – TVA '.$group['vat_rate'].'%','debit'=>0,'credit'=>$net];if($tax>0)$lines[]=['account'=>'445710','label'=>'TVA collectée – '.$group['vat_rate'].'%','debit'=>0,'credit'=>$tax];$totalNet=AccountingAmount::addCents($totalNet,$net);$totalTax=AccountingAmount::addCents($totalTax,$tax);}
         if(AccountingAmount::addCents($totalNet,$totalTax)<=0)throw new RuntimeException('La facture ne comporte aucun montant comptabilisable.');
-        array_unshift($lines,['account'=>'411000','label'=>'Client '.$invoice['number'],'debit'=>$totalNet+$totalTax,'credit'=>0]);
+        array_unshift($lines,['account'=>'411000','label'=>'Client '.$invoice['number'],'debit'=>AccountingAmount::addCents($totalNet,$totalTax),'credit'=>0]);
         $this->post('sales_invoice',$invoiceId,'VE',$invoice['invoice_date'],$invoice['number'],'Facture client '.$invoice['number'],$lines);
     }
     public function postSalesPayment(int $paymentId): void
@@ -34,9 +34,9 @@ final class AccountingPostingService
         if(!$note)throw new RuntimeException('Avoir client émis introuvable pour comptabilisation.');
         $groups=$this->db->fetchAllAssociative('SELECT vat_rate,SUM(ROUND(quantity*unit_price,2)) AS net,SUM(ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS tax FROM app_sales_credit_note_line WHERE credit_note_id=? GROUP BY vat_rate ORDER BY vat_rate',[$creditNoteId]);
         $lines=[];$totalNet=0;$totalTax=0;
-        foreach($groups as $group){$net=$this->cents($group['net']);$tax=$this->cents($group['tax']);if($net>0)$lines[]=['account'=>'707000','label'=>'Annulation vente HT – avoir '.$note['number'],'debit'=>$net,'credit'=>0];if($tax>0)$lines[]=['account'=>'445710','label'=>'Annulation TVA collectée – avoir '.$note['number'],'debit'=>$tax,'credit'=>0];$totalNet+=$net;$totalTax+=$tax;}
-        if($totalNet+$totalTax<=0)throw new RuntimeException('L’avoir ne comporte aucun montant comptabilisable.');
-        $lines[]=['account'=>'411000','label'=>'Avoir client '.$note['number'],'debit'=>0,'credit'=>$totalNet+$totalTax];
+        foreach($groups as $group){$net=$this->cents($group['net']);$tax=$this->cents($group['tax']);if($net>0)$lines[]=['account'=>'707000','label'=>'Annulation vente HT – avoir '.$note['number'],'debit'=>$net,'credit'=>0];if($tax>0)$lines[]=['account'=>'445710','label'=>'Annulation TVA collectée – avoir '.$note['number'],'debit'=>$tax,'credit'=>0];$totalNet=AccountingAmount::addCents($totalNet,$net);$totalTax=AccountingAmount::addCents($totalTax,$tax);}
+        if(AccountingAmount::addCents($totalNet,$totalTax)<=0)throw new RuntimeException('L’avoir ne comporte aucun montant comptabilisable.');
+        $lines[]=['account'=>'411000','label'=>'Avoir client '.$note['number'],'debit'=>0,'credit'=>AccountingAmount::addCents($totalNet,$totalTax)];
         $this->post('sales_credit_note',$creditNoteId,'VE',$note['credit_date'],$note['number'],'Avoir client '.$note['number'].' sur '.$note['invoice_number'],$lines);
     }
     public function postSupplierInvoice(int $invoiceId): void
@@ -46,9 +46,9 @@ final class AccountingPostingService
         if(!$invoice)throw new RuntimeException('Facture fournisseur reçue introuvable pour comptabilisation.');
         $groups=$this->db->fetchAllAssociative('SELECT vat_rate,SUM(ROUND(quantity*unit_price,2)) AS net,SUM(ROUND(ROUND(quantity*unit_price,2)*vat_rate/100,2)) AS tax FROM app_supplier_invoice_line WHERE invoice_id=? GROUP BY vat_rate ORDER BY vat_rate',[$invoiceId]);
         $lines=[];$totalNet=0;$totalTax=0;
-        foreach($groups as $group){$net=$this->cents($group['net']);$tax=$this->cents($group['tax']);if($net>0)$lines[]=['account'=>'607000','label'=>'Achat HT – TVA '.$group['vat_rate'].'%','debit'=>$net,'credit'=>0];if($tax>0)$lines[]=['account'=>'445660','label'=>'TVA déductible – '.$group['vat_rate'].'%','debit'=>$tax,'credit'=>0];$totalNet+=$net;$totalTax+=$tax;}
-        if($totalNet+$totalTax<=0)throw new RuntimeException('La facture fournisseur ne comporte aucun montant comptabilisable.');
-        $lines[]=['account'=>'401000','label'=>'Fournisseur '.$invoice['supplier_invoice_number'],'debit'=>0,'credit'=>$totalNet+$totalTax];
+        foreach($groups as $group){$net=$this->cents($group['net']);$tax=$this->cents($group['tax']);if($net>0)$lines[]=['account'=>'607000','label'=>'Achat HT – TVA '.$group['vat_rate'].'%','debit'=>$net,'credit'=>0];if($tax>0)$lines[]=['account'=>'445660','label'=>'TVA déductible – '.$group['vat_rate'].'%','debit'=>$tax,'credit'=>0];$totalNet=AccountingAmount::addCents($totalNet,$net);$totalTax=AccountingAmount::addCents($totalTax,$tax);}
+        if(AccountingAmount::addCents($totalNet,$totalTax)<=0)throw new RuntimeException('La facture fournisseur ne comporte aucun montant comptabilisable.');
+        $lines[]=['account'=>'401000','label'=>'Fournisseur '.$invoice['supplier_invoice_number'],'debit'=>0,'credit'=>AccountingAmount::addCents($totalNet,$totalTax)];
         $this->post('supplier_invoice',$invoiceId,'AC',$invoice['invoice_date'],$invoice['supplier_invoice_number'],'Facture fournisseur '.$invoice['supplier_invoice_number'],$lines);
     }
     public function postSupplierPayment(int $paymentId): void
