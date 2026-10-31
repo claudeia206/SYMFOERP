@@ -112,13 +112,22 @@ class SalesOrder
     }
     /** @return Collection<int, SalesOrderLine> */
     public function getLines(): Collection { return $this->lines; }
-    public function getTotalExcludingTax(): float
+    public function getTotalExcludingTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (float $sum, SalesOrderLine $line): float => $sum + $line->getTotalExcludingTax(), 0.0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesOrderLine $line): int => $sum + $line->getTotalExcludingTaxCents(), 0);
     }
-    public function getTotalTax(): float
+
+    public function getTotalTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (float $sum, SalesOrderLine $line): float => $sum + $line->getTotalTax(), 0.0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesOrderLine $line): int => $sum + $line->getTotalTaxCents(), 0);
     }
-    public function getTotalIncludingTax(): float { return $this->getTotalExcludingTax() + $this->getTotalTax(); }
+
+    public function getTotalIncludingTaxCents(): int
+    {
+        return $this->getTotalExcludingTaxCents() + $this->getTotalTaxCents();
+    }
+
+    public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
+    public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
+    public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
 }
