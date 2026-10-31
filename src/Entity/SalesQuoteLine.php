@@ -52,16 +52,18 @@ class SalesQuoteLine
         if ($quantityMilliunits <= 0 || $quantityMilliunits > 9_999_999_999) {
             throw new InvalidArgumentException('Quantity must be greater than zero and within the supported range.');
         }
-        if (!is_numeric($unitPrice) || (float) $unitPrice < 0 || (float) $unitPrice > 9999999999.99) {
+        $unitPriceCents = AccountingAmount::toCents($unitPrice);
+        $vatRateCents = AccountingAmount::toCents($vatRate);
+        if ($unitPriceCents < 0 || $unitPriceCents > 999999999999) {
             throw new InvalidArgumentException('Unit price is outside the supported range.');
         }
-        if (!is_numeric($vatRate) || (float) $vatRate < 0 || (float) $vatRate > 100) {
+        if ($vatRateCents < 0 || $vatRateCents > 10000) {
             throw new InvalidArgumentException('VAT rate must be between 0 and 100.');
         }
         $this->description = $description;
         $this->quantity = StockQuantity::format($quantityMilliunits);
-        $this->unitPrice = number_format((float) $unitPrice, 2, '.', '');
-        $this->vatRate = number_format((float) $vatRate, 2, '.', '');
+        $this->unitPrice = AccountingAmount::formatCents($unitPriceCents);
+        $this->vatRate = AccountingAmount::formatCents($vatRateCents);
         $this->position = max(1, $position);
     }
 
