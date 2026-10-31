@@ -41,7 +41,7 @@ SELECT a.code, a.name, LEFT(a.code, 1) AS class,
 FROM app_accounting_account a
 LEFT JOIN app_journal_entry_line l ON l.account_id = a.id
 LEFT JOIN app_journal_entry e ON e.id = l.entry_id AND e.status = 'posted' AND e.entry_date <= ?
-WHERE a.is_active = 1 AND a.code REGEXP '^[1-7]'
+WHERE a.code REGEXP '^[1-7]'
 GROUP BY a.id, a.code, a.name
 ORDER BY a.code
 SQL, [$to, $to, $from, $to, $from, $to, $to]);
