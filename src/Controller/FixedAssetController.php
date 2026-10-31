@@ -272,18 +272,21 @@ final class FixedAssetController extends AbstractController
             $asOf=new DateTimeImmutable($date);
             $plan=$calculator->straightLine((string)$asset['acquisition_cost'],(string)$asset['residual_value'],(int)$asset['useful_life_years'],new DateTimeImmutable($asset['in_service_date']),$asOf);
             $posted=$db->fetchAllAssociative('SELECT fiscal_year,amount FROM app_fixed_asset_depreciation WHERE asset_id=? ORDER BY fiscal_year FOR UPDATE',[$id]);
-            $postedByYear=[];foreach($posted as $row)$postedByYear[(int)$row['fiscal_year']]=(float)$row['amount'];
-            $accumulated=0.0;
+            $postedByYear=[];foreach($posted as $row)$postedByYear[(int)$row['fiscal_year']]=AccountingAmount::toCents((string)$row['amount']);
+            $accumulatedCents=0;
             foreach($plan as $period){
                 $periodYear=(int)$period['period'];
-                if(!isset($postedByYear[$periodYear]))throw new \InvalidArgumentException(sprintf('Comptabilisez d’abord la dotation %d avant la sortie.',$periodYear));
-                if(abs($postedByYear[$periodYear]-(float)$period['amount'])>0.01)throw new \InvalidArgumentException(sprintf('La dotation %d ne correspond plus au plan calculé.',$periodYear));
-                $accumulated+=$postedByYear[$periodYear];
+                if(!isset($postedByYear[$periodYear]))throw new \\InvalidArgumentException(sprintf('Comptabilisez d’abord la dotation %d avant la sortie.',$periodYear));
+                if($postedByYear[$periodYear]!==AccountingAmount::toCents((string)$period['amount']))throw new \\InvalidArgumentException(sprintf('La dotation %d ne correspond plus au plan calculé.',$periodYear));
+                $accumulatedCents+=$postedByYear[$periodYear];
             }
-            $cost=(float)$asset['acquisition_cost'];$bookValue=max(0.0,round($cost-$accumulated,2));
-            $gain=round($proceeds-$bookValue,2);$amounts=[
+            $costCents=AccountingAmount::toCents((string)$asset['acquisition_cost']);
+            $proceedsCents=AccountingAmount::toCents($proceeds);
+            $bookValueCents=max(0,$costCents-$accumulatedCents);
+            $gainCents=$proceedsCents-$bookValueCents;
+            $amounts=[
                 (int)$asset['disposal_bank_account_id'],(int)$asset['accumulated_account_id'],
-                (int)$asset['asset_account_id'],(int)($gain>=0?$asset['disposal_gain_account_id']:$asset['disposal_loss_account_id'])
+                (int)$asset['asset_account_id'],(int)($gainCents>=0?$asset['disposal_gain_account_id']:$asset['disposal_loss_account_id'])
             ];
             if(count(array_unique($amounts))!==4)throw new \InvalidArgumentException('Les quatre comptes de cession doivent être distincts.');
             $valid=(int)$db->fetchOne('SELECT COUNT(*) FROM app_accounting_account WHERE is_active=1 AND id IN (?,?,?,?)',$amounts);
@@ -294,18 +297,18 @@ final class FixedAssetController extends AbstractController
             $number=(int)$db->fetchOne('SELECT COALESCE(MAX(entry_number),0)+1 FROM app_journal_entry WHERE journal_id=?',[$journalId]);
             $description=sprintf('Sortie immobilisation %s - cession %s',$asset['code'],$date);
             $db->insert('app_journal_entry',['journal_id'=>$journalId,'entry_number'=>$number,'entry_date'=>$date,'reference'=>'CESSION-'.$asset['code'],'description'=>$description,'status'=>'posted','created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
-            $entryId=(int)$db->lastInsertId();$fmt=static fn(float $v):string=>number_format($v,2,'.','');
+            $entryId=(int)$db->lastInsertId();
             $lines=[
-                ['account_id'=>$asset['disposal_bank_account_id'],'label'=>'Prix de cession '.$asset['code'],'debit'=>$fmt($proceeds),'credit'=>'0.00'],
-                ['account_id'=>$asset['accumulated_account_id'],'label'=>'Reprise amortissements '.$asset['code'],'debit'=>$fmt($accumulated),'credit'=>'0.00'],
-                ['account_id'=>$asset['asset_account_id'],'label'=>'Sortie valeur brute '.$asset['code'],'debit'=>'0.00','credit'=>$fmt($cost)],
+                ['account_id'=>$asset['disposal_bank_account_id'],'label'=>'Prix de cession '.$asset['code'],'debit'=>AccountingAmount::formatCents($proceedsCents),'credit'=>'0.00'],
+                ['account_id'=>$asset['accumulated_account_id'],'label'=>'Reprise amortissements '.$asset['code'],'debit'=>AccountingAmount::formatCents($accumulatedCents),'credit'=>'0.00'],
+                ['account_id'=>$asset['asset_account_id'],'label'=>'Sortie valeur brute '.$asset['code'],'debit'=>'0.00','credit'=>AccountingAmount::formatCents($costCents)],
             ];
-            if($gain>=0)$lines[]=['account_id'=>$asset['disposal_gain_account_id'],'label'=>'Plus-value de cession '.$asset['code'],'debit'=>'0.00','credit'=>$fmt($gain)];
-            else $lines[]=['account_id'=>$asset['disposal_loss_account_id'],'label'=>'Moins-value de cession '.$asset['code'],'debit'=>$fmt(abs($gain)),'credit'=>'0.00'];
+            if($gainCents>=0)$lines[]=['account_id'=>$asset['disposal_gain_account_id'],'label'=>'Plus-value de cession '.$asset['code'],'debit'=>'0.00','credit'=>AccountingAmount::formatCents($gainCents)];
+            else $lines[]=['account_id'=>$asset['disposal_loss_account_id'],'label'=>'Moins-value de cession '.$asset['code'],'debit'=>AccountingAmount::formatCents(abs($gainCents)),'credit'=>'0.00'];
             foreach($lines as $line)$db->insert('app_journal_entry_line',['entry_id'=>$entryId]+$line);
-            $db->update('app_fixed_asset',['status'=>'disposed','disposal_date'=>$date,'disposal_proceeds'=>$fmt($proceeds),'disposal_journal_entry_id'=>$entryId],['id'=>$id]);
+            $db->update('app_fixed_asset',['status'=>'disposed','disposal_date'=>$date,'disposal_proceeds'=>AccountingAmount::formatCents($proceedsCents),'disposal_journal_entry_id'=>$entryId],['id'=>$id]);
             $db->commit();
-            $this->addFlash('success',sprintf('Sortie comptabilisée. VNC : %s €, résultat de cession : %s €.',number_format($bookValue,2,',',' '),number_format($gain,2,',',' ')));
+            $this->addFlash('success',sprintf('Sortie comptabilisée. VNC : %s €, résultat de cession : %s €.',str_replace('.',',',AccountingAmount::formatCents($bookValueCents)),str_replace('.',',',AccountingAmount::formatCents($gainCents))));
         }catch(\InvalidArgumentException $e){if($db->isTransactionActive())$db->rollBack();$this->addFlash('error',$e->getMessage());}
         catch(Throwable){if($db->isTransactionActive())$db->rollBack();$this->addFlash('error','Échec de la sortie. Aucune écriture n’a été enregistrée.');}
         return $this->redirectToRoute('app_fixed_assets',['as_of'=>$date]);
