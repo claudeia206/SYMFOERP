@@ -62,17 +62,17 @@ SQL, [$to, $to, $from, $to, $from, $to, $to]);
                     return;
                 }
                 $groups[$key][] = ['code' => $row['code'], 'name' => $row['name'], 'balance' => AccountingAmount::formatCents($balance)];
-                $totals[$key] += $balance;
+                $totals[$key] = AccountingAmount::addSignedCents($totals[$key], $balance);
             };
 
             if (in_array($class, ['2', '3'], true)) {
-                $add($groups, $totals, 'assets', $row, $debit - $credit);
+                $add($groups, $totals, 'assets', $row, AccountingAmount::addSignedCents($debit, -$credit));
             } elseif ($class === '1') {
                 // PCG accounts 10–15 are equity; 16–18 are financing liabilities.
                 $key = preg_match('/^1[0-5]/', $code) ? 'equity' : 'liabilities';
-                $add($groups, $totals, $key, $row, $credit - $debit);
+                $add($groups, $totals, $key, $row, AccountingAmount::addSignedCents($credit, -$debit));
             } elseif (in_array($class, ['4', '5'], true)) {
-                $signed = $debit - $credit;
+                $signed = AccountingAmount::addSignedCents($debit, -$credit);
                 $key = $signed >= 0 ? 'assets' : 'liabilities';
                 $add($groups, $totals, $key, $row, abs($signed));
             } elseif ($class === '6') {
@@ -92,7 +92,7 @@ SQL, [$to, $to, $from, $to, $from, $to, $to]);
             'totals' => $totals,
             'from' => $from,
             'to' => $to,
-            'net_result' => AccountingAmount::formatCents(AccountingAmount::toCents($totals['income']) - AccountingAmount::toCents($totals['expenses'])),
+            'net_result' => AccountingAmount::formatCents(AccountingAmount::addSignedCents(AccountingAmount::toCents($totals['income']), -AccountingAmount::toCents($totals['expenses']))),
         ]);
     }
 }
