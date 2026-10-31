@@ -8,6 +8,7 @@ use App\Entity\SalesCreditNote;
 use App\Entity\SalesCreditNoteLine;
 use App\Entity\SalesInvoice;
 use App\Service\AccountingPostingService;
+use App\Service\StockQuantity;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
@@ -47,12 +48,14 @@ final class SalesCreditNoteController extends AbstractController
                 foreach ($invoice->getLines() as $line) {
                     $raw = trim((string) ($quantities[(string) $line->getId()] ?? ''));
                     if ($raw === '') continue;
-                    if (!is_numeric($raw) || round((float) $raw, 3) <= 0) {
-                        throw new InvalidArgumentException('Chaque quantité d’avoir doit être un nombre strictement positif.');
+                    $quantityMilliunits = StockQuantity::toMilliunits($raw);
+                    if ($quantityMilliunits <= 0 || $quantityMilliunits > 9_999_999_999) {
+                        throw new InvalidArgumentException('Chaque quantité d’avoir doit être strictement positive et comporter au maximum trois décimales.');
                     }
+                    $quantity = StockQuantity::format($quantityMilliunits);
                     $em->lock($line, LockMode::PESSIMISTIC_WRITE);
-                    $line->recordCredit(number_format((float) $raw, 3, '.', ''));
-                    $note->addLine(new SalesCreditNoteLine($note, $line, $raw));
+                    $line->recordCredit($quantity);
+                    $note->addLine(new SalesCreditNoteLine($note, $line, $quantity));
                     ++$count;
                 }
                 if ($count === 0) throw new InvalidArgumentException('Saisissez au moins une quantité à créditer.');
