@@ -151,7 +151,7 @@ final class FixedAssetController extends AbstractController
     }
 
     #[Route('/new', name: 'app_fixed_assets_create', methods: ['POST'])]
-    public function create(Connection $db, Request $request): Response
+    public function create(Connection $db, Request $request, AccountingPeriodGuard $periodGuard): Response
     {
         if (!$this->isCsrfTokenValid('fixed_asset_create', (string) $request->request->get('_token'))) throw $this->createAccessDeniedException();
         $code=trim((string)$request->request->get('code')); $name=trim((string)$request->request->get('name'));
@@ -164,24 +164,50 @@ final class FixedAssetController extends AbstractController
         $parsedService=DateTimeImmutable::createFromFormat('!Y-m-d',$serviceDate);
         $assetAccount = $this->parsePositiveInt($request->request->get('asset_account_id')); $accumAccount = $this->parsePositiveInt($request->request->get('accumulated_account_id'));
         $expenseAccount = $this->parsePositiveInt($request->request->get('expense_account_id')); $journal = $this->parsePositiveInt($request->request->get('journal_id'));
-        $bankAccount = $this->parsePositiveInt($request->request->get('disposal_bank_account_id')); $gainAccount = $this->parsePositiveInt($request->request->get('disposal_gain_account_id')); $lossAccount = $this->parsePositiveInt($request->request->get('disposal_loss_account_id'));
-        if ($years === null || $assetAccount === null || $accumAccount === null || $expenseAccount === null || $journal === null || $bankAccount === null || $gainAccount === null || $lossAccount === null || $code==='' || mb_strlen($code)>64 || $name==='' || mb_strlen($name)>255 || !$parsedAcquisition || $parsedAcquisition->format('Y-m-d')!==$acquisitionDate || !$parsedService || $parsedService->format('Y-m-d')!==$serviceDate || $parsedAcquisition>$parsedService || $cost===null || $residual===null || $cost<=0 || $residual<0 || $residual>=$cost || $years<1 || $years>100 || min($assetAccount,$accumAccount,$expenseAccount,$journal,$bankAccount,$gainAccount,$lossAccount)<=0 || count(array_unique([$assetAccount,$accumAccount,$expenseAccount,$bankAccount,$gainAccount,$lossAccount]))!==6) {
+        $acquisitionCounterpart = $this->parsePositiveInt($request->request->get('acquisition_counterpart_account_id'));\n        $bankAccount = $this->parsePositiveInt($request->request->get('disposal_bank_account_id')); $gainAccount = $this->parsePositiveInt($request->request->get('disposal_gain_account_id')); $lossAccount = $this->parsePositiveInt($request->request->get('disposal_loss_account_id'));
+        if ($years === null || $assetAccount === null || $accumAccount === null || $expenseAccount === null || $journal === null || $acquisitionCounterpart === null || $bankAccount === null || $gainAccount === null || $lossAccount === null || $code==='' || mb_strlen($code)>64 || $name==='' || mb_strlen($name)>255 || !$parsedAcquisition || $parsedAcquisition->format('Y-m-d')!==$acquisitionDate || !$parsedService || $parsedService->format('Y-m-d')!==$serviceDate || $parsedAcquisition>$parsedService || $cost===null || $residual===null || $cost<=0 || $residual<0 || $residual>=$cost || $years<1 || $years>100 || min($assetAccount,$accumAccount,$expenseAccount,$journal,$acquisitionCounterpart,$bankAccount,$gainAccount,$lossAccount)<=0 || count(array_unique([$assetAccount,$accumAccount,$expenseAccount,$acquisitionCounterpart,$bankAccount,$gainAccount,$lossAccount]))!==7) {
             $this->addFlash('error','Vérifiez les données, les comptes doivent être distincts et le journal renseigné.');
             return $this->redirectToRoute('app_fixed_assets');
         }
-        $valid=(int)$db->fetchOne('SELECT COUNT(*) FROM app_accounting_account WHERE is_active=1 AND id IN (?,?,?,?,?,?)',[$assetAccount,$accumAccount,$expenseAccount,$bankAccount,$gainAccount,$lossAccount]);
+        $valid=(int)$db->fetchOne('SELECT COUNT(*) FROM app_accounting_account WHERE is_active=1 AND id IN (?,?,?,?,?,?,?)',[$assetAccount,$accumAccount,$expenseAccount,$acquisitionCounterpart,$bankAccount,$gainAccount,$lossAccount]);
         $validJournal=(int)$db->fetchOne('SELECT COUNT(*) FROM app_accounting_journal WHERE id=?',[$journal]);
-        if($valid!==6 || $validJournal!==1){$this->addFlash('error','Compte comptable ou journal invalide.');return $this->redirectToRoute('app_fixed_assets');}
+        if($valid!==7 || $validJournal!==1){$this->addFlash('error','Compte comptable ou journal invalide.');return $this->redirectToRoute('app_fixed_assets');}
         try {
+            $db->beginTransaction();
+            $periodGuard->assertOpenDate($db, $acquisitionDate);
+            $db->fetchOne('SELECT id FROM app_accounting_journal WHERE id=? FOR UPDATE', [$journal]);
+            $journalCode=(string)$db->fetchOne('SELECT code FROM app_accounting_journal WHERE id=?', [$journal]);
+            if ($journalCode==='') throw new \\InvalidArgumentException('Journal comptable introuvable.');
             $db->insert('app_fixed_asset',[
                 'code'=>$code,'name'=>$name,'acquisition_cost'=>number_format($cost,2,'.',''),'residual_value'=>number_format($residual,2,'.',''),
                 'useful_life_years'=>$years,'acquisition_date'=>$acquisitionDate,'in_service_date'=>$serviceDate,'status'=>'active',
                 'asset_account_id'=>$assetAccount,'accumulated_account_id'=>$accumAccount,'expense_account_id'=>$expenseAccount,
-                'journal_id'=>$journal,'disposal_bank_account_id'=>$bankAccount,'disposal_gain_account_id'=>$gainAccount,
+                'journal_id'=>$journal,'acquisition_counterpart_account_id'=>$acquisitionCounterpart,
+                'disposal_bank_account_id'=>$bankAccount,'disposal_gain_account_id'=>$gainAccount,
                 'disposal_loss_account_id'=>$lossAccount,'created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s'),
             ]);
-            $this->addFlash('success','Immobilisation enregistrée.');
-        } catch (Throwable) {$this->addFlash('error','Code immobilisation déjà utilisé ou erreur d’enregistrement.');}
+            $assetId=(int)$db->lastInsertId();
+            $entryNumber=(int)$db->fetchOne('SELECT COALESCE(MAX(entry_number),0)+1 FROM app_journal_entry WHERE journal_id=?',[$journal]);
+            $description='Acquisition immobilisation '.$code;
+            $db->insert('app_journal_entry',[
+                'journal_id'=>$journal,'entry_number'=>$entryNumber,'entry_date'=>$acquisitionDate,
+                'reference'=>'IMMO-'.$code,'description'=>$description,'status'=>'posted',
+                'created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s'),
+            ]);
+            $entryId=(int)$db->lastInsertId();
+            $amount=number_format($cost,2,'.','');
+            $db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$assetAccount,'label'=>$description,'debit'=>$amount,'credit'=>'0.00']);
+            $db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$acquisitionCounterpart,'label'=>$description,'debit'=>'0.00','credit'=>$amount]);
+            $db->update('app_fixed_asset',['acquisition_journal_entry_id'=>$entryId],['id'=>$assetId]);
+            $db->commit();
+            $this->addFlash('success',sprintf('Immobilisation enregistrée et acquisition comptabilisée (%s-%06d).',$journalCode,$entryNumber));
+        } catch (\\InvalidArgumentException $e) {
+            if($db->isTransactionActive())$db->rollBack();
+            $this->addFlash('error',$e->getMessage());
+        } catch (Throwable) {
+            if($db->isTransactionActive())$db->rollBack();
+            $this->addFlash('error','Échec de l’enregistrement. Aucune immobilisation ni écriture n’a été conservée.');
+        }
         return $this->redirectToRoute('app_fixed_assets');
     }
 
