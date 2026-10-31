@@ -24,11 +24,11 @@ final class VatDeclarationController extends AbstractController
             $monthDeductible=AccountingAmount::toCents((string)$month['deductible']);
             $month['collected']=AccountingAmount::formatCents($monthCollected);
             $month['deductible']=AccountingAmount::formatCents($monthDeductible);
-            $month['net']=AccountingAmount::formatCents($monthCollected-$monthDeductible);
-            $collectedCents+=$monthCollected;$deductibleCents+=$monthDeductible;
+            $month['net']=AccountingAmount::formatCents(AccountingAmount::addSignedCents($monthCollected,-$monthDeductible));
+            $collectedCents=AccountingAmount::addSignedCents($collectedCents,$monthCollected);$deductibleCents=AccountingAmount::addSignedCents($deductibleCents,$monthDeductible);
         }
         unset($month);
-        return $this->render('vat_declaration/index.html.twig',['months'=>$months,'from'=>$from,'to'=>$to,'collected'=>AccountingAmount::formatCents($collectedCents),'deductible'=>AccountingAmount::formatCents($deductibleCents),'net'=>AccountingAmount::formatCents($collectedCents-$deductibleCents)]);
+        return $this->render('vat_declaration/index.html.twig',['months'=>$months,'from'=>$from,'to'=>$to,'collected'=>AccountingAmount::formatCents($collectedCents),'deductible'=>AccountingAmount::formatCents($deductibleCents),'net'=>AccountingAmount::formatCents(AccountingAmount::addSignedCents($collectedCents,-$deductibleCents))]);
     }
     #[Route('/export.csv',name:'app_vat_declaration_export',methods:['GET'])]
     public function export(Connection $db,Request $request):Response
@@ -41,7 +41,7 @@ final class VatDeclarationController extends AbstractController
         foreach($rows as $row){
             $collected=AccountingAmount::toCents((string)$row['collected']);
             $deductible=AccountingAmount::toCents((string)$row['deductible']);
-            fputcsv($handle,[$row['period'],AccountingAmount::formatCents($collected),AccountingAmount::formatCents($deductible),AccountingAmount::formatCents($collected-$deductible)],';');
+            fputcsv($handle,[$row['period'],AccountingAmount::formatCents($collected),AccountingAmount::formatCents($deductible),AccountingAmount::formatCents(AccountingAmount::addSignedCents($collected,-$deductible))],';');
         }
         rewind($handle);$csv=stream_get_contents($handle);fclose($handle);
         return new Response($csv===false?'':$csv,200,['Content-Type'=>'text/csv; charset=UTF-8','Content-Disposition'=>'attachment; filename="declaration-tva-'.$from.'-'.$to.'.csv"','X-Content-Type-Options'=>'nosniff']);
