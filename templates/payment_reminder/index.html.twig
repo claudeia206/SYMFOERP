@@ -12,7 +12,7 @@
 <section class="card">
 <h2>Actions de relance</h2>
 {% if reminders is empty %}<p class="muted">Aucune facture échue ou à échéance dans les sept prochains jours.</p>{% else %}
-<div class="table-scroll"><table class="data-table"><thead><tr><th>Facture</th><th>Client</th><th>Échéance</th><th>Retard</th><th>Solde dû</th><th>Étape</th><th>Action</th></tr></thead><tbody>
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Facture</th><th>Client</th><th>Échéance</th><th>Retard</th><th>Solde dû</th><th>Étape</th><th>Relances</th><th>Action</th></tr></thead><tbody>
 {% for item in reminders %}
 <tr>
 <td><a href="{{ path('app_sales_invoice_show',{id:item.id}) }}">{{ item.number }}</a></td>
@@ -21,8 +21,27 @@
 <td>{% if item.days_late>0 %}{{ item.days_late }} jour(s){% else %}À venir{% endif %}</td>
 <td>{{ item.remaining|number_format(2,',',' ') }} €</td>
 <td>{{ item.stage }}</td>
-<td>{% if item.mailto %}<a href="{{ item.mailto }}">Préparer l’e-mail</a>{% else %}<span class="muted">Compléter l’e-mail client</span>{% endif %}</td>
+<td>{{ item.reminder_count }}{% if item.last_reminder %}<small>Dernière : {{ item.last_reminder|date('d/m/Y') }}</small>{% endif %}</td>
+<td>
+{% if item.mailto %}<a href="{{ item.mailto }}">Préparer l’e-mail</a>{% else %}<span class="muted">Compléter l’e-mail client</span>{% endif %}
+<form method="post" action="{{ path('app_sales_payment_reminder_record',{id:item.id}) }}">
+<input type="hidden" name="_token" value="{{ csrf_token('payment_reminder_' ~ item.id) }}">
+<label>Niveau <select name="level"><option value="1">1 · Première relance</option><option value="2">2 · Deuxième relance</option><option value="3">3 · Dernière relance</option></select></label>
+<label>Canal <select name="channel"><option value="email" {% if not item.email %}disabled{% endif %}>E-mail</option><option value="phone">Téléphone</option><option value="letter">Courrier</option></select></label>
+<input name="note" maxlength="2000" placeholder="Commentaire (facultatif)">
+<button type="submit">Enregistrer la relance effectuée</button>
+</form>
+</td>
 </tr>
+{% endfor %}
+</tbody></table></div>{% endif %}
+</section>
+<section class="card">
+<h2>Historique des 100 dernières relances</h2>
+{% if history is empty %}<p class="muted">Aucune relance enregistrée.</p>{% else %}
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Date</th><th>Facture</th><th>Client</th><th>Niveau</th><th>Canal</th><th>Destinataire</th><th>Commentaire</th></tr></thead><tbody>
+{% for item in history %}
+<tr><td>{{ item.sent_at|date('d/m/Y H:i') }}</td><td>{{ item.number }}</td><td>{{ item.customer_name }}</td><td>{{ item.reminder_level }}</td><td>{{ {'email':'E-mail','phone':'Téléphone','letter':'Courrier'}[item.channel] }}</td><td>{{ item.recipient ?? '—' }}</td><td>{{ item.note ?? '—' }}</td></tr>
 {% endfor %}
 </tbody></table></div>{% endif %}
 </section>
