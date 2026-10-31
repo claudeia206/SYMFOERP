@@ -83,7 +83,7 @@ public function setPurchaseOrder(PurchaseOrder $order): self { $this->purchaseOr
 
     public function getTotalIncludingTaxCents(): int
     {
-        return $this->getTotalExcludingTaxCents() + $this->getTotalTaxCents();
+        return AccountingAmount::addCents($this->getTotalExcludingTaxCents(), $this->getTotalTaxCents());
     }
 
     public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
