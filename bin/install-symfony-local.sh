@@ -47,8 +47,12 @@ if [[ "$ready" -ne 1 ]]; then
     exit 1
 fi
 
-docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:migrate --no-interaction
-docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:schema:validate
+# Run Symfony console in disposable CLI containers, separate from the long-running HTTP server.
+console() {
+    docker compose --env-file .env.docker run --rm --no-deps --entrypoint php symfony /app/bin/console "$@"
+}
+console doctrine:migrations:migrate --no-interaction
+console doctrine:schema:validate
 
 read -r -p "E-mail du premier administrateur : " admin_email
 read -r -s -p "Mot de passe administrateur (12 caractères minimum) : " admin_password
@@ -57,10 +61,10 @@ if [[ -z "$admin_email" || ${#admin_password} -lt 12 ]]; then
     echo "E-mail requis et mot de passe d'au moins 12 caractères." >&2
     exit 1
 fi
-docker compose --env-file .env.docker exec --no-TTY \
+docker compose --env-file .env.docker run --rm --no-deps \
     -e SYMFOERP_ADMIN_EMAIL="$admin_email" \
     -e SYMFOERP_ADMIN_PASSWORD="$admin_password" \
-    symfony php bin/console app:user:create
+    --entrypoint php symfony /app/bin/console app:user:create
 unset admin_password
 
 echo
