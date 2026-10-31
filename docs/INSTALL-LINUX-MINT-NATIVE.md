@@ -11,7 +11,7 @@ Ouvrir un terminal :
 ```bash
 cat /etc/os-release
 . /etc/os-release
-printf 'Mint: %s\\nUbuntu base: %s\\n' "$VERSION_CODENAME" "${UBUNTU_CODENAME:-non détectée}"
+printf 'Mint: %s\nUbuntu base: %s\n' "$VERSION_CODENAME" "\${UBUNTU_CODENAME:-non détectée}"
 ```
 
 Le script exige que `UBUNTU_CODENAME` soit renseigné. Il utilise le dépôt Ubuntu correspondant, et non le nom de code Linux Mint.
