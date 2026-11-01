@@ -493,6 +493,63 @@ jobs:
           print("FEC 18-column export smoke check passed.")
           print("Automatic general ledger postings for supplier invoices and payments passed.")
           print("Automatic general ledger postings for sales invoices, payments and credit notes passed.")
+          # Exercise the real year-end transaction on an isolated historical exercise.
+          closing_account_ids = {}
+          for code in ("607000", "707000", "401000", "411000", "445710"):
+              match = re.search(r'href="/accounting/accounts/(\\d+)[^"]*">' + code + r'</a>', ledger_html)
+              assert match, "Missing account for fiscal close test: " + code
+              closing_account_ids[code] = match.group(1)
+          closing_entry = {
+              "_token": ledger_token, "journal_id": journal_match.group(1),
+              "entry_date": "2024-12-15", "reference": "CI-YEAR-CLOSE-2024",
+              "description": "CI fiscal year close test",
+          }
+          closing_lines = [
+              ("607000", "Charges de test", "70.00", "0.00"),
+              ("411000", "Client de test", "120.00", "0.00"),
+              ("401000", "Fournisseur de test", "0.00", "70.00"),
+              ("707000", "Produits de test", "0.00", "100.00"),
+              ("445710", "TVA collectée de test", "0.00", "20.00"),
+          ]
+          for index, (code, label, debit, credit) in enumerate(closing_lines):
+              closing_entry[f"lines[{index}][account_id]"] = closing_account_ids[code]
+              closing_entry[f"lines[{index}][label]"] = label
+              closing_entry[f"lines[{index}][debit]"] = debit
+              closing_entry[f"lines[{index}][credit]"] = credit
+          client.open(urllib.request.Request(
+              base + "/accounting/entries",
+              data=urllib.parse.urlencode(closing_entry).encode(),
+          )).read()
+          fec_2024_page = client.open(base + "/accounting/fec?year=2024").read().decode()
+          close_parser = TokenParser()
+          close_parser.feed(fec_2024_page)
+          assert close_parser.token, "Fiscal year closing CSRF token is missing"
+          closed_2024 = client.open(urllib.request.Request(
+              base + "/accounting/fec/close",
+              data=urllib.parse.urlencode({"_token": close_parser.token, "year": "2024"}).encode(),
+          )).read().decode()
+          assert "Exercice clôturé le" in closed_2024, "Fiscal year 2024 was not closed"
+          assert "Écriture de clôture du résultat" in closed_2024, "Fiscal result closing entry was not generated"
+          assert "À-nouveaux de l’exercice 2025 générés" in closed_2024, "2025 opening balance entry was not generated"
+
+          fec_2024 = client.open(base + "/accounting/fec/export?year=2024").read().decode("utf-8").splitlines()
+          closing_result = next((row.split("|") for row in fec_2024 if len(row.split("|")) == 18 and row.split("|")[8] == "CL-2024" and row.split("|")[4] == "120000"), None)
+          assert closing_result and closing_result[11] == "0.00" and closing_result[12] == "30.00", "Profit was not transferred to account 120000"
+          fec_2025 = client.open(base + "/accounting/fec/export?year=2025").read().decode("utf-8").splitlines()
+          opening_customer = next((row.split("|") for row in fec_2025 if len(row.split("|")) == 18 and row.split("|")[8] == "AN-2025" and row.split("|")[4] == "411000"), None)
+          assert opening_customer and opening_customer[11] == "120.00" and opening_customer[12] == "0.00", "Customer balance was not carried forward"
+
+          statements_2024 = client.open(base + "/accounting/statements?from=2024-01-01&to=2024-12-31").read().decode()
+          assert "Résultat de la période" in statements_2024 and "30,00 €" in statements_2024, "Closed-year result was not preserved in financial statements"
+          statements_2025 = client.open(base + "/accounting/statements?from=2025-01-01&to=2025-12-31").read().decode()
+          assert "120,00 €" in statements_2025, "Next-year balance sheet did not include brought-forward balances"
+          customer_ledger = client.open(
+              base + "/accounting/accounts/" + closing_account_ids["411000"] + "?from=2025-01-01&to=2025-12-31"
+          ).read().decode()
+          assert "120,00 € D" in customer_ledger, "General ledger did not include the customer opening balance"
+          vat_2025 = client.open(base + "/accounting/vat/export.csv?from=2025-01-01&to=2025-12-31").read().decode("utf-8-sig")
+          assert len([line for line in vat_2025.splitlines() if line.strip()]) == 1, "Opening balances were incorrectly counted as VAT movements"
+          print("Annual closing integration passed: result transfer, next-year opening balances, FEC, statements, ledger and VAT exclusion.")
           print("Symfony authentication, third-party registry, quote creation, VAT totals, acceptance, idempotent order conversion, order completion and PDF export passed.")
           PY
 
