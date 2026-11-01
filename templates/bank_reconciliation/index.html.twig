@@ -22,8 +22,18 @@
 <td>{{ transaction.transaction_date|date('d/m/Y') }}</td><td>{{ transaction.label }}</td><td>{{ transaction.reference ?: '—' }}</td>
 <td>{{ transaction.amount_display }} €</td>
 <td>
-{% if transaction.matched_sales_payment_id %}<span>Règlement client #{{ transaction.matched_sales_payment_id }}</span>
-{% elseif transaction.matched_supplier_payment_id %}<span>Règlement fournisseur #{{ transaction.matched_supplier_payment_id }}</span>
+{% if transaction.matched_sales_payment_id %}
+<span>Règlement client #{{ transaction.matched_sales_payment_id }}</span>
+<form method="post" action="{{ path('app_bank_reconciliation_unmatch',{id:transaction.id}) }}">
+<input type="hidden" name="_token" value="{{ csrf_token('bank_unmatch_' ~ transaction.id) }}">
+<button type="submit">Annuler le rapprochement</button>
+</form>
+{% elseif transaction.matched_supplier_payment_id %}
+<span>Règlement fournisseur #{{ transaction.matched_supplier_payment_id }}</span>
+<form method="post" action="{{ path('app_bank_reconciliation_unmatch',{id:transaction.id}) }}">
+<input type="hidden" name="_token" value="{{ csrf_token('bank_unmatch_' ~ transaction.id) }}">
+<button type="submit">Annuler le rapprochement</button>
+</form>
 {% else %}
 <form method="post" action="{{ path('app_bank_reconciliation_match',{id:transaction.id}) }}">
 <input type="hidden" name="_token" value="{{ csrf_token('bank_match_' ~ transaction.id) }}">
