@@ -25,6 +25,13 @@ expectAccountingReversal($reversed[0]['debit'] === '0.00' && $reversed[0]['credi
 expectAccountingReversal($reversed[1]['debit'] === '100.00' && $reversed[1]['credit'] === '0.00', 'Revenue credit must become a debit.');
 expectAccountingReversal($reversed[2]['debit'] === '20.00' && $reversed[2]['credit'] === '0.00', 'VAT credit must become a debit.');
 
+$manyLines = [];
+for ($index = 1; $index <= 51; ++$index) {
+    $manyLines[] = ['account_id' => $index, 'label' => 'Débit '.$index, 'debit' => '1.00', 'credit' => '0.00'];
+    $manyLines[] = ['account_id' => $index + 100, 'label' => 'Crédit '.$index, 'debit' => '0.00', 'credit' => '1.00'];
+}
+expectAccountingReversal(count(AccountingEntryReversal::reverseLines($manyLines)) === 102, 'Reversal must preserve source entries with more than 100 lines.');
+
 foreach ([
     [
         ['account_id' => 1, 'label' => 'A', 'debit' => '10.00', 'credit' => '0.00'],
