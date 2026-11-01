@@ -15,9 +15,8 @@ use InvalidArgumentException;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'app_supplier_invoice', uniqueConstraints: [
-    new ORM\UniqueConstraint(name: 'uniq_supplier_invoice_order', columns: ['purchase_order_id']),
     new ORM\UniqueConstraint(name: 'uniq_supplier_invoice_reference', columns: ['supplier_id', 'supplier_invoice_number']),
-])]
+], indexes: [new ORM\Index(name: 'idx_supplier_invoice_order', columns: ['purchase_order_id'])])]
 #[ORM\Index(name: 'idx_supplier_invoice_status_due', columns: ['status', 'due_date'])]
 class SupplierInvoice
 {
@@ -31,7 +30,7 @@ class SupplierInvoice
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     private ?int $id = null;
 
-    #[ORM\OneToOne(targetEntity: PurchaseOrder::class)]
+    #[ORM\ManyToOne(targetEntity: PurchaseOrder::class)]
     #[ORM\JoinColumn(name: 'purchase_order_id', nullable: false, onDelete: 'RESTRICT')]
     private PurchaseOrder $purchaseOrder;
 
