@@ -10,6 +10,7 @@
 <label>Du <input type="date" name="from" value="{{ from }}" required></label>
 <label>Au <input type="date" name="to" value="{{ to }}" required></label>
 <button type="submit">Actualiser</button>
+<a class="button" href="{{ path('app_general_ledger_export',{from:from,to:to}) }}">Exporter la balance CSV</a>
 </form>
 <div class="table-scroll"><table class="data-table"><thead><tr><th>Compte</th><th>Intitulé</th><th>Classe</th><th>Solde antérieur D/C</th><th>Débit période</th><th>Crédit période</th><th>Solde au {{ to|date('d/m/Y') }} D/C</th></tr></thead><tbody>
 {% for account in accounts %}<tr>
