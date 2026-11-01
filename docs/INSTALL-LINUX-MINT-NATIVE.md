@@ -97,6 +97,20 @@ php bin/console cache:clear
 
 **Important — gestion du schéma :** les tables comptables et de séquençage utilisées directement par les services DBAL sont volontairement exclues du périmètre de Doctrine ORM. Les migrations Doctrine restent leur source de vérité. N'utilisez jamais `doctrine:schema:update --force` pour synchroniser la base ; appliquez les migrations versionnées après sauvegarde.
 
+### Récupérer l'accès administrateur
+
+Si le mot de passe administrateur est perdu, il peut être remplacé depuis le terminal local, sans supprimer le compte ni toucher à ses rôles. Depuis la racine du projet :
+
+~~~bash
+read -r -p "E-mail du compte existant : " SYMFOERP_ADMIN_EMAIL
+read -r -s -p "Nouveau mot de passe (12 caractères minimum) : " SYMFOERP_ADMIN_PASSWORD
+printf '\n'
+SYMFOERP_ADMIN_EMAIL="$SYMFOERP_ADMIN_EMAIL" SYMFOERP_ADMIN_PASSWORD="$SYMFOERP_ADMIN_PASSWORD" php bin/console app:user:password-reset
+unset SYMFOERP_ADMIN_EMAIL SYMFOERP_ADMIN_PASSWORD
+~~~
+
+Cette commande ne crée aucun compte : l'adresse doit déjà exister. Elle doit être exécutée par une personne ayant un accès shell de confiance à la machine et au projet. Le mot de passe n'est pas passé en argument de commande ni enregistré dans l'historique du shell.
+
 ## 6. Sauvegarde de la base
 
 Créer une sauvegarde SQL :
