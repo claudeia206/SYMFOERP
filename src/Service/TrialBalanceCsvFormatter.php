@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\\Service;
+namespace App\Service;
 
 final class TrialBalanceCsvFormatter
 {
@@ -13,10 +13,10 @@ final class TrialBalanceCsvFormatter
     {
         $stream = fopen('php://temp', 'r+');
         if ($stream === false) {
-            throw new \\RuntimeException('Impossible de préparer le fichier CSV.');
+            throw new \RuntimeException('Impossible de préparer le fichier CSV.');
         }
 
-        fwrite($stream, "\\xEF\\xBB\\xBF");
+        fwrite($stream, "\xEF\xBB\xBF");
         fputcsv($stream, [
             'Compte', 'Intitulé', 'Classe',
             'Solde antérieur débiteur', 'Solde antérieur créditeur',
@@ -81,7 +81,7 @@ final class TrialBalanceCsvFormatter
         $csv = stream_get_contents($stream);
         fclose($stream);
         if ($csv === false) {
-            throw new \\RuntimeException('Impossible de lire le fichier CSV généré.');
+            throw new \RuntimeException('Impossible de lire le fichier CSV généré.');
         }
 
         return $csv;
@@ -89,6 +89,6 @@ final class TrialBalanceCsvFormatter
 
     private function safeText(string $value): string
     {
-        return preg_match('/^[\\s]*[=+@\\-]/u', $value) ? "'".$value : $value;
+        return preg_match('/^[\s]*[=+@\-]/u', $value) ? "'".$value : $value;
     }
 }
