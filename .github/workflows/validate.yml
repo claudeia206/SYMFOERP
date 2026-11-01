@@ -483,6 +483,14 @@ jobs:
           ledger_after_purchases = client.open(base + "/accounting").read().decode()
           assert "Facture fournisseur CI-FOUR-001" in ledger_after_purchases, "Supplier invoice accounting entry is missing"
           assert "Règlement fournisseur CI-FOUR-001" in ledger_after_purchases, "Supplier payment accounting entry is missing"
+          # Reconcile the real double-entry postings across sales, purchases, payments,
+          # credit notes and opening balances before declaring the accounting MVP green.
+          statements_after_postings = client.open(base + "/accounting/statements?from=" + date.today().replace(month=1, day=1).isoformat() + "&to=" + date.today().isoformat()).read().decode()
+          assert "Bilan équilibré" in statements_after_postings, "Balance sheet does not balance after the complete sales and purchase posting flow"
+          assert "Contrôle d’équilibre du bilan" in statements_after_postings, "Balance sheet reconciliation control is missing"
+          assert "Résultat de la période" in statements_after_postings, "Income statement result is missing after accounting postings"
+          vat_after_postings = client.open(base + "/accounting/vat?from=" + date.today().replace(month=1, day=1).isoformat() + "&to=" + date.today().isoformat()).read().decode()
+          assert "TVA nette" in vat_after_postings and "TVA collectée" in vat_after_postings, "VAT declaration totals did not render after invoice postings"
           fec_page = client.open(base + "/accounting/fec?year=" + str(date.today().year)).read().decode()
           assert "Préparation de clôture et export FEC" in fec_page, "Fiscal year closing and FEC overview page did not render"
           assert "Écritures comptabilisées" in fec_page and "Lignes exportables" in fec_page, "Fiscal closing summary metrics are missing"
