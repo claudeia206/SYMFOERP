@@ -70,6 +70,12 @@ expectSupplierInvoice($secondInvoice->getLines()->first()->getQuantity() === '2.
 expectSupplierInvoice($secondInvoice->getTotalIncludingTaxCents() === 6000, 'The second partial invoice total must be calculated from its own received quantity.');
 expectSupplierInvoice($line->getInvoicedQuantity() === '5.000' && $line->getRemainingInvoicableQuantity() === '0.000', 'All received quantities must be marked invoiced exactly once.');
 try {
+    $line->markInvoiced('0.001');
+    throw new RuntimeException('A quantity above the uninvoiced receipt balance was accepted.');
+} catch (InvalidArgumentException) {
+    // No received unit can be invoiced more than once.
+}
+try {
     new SupplierInvoice($order, 'F-2026-003');
     throw new RuntimeException('A duplicate invoice with no newly received quantity was accepted.');
 } catch (InvalidArgumentException) {
