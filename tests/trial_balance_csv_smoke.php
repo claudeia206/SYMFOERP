@@ -43,6 +43,14 @@ expectTrialBalanceCsv(
     'Account names must be protected against spreadsheet formula injection.'
 );
 expectTrialBalanceCsv(
+    str_contains($controller, "'TOTAL', '', ''"),
+    'CSV export must include a totals row for balance control.'
+);
+expectTrialBalanceCsv(
+    str_contains($controller, "AccountingAmount::addCents($totals[$key], $row[$index])"),
+    'CSV totals must be accumulated using exact integer cents.'
+);
+expectTrialBalanceCsv(
     str_contains($template, "path('app_general_ledger_export',{from:from,to:to})"),
     'The general ledger page must expose the CSV download with current filters.'
 );
