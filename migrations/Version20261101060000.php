@@ -60,8 +60,8 @@ final class Version20261101060000 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        $this->addSql('DROP INDEX idx_supplier_invoice_order ON app_supplier_invoice');
         $this->addSql('ALTER TABLE app_supplier_invoice ADD UNIQUE INDEX uniq_supplier_invoice_order (purchase_order_id)');
+        $this->addSql('DROP INDEX idx_supplier_invoice_order ON app_supplier_invoice');
         $this->addSql('ALTER TABLE app_purchase_order_line DROP COLUMN invoiced_quantity');
     }
 }
