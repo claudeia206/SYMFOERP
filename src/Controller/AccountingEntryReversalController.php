@@ -9,6 +9,7 @@ use App\Service\AccountingPeriodGuard;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use InvalidArgumentException;
+use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -111,7 +112,7 @@ final class AccountingEntryReversalController extends AbstractController
                 $journal['code'],
                 $number
             ));
-        } catch (InvalidArgumentException|\\RuntimeException $exception) {
+        } catch (InvalidArgumentException|RuntimeException $exception) {
             $this->addFlash('error', $exception->getMessage());
         } catch (Throwable) {
             $this->addFlash('error', 'La contrepassation a échoué ; aucune écriture partielle n’a été conservée.');
