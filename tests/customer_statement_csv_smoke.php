@@ -34,8 +34,13 @@ $csv = CustomerStatementCsvFormatter::format([
 ]);
 
 expectStatementCsv(str_starts_with($csv, "\xEF\xBB\xBF"), 'CSV must include a UTF-8 BOM for spreadsheet compatibility.');
-expectStatementCsv(str_contains($csv, 'Date;Type;Document;Description;Débit (€);Crédit (€);Solde (€)'), 'CSV must use the French semicolon-separated header.');
-expectStatementCsv(str_contains($csv, 'Facture;FAC-2026-000001;Facture client;120,00;0,00;120,00'), 'Invoice movement must preserve debit and balance.');
-expectStatementCsv(str_contains($csv, "'=HYPERLINK"), 'Formula-like document values must be neutralized.');
-expectStatementCsv(str_contains($csv, "'+Commande importée"), 'Formula-like descriptions must be neutralized.');
+$rows = preg_split('/\r\n|\n|\r/', substr($csv, 3), -1, PREG_SPLIT_NO_EMPTY);
+expectStatementCsv(is_array($rows) && count($rows) === 3, 'CSV must contain one header and two movements.');
+$header = str_getcsv($rows[0], ';', '"', '');
+expectStatementCsv($header === ['Date', 'Type', 'Document', 'Description', 'Débit (€)', 'Crédit (€)', 'Solde (€)'], 'CSV must use the French semicolon-separated header.');
+$invoice = str_getcsv($rows[1], ';', '"', '');
+expectStatementCsv($invoice === ['2026-11-01', 'Facture', 'FAC-2026-000001', 'Facture client', '120,00', '0,00', '120,00'], 'Invoice movement must preserve debit and balance.');
+$payment = str_getcsv($rows[2], ';', '"', '');
+expectStatementCsv($payment[2] === "'=HYPERLINK(\"https://evil.test\")", 'Formula-like document values must be neutralized.');
+expectStatementCsv($payment[3] === "'+Commande importée", 'Formula-like descriptions must be neutralized.');
 echo "Customer statement CSV encoding, amounts and spreadsheet formula safety passed.\n";
