@@ -45,8 +45,8 @@ final class FiscalClosingController extends AbstractController
         $unclosedHistoricalEntries = (int) $db->fetchOne(
             'SELECT COUNT(*) FROM app_journal_entry e
              INNER JOIN app_accounting_fiscal_year fy ON fy.fiscal_year = YEAR(e.entry_date)
-             WHERE e.status = ? AND e.entry_date < ? AND fy.closed_at IS NULL',
-            ['posted', sprintf('%04d-01-01', $year)]
+             WHERE e.entry_date < ? AND fy.closed_at IS NULL',
+            [sprintf('%04d-01-01', $year)]
         );
         $nextYearEntries = $year < 2100 ? (int) $db->fetchOne(
             'SELECT COUNT(*) FROM app_journal_entry WHERE entry_date BETWEEN ? AND ?',
@@ -220,8 +220,8 @@ final class FiscalClosingController extends AbstractController
             $unclosedHistoricalEntries = (int) $db->fetchOne(
                 'SELECT COUNT(*) FROM app_journal_entry e
                  INNER JOIN app_accounting_fiscal_year fy ON fy.fiscal_year = YEAR(e.entry_date)
-                 WHERE e.status = ? AND e.entry_date < ? AND fy.closed_at IS NULL',
-                ['posted', $from]
+                 WHERE e.entry_date < ? AND fy.closed_at IS NULL',
+                [$from]
             );
             if ($unclosedHistoricalEntries > 0) {
                 throw new RuntimeException('Clôturez d’abord les exercices antérieurs qui contiennent déjà des écritures.');
