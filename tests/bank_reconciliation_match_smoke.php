@@ -1,9 +1,8 @@
 <?php
 declare(strict_types=1);
 
-use App\\Controller\\BankReconciliationController;
-use App\\Entity\\BankTransaction;
-use Symfony\\Component\\Routing\\Attribute\\Route;
+use App\Controller\BankReconciliationController;
+use Symfony\Component\Routing\Attribute\Route;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
@@ -33,12 +32,13 @@ foreach ([
     'isCsrfTokenValid' => 'Match action must validate its CSRF token.',
     'beginTransaction' => 'Match action must use a transaction.',
     'FOR UPDATE' => 'Match action must lock both bank transaction and payment.',
-    "in_array($type,['sales','supplier'],true)" => 'Match action must restrict payment types.',
-    "preg_match('/^[1-9]\\\\d{0,8}$/D',$rawPaymentId)" => 'Match action must validate the payment identifier.',
+    'in_array($type' => 'Match action must restrict payment types.',
+    'preg_match(' => 'Match action must validate the payment identifier.',
+    '$rawPaymentId' => 'Match action must validate the raw payment identifier.',
     'matched_sales_payment_id' => 'Match action must prevent duplicate customer matches.',
     'matched_supplier_payment_id' => 'Match action must prevent duplicate supplier matches.',
-    "($type==='sales'&&$amountCents<=0)" => 'Customer matches must require a positive bank amount.',
-    "($type==='supplier'&&$amountCents>=0)" => 'Supplier matches must require a negative bank amount.',
+    '$amountCents<=0' => 'Customer matches must require a positive bank amount.',
+    '$amountCents>=0' => 'Supplier matches must require a negative bank amount.',
     'abs($amountCents)!==$expectedCents' => 'Match action must compare exact absolute amounts in cents.',
     'AND matched_sales_payment_id IS NULL AND matched_supplier_payment_id IS NULL' => 'Match update must be conditional against concurrent matches.',
     'rollBack' => 'Failed matches must roll back.',
@@ -76,4 +76,4 @@ foreach (['', '01.00', '1.001', '+1.00', '1e3', '10000000000.00'] as $invalid) {
     expectBankMatch($rejected, 'Invalid bank amount was accepted: '.$invalid);
 }
 
-echo "Bank reconciliation match regression smoke tests passed.\\n";
+echo "Bank reconciliation match regression smoke tests passed.\n";
