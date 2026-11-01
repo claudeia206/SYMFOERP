@@ -52,12 +52,9 @@ class SalesPayment
         if (!in_array($method, self::METHODS, true)) {
             throw new InvalidArgumentException('Moyen de règlement invalide.');
         }
-        if (!in_array($method, self::METHODS, true)) {
-            throw new InvalidArgumentException('Unsupported payment method.');
-        }
         $reference = $reference !== null ? trim($reference) : null;
         if ($reference !== null && mb_strlen($reference) > 120) {
-            throw new InvalidArgumentException('Payment reference is too long.');
+            throw new InvalidArgumentException('Référence de règlement trop longue.');
         }
         $this->invoice = $invoice;
         $this->amount = AccountingAmount::formatCents($amountInCents);
