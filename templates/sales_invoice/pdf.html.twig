@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { margin: 28mm 18mm 24mm; }
+body { font-family: DejaVu Sans, sans-serif; color: #172033; font-size: 10px; }
+h1 { font-size: 24px; margin-bottom: 4px; color: #172b4d; }
+h2 { font-size: 13px; margin: 22px 0 8px; border-bottom: 1px solid #d8e0eb; padding-bottom: 5px; }
+.muted { color: #64748b; }
+.columns { width: 100%; margin-top: 24px; }
+.columns td { width: 50%; vertical-align: top; padding-right: 16px; }
+table.lines { width: 100%; border-collapse: collapse; margin-top: 20px; }
+.lines th, .lines td { border-bottom: 1px solid #d8e0eb; padding: 8px 5px; text-align: right; }
+.lines th:first-child, .lines td:first-child { text-align: left; }
+.lines th { background: #f1f5f9; }
+.totals { width: 45%; margin-left: 55%; margin-top: 16px; }
+.totals td { padding: 4px; }
+.legal { margin-top: 24px; font-size: 9px; color: #475569; }
+.footer { position: fixed; bottom: -14mm; left: 0; right: 0; text-align: center; font-size: 8px; color: #64748b; }
+</style>
+</head>
+<body>
+    <p class="muted">SYMFOERP · FACTURATION</p>
+    <h1>FACTURE {{ invoice.number }}</h1>
+    <p>Date d’émission : {{ invoice.issuedAt|date('d/m/Y') }} · Échéance : {{ invoice.dueDate|date('d/m/Y') }}</p>
+    <table class="columns"><tr>
+        <td><strong>VENDEUR</strong><br>{{ seller.legal_name }}<br>{{ seller.address }}<br>{{ seller.postal_code }} {{ seller.city }}<br>{{ seller.country }}<br>SIREN : {{ seller.siren }}<br>SIRET : {{ seller.siret }}{% if seller.vat_number %}<br>TVA : {{ seller.vat_number }}{% endif %}{% if seller.legal_form %}<br>{{ seller.legal_form }}{% endif %}{% if seller.share_capital %}<br>Capital : {{ seller.share_capital }}{% endif %}{% if seller.rcs_city %}<br>RCS {{ seller.rcs_city }}{% endif %}</td>
+        <td><strong>CLIENT</strong><br>{{ customer.name }}<br>{{ customer.address }}<br>{{ customer.postal_code }} {{ customer.city }}<br>{{ customer.country }}{% if customer.email %}<br>{{ customer.email }}{% endif %}</td>
+    </tr></table>
+    <h2>Détail des prestations</h2>
+    <table class="lines">
+        <thead><tr><th>Désignation</th><th>Qté</th><th>Prix HT</th><th>TVA</th><th>Total HT</th><th>Total TTC</th></tr></thead>
+        <tbody>{% for line in invoice.lines %}
+        <tr><td>{{ line.description }}</td><td>{{ line.quantity }}</td><td>{{ line.unitPrice|number_format(2, ',', ' ') }} €</td><td>{{ line.vatRate|number_format(2, ',', ' ') }} %</td><td>{{ line.totalExcludingTax|number_format(2, ',', ' ') }} €</td><td>{{ line.totalIncludingTax|number_format(2, ',', ' ') }} €</td></tr>
+        {% endfor %}</tbody>
+    </table>
+    <table class="totals">
+        <tr><td>Total HT</td><td style="text-align:right">{{ invoice.totalExcludingTax|number_format(2, ',', ' ') }} €</td></tr>
+        <tr><td>Total TVA</td><td style="text-align:right">{{ invoice.totalTax|number_format(2, ',', ' ') }} €</td></tr>
+        <tr><td><strong>Total TTC</strong></td><td style="text-align:right"><strong>{{ invoice.totalIncludingTax|number_format(2, ',', ' ') }} €</strong></td></tr>
+    </table>
+    <div class="legal">
+        <p><strong>TVA :</strong> {{ seller.vat_regime_note }}</p>
+        <p><strong>Conditions de paiement :</strong> {{ seller.payment_terms }}</p>
+        <p><strong>Pénalités de retard :</strong> {{ seller.late_penalty_rate }}</p>
+        <p><strong>Indemnité forfaitaire de recouvrement :</strong> {{ seller.recovery_fee }} € (si applicable).</p>
+        {% if invoice.notes %}<p><strong>Notes :</strong> {{ invoice.notes }}</p>{% endif %}
+    </div>
+    <div class="footer">{{ invoice.number }} · Document émis par SYMFOERP</div>
+</body>
+</html>

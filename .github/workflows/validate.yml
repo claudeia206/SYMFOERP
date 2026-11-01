@@ -2,7 +2,7 @@ name: Validate application
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -34,7 +34,25 @@ jobs:
 
       - name: Check PHP syntax
         run: |
-          docker run --rm symfoerp-symfony:ci sh -lc 'find src config public -type f -name "*.php" -print0 | xargs -0 -r -n1 php -l'
+          docker run --rm symfoerp-symfony:ci sh -lc 'find src config public migrations tests -type f -name "*.php" -print0 | xargs -0 -r -n1 php -l'
+
+      - name: Test third-party entity invariants
+        run: docker run --rm symfoerp-symfony:ci php tests/third_party_entity_smoke.php
+
+      - name: Test sales quote entity and totals
+        run: docker run --rm symfoerp-symfony:ci php tests/sales_quote_entity_smoke.php
+
+      - name: Test sales invoice payment rules
+        run: docker run --rm symfoerp-symfony:ci php tests/sales_invoice_entity_smoke.php
+
+      - name: Test product catalogue and stock invariants
+        run: docker run --rm symfoerp-symfony:ci php tests/product_entity_smoke.php
+
+      - name: Test supplier purchase orders and receipts
+        run: docker run --rm symfoerp-symfony:ci php tests/purchase_order_entity_smoke.php
+
+      - name: Test supplier invoice and outgoing payment rules
+        run: docker run --rm symfoerp-symfony:ci php tests/supplier_invoice_entity_smoke.php
 
       - name: Smoke test Symfony HTTP application
         run: |
@@ -45,11 +63,11 @@ jobs:
           }
           trap cleanup EXIT
           for attempt in $(seq 1 30); do
-            if curl --connect-timeout 2 --max-time 5 --fail --silent --show-error http://127.0.0.1:8000/ --output /tmp/symfoerp-home.html; then
-              grep -q "Tiers &amp; CRM\\|Tiers & CRM" /tmp/symfoerp-home.html
+            if curl --connect-timeout 2 --max-time 5 --fail --silent --show-error http://127.0.0.1:8000/login --output /tmp/symfoerp-login.html; then
+              grep -q "Connexion" /tmp/symfoerp-login.html
               curl --connect-timeout 2 --max-time 5 --fail --silent --show-error http://127.0.0.1:8000/healthz --output /tmp/symfoerp-health.json
               grep -q '"status":"ok"' /tmp/symfoerp-health.json
-              echo "Symfony dashboard and health endpoint responded successfully."
+              echo "Symfony login page and public health endpoint responded successfully."
               exit 0
             fi
             sleep 2
@@ -58,19 +76,163 @@ jobs:
           echo "Symfony HTTP smoke test failed." >&2
           exit 1
 
-      - name: Apply and validate Symfony database migration
+      - name: Apply migrations and test authenticated third-party access
         run: |
           set -eu
           docker compose --env-file .env.docker up --detach symfony
           docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:migrations:migrate --no-interaction
           docker compose --env-file .env.docker exec --no-TTY symfony php bin/console doctrine:schema:validate
-          if ! curl --connect-timeout 2 --max-time 5 --fail --silent --show-error http://127.0.0.1:8000/third-parties --output /tmp/symfoerp-third-parties.html; then
-            docker compose --env-file .env.docker logs symfony
-            docker compose --env-file .env.docker exec --no-TTY symfony sh -lc 'tail -n 100 var/log/dev.log || true'
-            exit 1
-          fi
-          grep -q "Aucun tiers enregistré dans Symfony" /tmp/symfoerp-third-parties.html
-          echo "Symfony third-party list rendered successfully."
+          docker compose --env-file .env.docker exec --no-TTY -e SYMFOERP_ADMIN_EMAIL=ci-admin@example.test -e SYMFOERP_ADMIN_PASSWORD=CI-Only-Password-2026 symfony php bin/console app:user:create
+          python3 - <<'PY'
+          import http.cookiejar
+          import urllib.parse
+          import urllib.request
+          from html.parser import HTMLParser
+
+          base = "http://127.0.0.1:8000"
+          class TokenParser(HTMLParser):
+              token = None
+              def handle_starttag(self, tag, attrs):
+                  values = dict(attrs)
+                  if tag == "input" and values.get("name") in ("_csrf_token", "_token"):
+                      self.token = values.get("value")
+
+          cookies = http.cookiejar.CookieJar()
+          client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookies))
+          protected = client.open(base + "/third-parties")
+          assert protected.geturl().endswith("/login"), "Unauthenticated request was not redirected to login"
+          login_page = client.open(base + "/login").read().decode()
+          parser = TokenParser()
+          parser.feed(login_page)
+          assert parser.token, "Login CSRF token is missing"
+          payload = urllib.parse.urlencode({"email": "ci-admin@example.test", "password": "CI-Only-Password-2026", "_csrf_token": parser.token}).encode()
+          client.open(urllib.request.Request(base + "/login", data=payload)).read()
+          registry = client.open(base + "/third-parties")
+          html = registry.read().decode()
+          assert registry.geturl().endswith("/third-parties"), "Authenticated user could not access third parties"
+          assert "Aucun tiers enregistré dans Symfony" in html, "Empty third-party registry did not render"
+          logout_parser = TokenParser()
+          logout_parser.feed(html)
+          assert logout_parser.token, "Logout CSRF token is missing"
+          logout_payload = urllib.parse.urlencode({"_csrf_token": logout_parser.token}).encode()
+          client.open(urllib.request.Request(base + "/logout", data=logout_payload)).read()
+          after_logout = client.open(base + "/third-parties")
+          assert after_logout.geturl().endswith("/login"), "Logout did not invalidate the authenticated session"
+          relogin_page = client.open(base + "/login").read().decode()
+          relogin_parser = TokenParser()
+          relogin_parser.feed(relogin_page)
+          relogin_payload = urllib.parse.urlencode({"email": "ci-admin@example.test", "password": "CI-Only-Password-2026", "_csrf_token": relogin_parser.token}).encode()
+          client.open(urllib.request.Request(base + "/login", data=relogin_payload)).read()
+          sales_page = client.open(base + "/sales/quotes")
+          sales_html = sales_page.read().decode()
+          assert "Devis" in sales_html, "Authenticated user could not open the sales quotes module"
+          settings_page = client.open(base + "/settings/company").read().decode()
+          settings_parser = TokenParser()
+          settings_parser.feed(settings_page)
+          assert settings_parser.token, "Company settings CSRF token is missing"
+          client.open(urllib.request.Request(base + "/settings/company", data=urllib.parse.urlencode({
+              "legalName": "Société CI", "address": "1 rue du Test", "postalCode": "17000",
+              "city": "La Rochelle", "country": "France", "siren": "123456789",
+              "siret": "12345678900012", "paymentTerms": "Paiement à 30 jours",
+              "latePenaltyRate": "Taux légal applicable", "recoveryFee": "40.00",
+              "vatRegimeNote": "TVA selon régime applicable", "paymentDelayDays": "30",
+              "_token": settings_parser.token,
+          }).encode()))
+          quote_form = client.open(base + "/sales/quotes/new").read().decode()
+          assert "Nouveau devis" in quote_form, "Sales quote creation form did not render"
+          third_party_form = client.open(base + "/third-parties/new").read().decode()
+          third_party_parser = TokenParser()
+          third_party_parser.feed(third_party_form)
+          assert third_party_parser.token, "Third-party creation CSRF token is missing"
+          client.open(urllib.request.Request(base + "/third-parties/new", data=urllib.parse.urlencode({
+              "name": "Client CI",
+              "category": "customer",
+              "email": "client-ci@example.test",
+              "phone": "",
+              "address": "2 rue Client", "postal_code": "17000", "city": "La Rochelle", "country": "France",
+              "_token": third_party_parser.token,
+          }).encode()))
+          quote_form = client.open(base + "/sales/quotes/new").read().decode()
+          quote_parser = TokenParser()
+          quote_parser.feed(quote_form)
+          assert quote_parser.token, "Sales quote creation CSRF token is missing"
+          import re
+          from datetime import date, timedelta
+          customer_match = re.search(r'<option value="(\d+)"[^>]*>Client CI</option>', quote_form)
+          assert customer_match, "New customer was not available in the quote form"
+          quote_payload = {
+              "customer_id": customer_match.group(1),
+              "valid_until": (date.today() + timedelta(days=30)).isoformat(),
+              "notes": "Created by CI",
+              "_token": quote_parser.token,
+              "lines[0][description]": "Prestation de test",
+              "lines[0][quantity]": "2",
+              "lines[0][unit_price]": "50.00",
+              "lines[0][vat_rate]": "20.00",
+          }
+          quote_response = client.open(urllib.request.Request(base + "/sales/quotes/new", data=urllib.parse.urlencode(quote_payload).encode()))
+          quote_html = quote_response.read().decode()
+          assert "DEV-" in quote_html, "Created quote number was not displayed"
+          assert "120,00 €" in quote_html, "Quote total including VAT is incorrect"
+          quote_parser = TokenParser()
+          quote_parser.feed(quote_html)
+          quote_id_match = re.search(r"/sales/quotes/(\d+)", quote_response.geturl())
+          assert quote_id_match, "Created quote detail URL is invalid"
+          status_payload = urllib.parse.urlencode({"_token": quote_parser.token, "status": "sent"}).encode()
+          sent_response = client.open(urllib.request.Request(base + "/sales/quotes/" + quote_id_match.group(1) + "/status", data=status_payload))
+          sent_html = sent_response.read().decode()
+          assert "Envoyé" in sent_html, "Quote status transition to sent failed"
+          sent_parser = TokenParser()
+          sent_parser.feed(sent_html)
+          accepted_payload = urllib.parse.urlencode({"_token": sent_parser.token, "status": "accepted"}).encode()
+          accepted_response = client.open(urllib.request.Request(base + "/sales/quotes/" + quote_id_match.group(1) + "/status", data=accepted_payload))
+          accepted_html = accepted_response.read().decode()
+          assert "Accepté" in accepted_html, "Quote status transition to accepted failed"
+          accepted_parser = TokenParser()
+          accepted_parser.feed(accepted_html)
+          convert_payload = urllib.parse.urlencode({"_token": accepted_parser.token}).encode()
+          order_response = client.open(urllib.request.Request(base + "/sales/quotes/" + quote_id_match.group(1) + "/convert", data=convert_payload))
+          order_html = order_response.read().decode()
+          assert "CMD-" in order_html, "Accepted quote was not converted to a sales order"
+          assert "120,00 €" in order_html, "Sales order totals do not match the source quote"
+          first_order_url = order_response.geturl()
+          duplicate_response = client.open(urllib.request.Request(base + "/sales/quotes/" + quote_id_match.group(1) + "/convert", data=convert_payload))
+          assert duplicate_response.geturl() == first_order_url, "Repeated quote conversion created a different order"
+          order_parser = TokenParser()
+          order_parser.feed(order_html)
+          order_id_match = re.search(r"/sales/orders/(\d+)", first_order_url)
+          assert order_id_match, "Created order detail URL is invalid"
+          fulfil_payload = urllib.parse.urlencode({"_token": order_parser.token, "status": "fulfilled"}).encode()
+          fulfil_response = client.open(urllib.request.Request(base + "/sales/orders/" + order_id_match.group(1) + "/status", data=fulfil_payload))
+          fulfil_html = fulfil_response.read().decode()
+          assert "Terminée" in fulfil_html, "Sales order status transition to fulfilled failed"
+          pdf_response = client.open(base + "/sales/quotes/" + quote_id_match.group(1) + "/pdf")
+          pdf_content = pdf_response.read()
+          assert pdf_response.headers.get_content_type() == "application/pdf", "Quote PDF route returned the wrong content type"
+          assert pdf_content.startswith(b"%PDF-"), "Quote PDF route did not return a valid PDF document"
+          order_id = order_id_match.group(1)
+          invoice_create_token = re.search(r'<form method="post" action="/sales/invoices/from-order/\d+">.*?name="_token" value="([^"]+)"', fulfil_html, re.S)
+          assert invoice_create_token, "Invoice creation CSRF token is missing"
+          invoice_create_response = client.open(urllib.request.Request(base + "/sales/invoices/from-order/" + order_id, data=urllib.parse.urlencode({
+              "_token": invoice_create_token.group(1),
+          }).encode()))
+          invoice_html = invoice_create_response.read().decode()
+          assert "Facture brouillon" in invoice_html, "Invoice draft was not created from the order"
+          invoice_id_match = re.search(r"/sales/invoices/(\d+)", invoice_create_response.geturl())
+          assert invoice_id_match, "Invoice detail URL is invalid"
+          invoice_parser = TokenParser()
+          invoice_parser.feed(invoice_html)
+          issue_response = client.open(urllib.request.Request(base + "/sales/invoices/" + invoice_id_match.group(1) + "/issue", data=urllib.parse.urlencode({
+              "_token": invoice_parser.token,
+          }).encode()))
+          issued_html = issue_response.read().decode()
+          assert "FAC-" in issued_html, "Invoice was not issued with a final number"
+          invoice_pdf = client.open(base + "/sales/invoices/" + invoice_id_match.group(1) + "/pdf")
+          invoice_pdf_content = invoice_pdf.read()
+          assert invoice_pdf.headers.get_content_type() == "application/pdf", "Invoice PDF route returned the wrong content type"
+          assert invoice_pdf_content.startswith(b"%PDF-"), "Invoice PDF route did not return a valid PDF"
+          print("Symfony authentication, third-party registry, quote creation, VAT totals, acceptance, idempotent order conversion, order completion and PDF export passed.")
+          PY
 
       - name: Smoke test fresh Dolibarr installation
         run: |

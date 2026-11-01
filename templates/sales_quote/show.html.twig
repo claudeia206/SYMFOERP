@@ -1,0 +1,69 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ quote.number }} · SYMFOERP{% endblock %}
+
+{% block body %}
+    <p class="muted">GESTION COMMERCIALE / VENTES</p>
+    <p><a href="{{ path('app_sales_quotes') }}">← Tous les devis</a></p>
+    {% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
+    <h1>{{ quote.number }}</h1>
+    <p>
+        <a class="button" href="{{ path('app_sales_quote_pdf', {id: quote.id}) }}" target="_blank" rel="noopener">Télécharger / afficher le PDF</a>
+        <a href="{{ path('app_sales_orders') }}">Voir les commandes</a>
+    </p>
+    <section class="card">
+        <p><strong>Client :</strong> {{ quote.customer.name }}</p>
+        {% if quote.customer.email %}<p><strong>E-mail :</strong> <a href="mailto:{{ quote.customer.email }}">{{ quote.customer.email }}</a></p>{% endif %}
+        <p><strong>Date :</strong> {{ quote.quoteDate|date('d/m/Y') }} · <strong>Valide jusqu’au :</strong> {{ quote.validUntil|date('d/m/Y') }}</p>
+        <p><strong>Statut :</strong> {{ statuses[quote.status] ?? quote.status }}</p>
+    </section>
+    <section class="card">
+        <h2>Détail du devis</h2>
+        <div class="table-scroll"><table class="data-table">
+            <thead><tr><th>Désignation</th><th>Qté</th><th>Prix HT</th><th>TVA</th><th>Total HT</th><th>Total TTC</th></tr></thead>
+            <tbody>
+            {% for line in quote.lines %}
+                <tr>
+                    <td>{{ line.description }}{% if line.product %}<br><small class="muted">Réf. {{ line.product.sku }}</small>{% endif %}</td><td>{{ line.quantity }}</td>
+                    <td>{{ line.unitPrice|number_format(2, ',', ' ') }} €</td><td>{{ line.vatRate|number_format(2, ',', ' ') }} %</td>
+                    <td>{{ line.totalExcludingTax|number_format(2, ',', ' ') }} €</td>
+                    <td>{{ line.totalIncludingTax|number_format(2, ',', ' ') }} €</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+        <dl>
+            <dt>Total HT</dt><dd>{{ quote.totalExcludingTax|number_format(2, ',', ' ') }} €</dd>
+            <dt>Total TVA</dt><dd>{{ quote.totalTax|number_format(2, ',', ' ') }} €</dd>
+            <dt><strong>Total TTC</strong></dt><dd><strong>{{ quote.totalIncludingTax|number_format(2, ',', ' ') }} €</strong></dd>
+        </dl>
+        {% if quote.notes %}<h3>Notes et conditions</h3><p>{{ quote.notes|nl2br }}</p>{% endif %}
+    </section>
+    {% if order %}
+        <section class="card">
+            <h2>Commande générée</h2>
+            <p>Ce devis a été converti en commande <a href="{{ path('app_sales_order_show', {id: order.id}) }}">{{ order.number }}</a>.</p>
+        </section>
+    {% elseif quote.status == 'accepted' %}
+        <section class="card">
+            <h2>Créer la commande client</h2>
+            <p>Le devis accepté sera copié dans une commande distincte. Les lignes et les prix d'origine seront conservés.</p>
+            <form method="post" action="{{ path('app_sales_quote_convert', {id: quote.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('sales_quote_convert_' ~ quote.id) }}">
+                <button type="submit">Convertir en commande</button>
+            </form>
+        </section>
+    {% endif %}
+    {% if allowed_actions is not empty %}
+        <section class="card">
+            <h2>Faire évoluer le devis</h2>
+            {% for action in allowed_actions %}
+                <form method="post" action="{{ path('app_sales_quote_status', {id: quote.id}) }}" style="display:inline-block;margin:6px 10px 6px 0">
+                    <input type="hidden" name="_token" value="{{ csrf_token('sales_quote_status_' ~ quote.id) }}">
+                    <input type="hidden" name="status" value="{{ action }}">
+                    <button type="submit">{{ statuses[action] }}</button>
+                </form>
+            {% endfor %}
+        </section>
+    {% endif %}
+{% endblock %}

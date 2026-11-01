@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ third_party.name }} · SYMFOERP{% endblock %}
+
+{% block body %}
+    <p class="muted">GESTION COMMERCIALE</p>
+    <p><a href="{{ path('app_third_parties') }}">← Tous les tiers</a></p>
+    <h1>{{ third_party.name }}</h1>
+    {% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
+
+    {% set category_labels = {'customer': 'Client', 'prospect': 'Prospect', 'supplier': 'Fournisseur'} %}
+    <section class="card">
+        <dl>
+            <dt>Catégorie</dt><dd>{{ category_labels[third_party.category] ?? third_party.category }}</dd>
+            <dt>E-mail</dt><dd>{% if third_party.email %}<a href="mailto:{{ third_party.email }}">{{ third_party.email }}</a>{% else %}—{% endif %}</dd>
+            <dt>Téléphone</dt><dd>{{ third_party.phone ?? '—' }}</dd>
+            <dt>Créé le</dt><dd>{{ third_party.createdAt|date('d/m/Y à H:i') }}</dd>
+        </dl>
+        <p><a href="{{ path('app_third_party_edit', {id: third_party.id}) }}">Modifier la fiche</a></p>
+        <form method="post" action="{{ path('app_third_party_delete', {id: third_party.id}) }}" onsubmit="return confirm('Supprimer définitivement ce tiers ?');">
+            <input type="hidden" name="_token" value="{{ csrf_token('third_party_delete_' ~ third_party.id) }}">
+            <button type="submit">Supprimer</button>
+        </form>
+    </section>
+{% endblock %}

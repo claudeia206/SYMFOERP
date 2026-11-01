@@ -1,0 +1,47 @@
+{% extends 'base.html.twig' %}
+{% block title %}Produits · SYMFOERP{% endblock %}
+{% block body %}
+    <p class="muted">GESTION COMMERCIALE / CATALOGUE</p>
+    <h1>Produits et services</h1>
+    <p class="muted">Références, tarifs, TVA et niveaux de stock.</p>
+    {% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
+    <p><a class="button" href="{{ path('app_product_new') }}">＋ Nouveau produit</a></p>
+    <section class="grid">
+        <article class="card"><strong>{{ total_count }}</strong><p class="muted">Résultat(s) filtré(s)</p></article>
+        <article class="card"><strong>{{ low_stock_count }}</strong><p class="muted">Référence(s) sous le seuil</p></article>
+    </section>
+    <section class="card">
+        <form method="get">
+            <label for="q">Recherche SKU / désignation</label><input id="q" name="q" type="search" value="{{ search }}">
+            <label for="stock">Stock</label><select id="stock" name="stock"><option value="">Tous</option><option value="low" {% if selected_stock == 'low' %}selected{% endif %}>Sous le seuil</option><option value="available" {% if selected_stock == 'available' %}selected{% endif %}>Au-dessus du seuil</option></select>
+            <label for="active">État</label><select id="active" name="active"><option value="1" {% if selected_active == '1' %}selected{% endif %}>Actifs</option><option value="0" {% if selected_active == '0' %}selected{% endif %}>Archivés</option><option value="" {% if selected_active == '' %}selected{% endif %}>Tous</option></select>
+            <button type="submit">Filtrer</button><a href="{{ path('app_products') }}">Réinitialiser</a>
+        </form>
+    </section>
+    <section class="card">
+        {% if products is empty %}<p>Aucun produit ne correspond à votre recherche.</p>
+        {% else %}
+        <div class="table-scroll"><table class="data-table">
+            <thead><tr><th>SKU</th><th>Désignation</th><th>Prix vente HT</th><th>TVA</th><th>Stock</th><th>État</th></tr></thead>
+            <tbody>{% for product in products %}
+                <tr>
+                    <td><a href="{{ path('app_product_show', {id: product.id}) }}">{{ product.sku }}</a></td>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.salePrice|number_format(2, ',', ' ') }} € / {{ product.unit }}</td>
+                    <td>{{ product.vatRate }} %</td>
+                    <td>{% if product.stockTracked %}{{ product.stockQuantity }}{% if product.lowStock %} <strong>⚠ Alerte</strong>{% endif %}{% else %}Non suivi{% endif %}</td>
+                    <td>{{ product.active ? 'Actif' : 'Archivé' }}</td>
+                </tr>
+            {% endfor %}</tbody>
+        </table></div>
+        <p class="muted">{{ total_count }} produit(s) · Page {{ current_page }} / {{ page_count }}</p>
+        {% if page_count > 1 %}
+            <nav aria-label="Pagination produits">
+                {% if current_page > 1 %}<a href="{{ path('app_products', {q: search, stock: selected_stock, active: selected_active, page: current_page - 1}) }}">← Précédent</a>{% endif %}
+                Page {{ current_page }} / {{ page_count }}
+                {% if current_page < page_count %}<a href="{{ path('app_products', {q: search, stock: selected_stock, active: selected_active, page: current_page + 1}) }}">Suivant →</a>{% endif %}
+            </nav>
+        {% endif %}
+        {% endif %}
+    </section>
+{% endblock %}

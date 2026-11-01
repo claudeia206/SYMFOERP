@@ -1,0 +1,47 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ is_edit ? 'Modifier' : 'Nouveau' }} tiers · SYMFOERP{% endblock %}
+
+{% block body %}
+    <p class="muted">GESTION COMMERCIALE</p>
+    <h1>{{ is_edit ? 'Modifier le tiers' : 'Créer un tiers' }}</h1>
+    <p><a href="{{ is_edit ? path('app_third_party_show', {id: third_party.id}) : path('app_third_parties') }}">← Retour</a></p>
+
+    {% if errors is not empty %}
+        <section class="card" role="alert">
+            <strong>Veuillez corriger les erreurs suivantes :</strong>
+            <ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+        </section>
+    {% endif %}
+
+    <section class="card">
+        <form method="post">
+            <input type="hidden" name="_token" value="{{ csrf_token(csrf_token_id) }}">
+            <p>
+                <label for="name">Nom / raison sociale *</label>
+                <input id="name" name="name" type="text" maxlength="180" required value="{{ form_values.name }}">
+            </p>
+            <p>
+                <label for="category">Catégorie *</label>
+                <select id="category" name="category" required>
+                    <option value="customer" {% if form_values.category == 'customer' %}selected{% endif %}>Client</option>
+                    <option value="prospect" {% if form_values.category == 'prospect' %}selected{% endif %}>Prospect</option>
+                    <option value="supplier" {% if form_values.category == 'supplier' %}selected{% endif %}>Fournisseur</option>
+                </select>
+            </p>
+            <p>
+                <label for="email">E-mail</label>
+                <input id="email" name="email" type="email" maxlength="180" value="{{ form_values.email }}">
+            </p>
+            <p>
+                <label for="phone">Téléphone</label>
+                <input id="phone" name="phone" type="tel" maxlength="40" value="{{ form_values.phone }}">
+            </p>
+            <p><label for="address">Adresse de facturation</label><input id="address" name="address" maxlength="255" value="{{ form_values.address }}"></p>
+            <p><label for="postal_code">Code postal</label><input id="postal_code" name="postal_code" maxlength="20" value="{{ form_values.postal_code }}"></p>
+            <p><label for="city">Ville</label><input id="city" name="city" maxlength="120" value="{{ form_values.city }}"></p>
+            <p><label for="country">Pays</label><input id="country" name="country" maxlength="80" value="{{ form_values.country }}"></p>
+            <button type="submit">{{ is_edit ? 'Enregistrer les modifications' : 'Créer le tiers' }}</button>
+        </form>
+    </section>
+{% endblock %}

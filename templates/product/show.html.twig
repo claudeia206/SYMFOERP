@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ product.sku }} · {{ product.name }} · SYMFOERP{% endblock %}
+{% block body %}
+    <p class="muted">CATALOGUE / PRODUITS</p>
+    <p><a href="{{ path('app_products') }}">← Tous les produits</a></p>
+    <h1>{{ product.name }}</h1>
+    {% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
+    {% for message in app.flashes('error') %}<p class="card" role="alert">{{ message }}</p>{% endfor %}
+    <section class="card">
+        <p><strong>Référence :</strong> {{ product.sku }}</p>
+        <p><strong>Description :</strong> {{ product.description ?? '—' }}</p>
+        <p><strong>Unité :</strong> {{ product.unit }}</p>
+        <p><strong>Prix d’achat HT :</strong> {{ product.purchasePrice|number_format(2, ',', ' ') }} €</p>
+        <p><strong>Prix de vente HT :</strong> {{ product.salePrice|number_format(2, ',', ' ') }} €</p>
+        <p><strong>TVA :</strong> {{ product.vatRate }} %</p>
+        <p><strong>Stock :</strong> {% if product.stockTracked %}{{ product.stockQuantity }} {{ product.unit }} (seuil {{ product.stockAlertThreshold }}){% else %}Non suivi{% endif %}</p>
+        <p><strong>État :</strong> {{ product.active ? 'Actif' : 'Archivé' }}</p>
+        <p><a href="{{ path('app_product_edit', {id: product.id}) }}">Modifier le produit</a></p>
+        {% if product.active %}
+        <form method="post" action="{{ path('app_product_archive', {id: product.id}) }}" onsubmit="return confirm('Archiver ce produit ?');">
+            <input type="hidden" name="_token" value="{{ csrf_token('product_archive_' ~ product.id) }}"><button type="submit">Archiver</button>
+        </form>
+        {% endif %}
+    </section>
+    {% if product.stockTracked and product.active %}
+    <section class="card">
+        <h2>Faire un mouvement de stock</h2>
+        <p class="muted">Une entrée est positive, une sortie est négative. Le stock ne peut pas devenir négatif.</p>
+        <form method="post" action="{{ path('app_product_stock', {id: product.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('product_stock_' ~ product.id) }}">
+            <p><label for="quantity">Quantité signée *</label><input id="quantity" name="quantity" type="number" step="0.001" required placeholder="Ex. 10 ou -2"></p>
+            <p><label for="reason">Motif *</label><select id="reason" name="reason" required><option value="purchase">Réception achat</option><option value="sale">Sortie vente</option><option value="return">Retour</option><option value="loss">Perte / casse</option><option value="correction">Correction inventaire</option></select></p>
+            <p><label for="note">Commentaire</label><textarea id="note" name="note" rows="2" maxlength="2000"></textarea></p>
+            <button type="submit">Enregistrer le mouvement</button>
+        </form>
+    </section>
+    {% endif %}
+    <section class="card">
+        <h2>Historique des mouvements</h2>
+        {% if movements is empty %}<p>Aucun mouvement enregistré.</p>{% else %}
+        <div class="table-scroll"><table class="data-table"><thead><tr><th>Date</th><th>Motif</th><th>Quantité</th><th>Note</th></tr></thead><tbody>
+        {% for movement in movements %}
+            <tr><td>{{ movement.createdAt|date('d/m/Y H:i') }}</td><td>{{ {'purchase':'Réception achat','sale':'Sortie vente','return':'Retour','loss':'Perte / casse','correction':'Correction inventaire'}[movement.reason] }}</td><td>{{ movement.quantity }} {{ product.unit }}</td><td>{{ movement.note ?? '—' }}</td></tr>
+        {% endfor %}
+        </tbody></table></div>
+        {% endif %}
+    </section>
+{% endblock %}

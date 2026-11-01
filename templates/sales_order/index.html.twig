@@ -1,0 +1,32 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Commandes clients · SYMFOERP{% endblock %}
+
+{% block body %}
+    <p class="muted">GESTION COMMERCIALE / VENTES</p>
+    <h1>Commandes clients</h1>
+    <p><a href="{{ path('app_sales_quotes') }}">← Retour aux devis</a></p>
+    <section class="card">
+        {% if orders is empty %}
+            <p>Aucune commande créée pour le moment. Une commande est générée depuis un devis accepté.</p>
+        {% else %}
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead><tr><th>Commande</th><th>Devis d'origine</th><th>Client</th><th>Date</th><th>Total TTC</th></tr></thead>
+                    <tbody>
+                    {% for order in orders %}
+                        <tr>
+                            <td><a href="{{ path('app_sales_order_show', {id: order.id}) }}">{{ order.number }}</a></td>
+                            <td><a href="{{ path('app_sales_quote_show', {id: order.sourceQuote.id}) }}">{{ order.sourceQuote.number }}</a></td>
+                            <td>{{ order.customer.name }}</td>
+                            <td>{{ order.orderDate|date('d/m/Y') }}</td>
+                            <td>{{ order.totalIncludingTax|number_format(2, ',', ' ') }} €</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if orders|length == 100 %}<p class="muted">Les 100 commandes les plus récentes sont affichées.</p>{% endif %}
+        {% endif %}
+    </section>
+{% endblock %}

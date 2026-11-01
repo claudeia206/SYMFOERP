@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nouveau devis · SYMFOERP{% endblock %}
+
+{% block body %}
+    <p class="muted">GESTION COMMERCIALE / VENTES</p>
+    <h1>Nouveau devis</h1>
+    <p><a href="{{ path('app_sales_quotes') }}">← Retour aux devis</a></p>
+    {% if errors is not empty %}
+        <section class="card" role="alert"><strong>Veuillez corriger les erreurs :</strong><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></section>
+    {% endif %}
+    {% if customers is empty %}
+        <section class="card"><p>Aucun client n’est disponible. Créez d’abord un tiers de catégorie « Client ».</p><a href="{{ path('app_third_party_new') }}">Créer un client</a></section>
+    {% else %}
+    <section class="card">
+        <form method="post">
+            <input type="hidden" name="_token" value="{{ csrf_token('sales_quote_create') }}">
+            <p>
+                <label for="customer_id">Client *</label>
+                <select id="customer_id" name="customer_id" required>
+                    <option value="">Sélectionner un client</option>
+                    {% for customer in customers %}
+                        <option value="{{ customer.id }}" {% if values.customer_id == customer.id ~ '' %}selected{% endif %}>{{ customer.name }}</option>
+                    {% endfor %}
+                </select>
+            </p>
+            <p><label for="valid_until">Valide jusqu’au *</label><input id="valid_until" name="valid_until" type="date" required value="{{ values.valid_until }}"></p>
+            <h2>Lignes du devis</h2>
+            <p class="muted">Jusqu’à 10 lignes. Sélectionnez un produit pour préremplir sa désignation, son prix HT et sa TVA ; vous pouvez ensuite adapter chaque ligne.</p>
+            {% for i in 0..9 %}
+                {% set line = line_values[i] ?? {'product_id':'','description':'','quantity':'','unit_price':'','vat_rate':''} %}
+                <fieldset style="border:1px solid #e5eaf1;border-radius:10px;margin:14px 0;padding:14px">
+                    <legend>Ligne {{ i + 1 }}</legend>
+                    <p><label for="line_product_{{ i }}">Produit du catalogue (facultatif)</label><select id="line_product_{{ i }}" name="lines[{{ i }}][product_id]"><option value="">Ligne libre</option>{% for product in products %}<option value="{{ product.id }}" {% if (line.product_id ?? '') == product.id ~ '' %}selected{% endif %}>{{ product.sku }} — {{ product.name }} ({{ product.salePrice|number_format(2, ',', ' ') }} € HT)</option>{% endfor %}</select></p>
+                    <p><label for="line_description_{{ i }}">Désignation</label><input id="line_description_{{ i }}" name="lines[{{ i }}][description]" maxlength="255" value="{{ line.description ?? '' }}"></p>
+                    <div class="grid">
+                        <p><label for="line_quantity_{{ i }}">Quantité</label><input id="line_quantity_{{ i }}" name="lines[{{ i }}][quantity]" type="number" min="0.001" max="9999999.999" step="0.001" value="{{ line.quantity ?? '' }}"></p>
+                        <p><label for="line_price_{{ i }}">Prix unitaire HT (€)</label><input id="line_price_{{ i }}" name="lines[{{ i }}][unit_price]" type="number" min="0" max="9999999999.99" step="0.01" value="{{ line.unit_price ?? '' }}"></p>
+                        <p><label for="line_vat_{{ i }}">TVA (%)</label><input id="line_vat_{{ i }}" name="lines[{{ i }}][vat_rate]" type="number" min="0" max="100" step="0.01" value="{{ line.vat_rate ?? '' }}"></p>
+                    </div>
+                </fieldset>
+            {% endfor %}
+            <p><label for="notes">Notes / conditions</label><textarea id="notes" name="notes" maxlength="5000" rows="4">{{ values.notes }}</textarea></p>
+            <button type="submit">Créer le devis</button>
+        </form>
+    </section>
+    {% endif %}
+{% endblock %}

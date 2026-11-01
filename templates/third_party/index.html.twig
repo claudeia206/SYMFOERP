@@ -7,16 +7,38 @@
     <h1>Tiers</h1>
     <p class="muted">Clients, prospects et fournisseurs enregistrés dans SYMFOERP.</p>
 
+    {% for message in app.flashes('success') %}
+        <p class="card" role="status">{{ message }}</p>
+    {% endfor %}
+
+    <p><a class="button" href="{{ path('app_third_party_new') }}">＋ Nouveau tiers</a></p>
+
+    <section class="card" aria-label="Recherche des tiers">
+        <form method="get" action="{{ path('app_third_parties') }}">
+            <label for="q">Rechercher</label>
+            <input id="q" name="q" type="search" value="{{ search }}" placeholder="Nom, e-mail ou téléphone">
+            <label for="category">Catégorie</label>
+            <select id="category" name="category">
+                <option value="">Toutes les catégories</option>
+                {% for value, label in categories %}
+                    <option value="{{ value }}" {% if selected_category == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Filtrer</button>
+            <a href="{{ path('app_third_parties') }}">Réinitialiser</a>
+        </form>
+    </section>
+
     <section class="card" aria-label="Liste des tiers">
         {% if third_parties is empty %}
-            <p>Aucun tiers enregistré dans Symfony.</p>
-            <p class="muted">La base Symfony est prête à recevoir ses premières fiches.</p>
+            {% if search == '' and selected_category == '' %}
+                <p>Aucun tiers enregistré dans Symfony.</p>
+                <p class="muted">La base Symfony est prête à recevoir ses premières fiches.</p>
+            {% else %}
+                <p>Aucun tiers ne correspond à votre recherche.</p>
+            {% endif %}
         {% else %}
-            {% set categories = {
-                'customer': 'Client',
-                'prospect': 'Prospect',
-                'supplier': 'Fournisseur'
-            } %}
+            {% set category_labels = {'customer': 'Client', 'prospect': 'Prospect', 'supplier': 'Fournisseur'} %}
             <div class="table-scroll">
                 <table class="data-table">
                     <thead>
@@ -26,22 +48,39 @@
                         <th scope="col">E-mail</th>
                         <th scope="col">Téléphone</th>
                         <th scope="col">Créé le</th>
+                        <th scope="col">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
                     {% for third_party in third_parties %}
                         <tr>
-                            <td>{{ third_party.name }}</td>
-                            <td>{{ categories[third_party.category] ?? third_party.category }}</td>
+                            <td><a href="{{ path('app_third_party_show', {id: third_party.id}) }}">{{ third_party.name }}</a></td>
+                            <td>{{ category_labels[third_party.category] ?? third_party.category }}</td>
                             <td>{% if third_party.email %}<a href="mailto:{{ third_party.email }}">{{ third_party.email }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
                             <td>{{ third_party.phone ?? '—' }}</td>
                             <td>{{ third_party.createdAt|date('d/m/Y') }}</td>
+                            <td><a href="{{ path('app_third_party_edit', {id: third_party.id}) }}">Modifier</a></td>
                         </tr>
                     {% endfor %}
                     </tbody>
                 </table>
             </div>
-            <p class="muted">Affichage des {{ third_parties|length }} fiches les plus récentes (maximum 20).</p>
+            <p class="muted">
+                {{ total_count }} fiche(s) trouvée(s) · Page {{ current_page }} sur {{ page_count }}.
+            </p>
+            {% if page_count > 1 %}
+                <nav aria-label="Pagination des tiers">
+                    {% if current_page > 1 %}
+                        <a href="{{ path('app_third_parties', {q: search, category: selected_category, page: 1}) }}">Première</a>
+                        <a rel="prev" href="{{ path('app_third_parties', {q: search, category: selected_category, page: current_page - 1}) }}">← Précédent</a>
+                    {% endif %}
+                    <strong aria-current="page">Page {{ current_page }} / {{ page_count }}</strong>
+                    {% if current_page < page_count %}
+                        <a rel="next" href="{{ path('app_third_parties', {q: search, category: selected_category, page: current_page + 1}) }}">Suivant →</a>
+                        <a href="{{ path('app_third_parties', {q: search, category: selected_category, page: page_count}) }}">Dernière</a>
+                    {% endif %}
+                </nav>
+            {% endif %}
         {% endif %}
     </section>
 {% endblock %}

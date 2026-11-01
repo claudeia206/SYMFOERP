@@ -1,0 +1,26 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ is_edit ? 'Modifier' : 'Nouveau' }} produit · SYMFOERP{% endblock %}
+{% block body %}
+    <p class="muted">CATALOGUE / PRODUITS</p>
+    <h1>{{ is_edit ? 'Modifier le produit' : 'Créer un produit' }}</h1>
+    <p><a href="{{ is_edit ? path('app_product_show', {id: product.id}) : path('app_products') }}">← Retour</a></p>
+    {% if errors is not empty %}<section class="card" role="alert"><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></section>{% endif %}
+    <section class="card">
+        <form method="post">
+            <input type="hidden" name="_token" value="{{ csrf_token(token_id) }}">
+            <div class="grid">
+                <p><label for="sku">Référence SKU *</label><input id="sku" name="sku" maxlength="64" required value="{{ values.sku ?? '' }}"></p>
+                <p><label for="name">Désignation *</label><input id="name" name="name" maxlength="180" required value="{{ values.name ?? '' }}"></p>
+                <p><label for="unit">Unité *</label><input id="unit" name="unit" maxlength="40" required value="{{ values.unit ?? 'pièce' }}"></p>
+                <p><label for="purchase_price">Prix d’achat HT (€) *</label><input id="purchase_price" name="purchase_price" type="number" min="0" step="0.01" required value="{{ values.purchase_price ?? '0.00' }}"></p>
+                <p><label for="sale_price">Prix de vente HT (€) *</label><input id="sale_price" name="sale_price" type="number" min="0" step="0.01" required value="{{ values.sale_price ?? '0.00' }}"></p>
+                <p><label for="vat_rate">TVA (%) *</label><input id="vat_rate" name="vat_rate" type="number" min="0" max="100" step="0.01" required value="{{ values.vat_rate ?? '20.00' }}"></p>
+                <p><label for="stock_alert_threshold">Seuil d’alerte stock</label><input id="stock_alert_threshold" name="stock_alert_threshold" type="number" min="0" step="0.001" value="{{ values.stock_alert_threshold ?? '0.000' }}"></p>
+            </div>
+            <p><label for="description">Description</label><textarea id="description" name="description" rows="4">{{ values.description ?? '' }}</textarea></p>
+            <p><label><input type="checkbox" name="stock_tracked" value="1" {% if (values.stock_tracked ?? '1') == '1' %}checked{% endif %}> Suivre le stock</label></p>
+            <p><label><input type="checkbox" name="active" value="1" {% if (values.active ?? '1') == '1' %}checked{% endif %}> Produit actif</label></p>
+            <button type="submit">{{ is_edit ? 'Enregistrer les modifications' : 'Créer le produit' }}</button>
+        </form>
+    </section>
+{% endblock %}

@@ -39,6 +39,18 @@ class ThirdParty
     #[ORM\Column(length: 40, nullable: true)]
     private ?string $phone = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $address = null;
+
+    #[ORM\Column(name: 'postal_code', length: 20, nullable: true)]
+    private ?string $postalCode = null;
+
+    #[ORM\Column(length: 120, nullable: true)]
+    private ?string $city = null;
+
+    #[ORM\Column(length: 80, nullable: true)]
+    private ?string $country = null;
+
     #[ORM\Column(name: 'created_at')]
     private DateTimeImmutable $createdAt;
 
@@ -62,8 +74,8 @@ class ThirdParty
     public function setName(string $name): self
     {
         $name = trim($name);
-        if ($name === '') {
-            throw new InvalidArgumentException('A third party name cannot be empty.');
+        if ($name === '' || mb_strlen($name) > 180) {
+            throw new InvalidArgumentException('A third party name must contain between 1 and 180 characters.');
         }
 
         $this->name = $name;
@@ -94,7 +106,12 @@ class ThirdParty
 
     public function setEmail(?string $email): self
     {
-        $this->email = $email !== null && trim($email) !== '' ? trim($email) : null;
+        $email = $email !== null ? trim($email) : '';
+        if ($email !== '' && (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 180)) {
+            throw new InvalidArgumentException('A valid email address of at most 180 characters is required.');
+        }
+
+        $this->email = $email !== '' ? $email : null;
 
         return $this;
     }
@@ -106,10 +123,25 @@ class ThirdParty
 
     public function setPhone(?string $phone): self
     {
-        $this->phone = $phone !== null && trim($phone) !== '' ? trim($phone) : null;
+        $phone = $phone !== null ? trim($phone) : '';
+        if (mb_strlen($phone) > 40) {
+            throw new InvalidArgumentException('A phone number cannot exceed 40 characters.');
+        }
+
+        $this->phone = $phone !== '' ? $phone : null;
 
         return $this;
     }
+
+    public function getAddress(): ?string { return $this->address; }
+    public function getPostalCode(): ?string { return $this->postalCode; }
+    public function getCity(): ?string { return $this->city; }
+    public function getCountry(): ?string { return $this->country; }
+
+    public function setAddress(?string $value): self { $this->address = trim((string) $value) ?: null; return $this; }
+    public function setPostalCode(?string $value): self { $this->postalCode = trim((string) $value) ?: null; return $this; }
+    public function setCity(?string $value): self { $this->city = trim((string) $value) ?: null; return $this; }
+    public function setCountry(?string $value): self { $this->country = trim((string) $value) ?: null; return $this; }
 
     public function getCreatedAt(): DateTimeImmutable
     {

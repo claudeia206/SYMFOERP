@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+{% block title %}Identité de l’entreprise · SYMFOERP{% endblock %}
+{% block body %}
+    <p class="muted">PARAMÈTRES / FACTURATION</p>
+    <h1>Identité légale de l’entreprise</h1>
+    <p>Ces données seront figées sur chaque facture au moment de son émission. Renseignez uniquement des informations vérifiées.</p>
+    {% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
+    {% if errors is not empty %}<section class="card" role="alert"><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></section>{% endif %}
+    <section class="card">
+        <h2>État de préparation de la facturation</h2>
+        {% if readiness_errors is empty %}<p>Les champs de base du vendeur sont renseignés.</p>{% else %}<ul>{% for error in readiness_errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+    </section>
+    <section class="card">
+        <form method="post">
+            <input type="hidden" name="_token" value="{{ csrf_token('company_profile_update') }}">
+            {% set fields = [
+                ['legalName','Raison sociale *',profile.legalName,'text'],
+                ['address','Adresse *',profile.address,'text'],
+                ['postalCode','Code postal *',profile.postalCode,'text'],
+                ['city','Ville *',profile.city,'text'],
+                ['country','Pays *',profile.country,'text'],
+                ['siren','SIREN (9 chiffres)',profile.siren,'text'],
+                ['siret','SIRET (14 chiffres)',profile.siret,'text'],
+                ['vatNumber','N° TVA intracommunautaire',profile.vatNumber,'text'],
+                ['legalForm','Forme juridique',profile.legalForm,'text'],
+                ['shareCapital','Capital social',profile.shareCapital,'text'],
+                ['rcsCity','Ville RCS',profile.rcsCity,'text'],
+                ['email','E-mail',profile.email,'email'],
+                ['phone','Téléphone',profile.phone,'tel'],
+                ['paymentTerms','Conditions et délai de paiement *',profile.paymentTerms,'text'],
+                ['latePenaltyRate','Taux des pénalités de retard *',profile.latePenaltyRate,'text'],
+                ['recoveryFee','Indemnité forfaitaire de recouvrement (€) *',profile.recoveryFee,'text'],
+                ['vatRegimeNote','Mention relative au régime de TVA *',profile.vatRegimeNote,'text'],
+                ['paymentDelayDays','Délai de paiement en jours (0 à 365)',profile.paymentDelayDays,'number']
+            ] %}
+            {% for field in fields %}
+                <p><label for="{{ field[0] }}">{{ field[1] }}</label><input id="{{ field[0] }}" name="{{ field[0] }}" type="{{ field[3] }}" value="{{ field[2] ?? '' }}" {% if field[0] == 'siren' %}maxlength="9" inputmode="numeric"{% elseif field[0] == 'siret' %}maxlength="14" inputmode="numeric"{% endif %}></p>
+            {% endfor %}
+            <button type="submit">Enregistrer l’identité</button>
+        </form>
+    </section>
+{% endblock %}

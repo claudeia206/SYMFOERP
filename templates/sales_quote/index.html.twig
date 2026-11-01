@@ -1,0 +1,57 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Devis · Ventes · SYMFOERP{% endblock %}
+
+{% block body %}
+    <p class="muted">GESTION COMMERCIALE / VENTES</p>
+    <h1>Devis</h1>
+    <p class="muted">Préparez et suivez les propositions commerciales de vos clients.</p>
+    {% for message in app.flashes('success') %}<p class="card" role="status">{{ message }}</p>{% endfor %}
+    <p><a class="button" href="{{ path('app_sales_quote_new') }}">＋ Nouveau devis</a></p>
+    <section class="card" aria-label="Recherche des devis">
+        <form method="get">
+            <label for="q">Rechercher</label>
+            <input id="q" name="q" type="search" value="{{ search }}" placeholder="Numéro de devis ou client">
+            <label for="status">Statut</label>
+            <select id="status" name="status">
+                <option value="">Tous les statuts</option>
+                {% for value, label in statuses %}
+                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Filtrer</button>
+            <a href="{{ path('app_sales_quotes') }}">Réinitialiser</a>
+        </form>
+    </section>
+    <section class="card" aria-label="Liste des devis">
+        {% if quotes is empty %}
+            <p>Aucun devis ne correspond à votre recherche.</p>
+        {% else %}
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead><tr><th>Numéro</th><th>Client</th><th>Date</th><th>Validité</th><th>Statut</th><th>Total TTC</th></tr></thead>
+                    <tbody>
+                    {% for quote in quotes %}
+                        <tr>
+                            <td><a href="{{ path('app_sales_quote_show', {id: quote.id}) }}">{{ quote.number }}</a></td>
+                            <td>{{ quote.customer.name }}</td>
+                            <td>{{ quote.quoteDate|date('d/m/Y') }}</td>
+                            <td>{{ quote.validUntil|date('d/m/Y') }}</td>
+                            <td>{{ statuses[quote.status] ?? quote.status }}</td>
+                            <td>{{ quote.totalIncludingTax|number_format(2, ',', ' ') }} €</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="muted">{{ total_count }} devis · Page {{ current_page }} sur {{ page_count }}</p>
+            {% if page_count > 1 %}
+                <nav aria-label="Pagination des devis">
+                    {% if current_page > 1 %}<a href="{{ path('app_sales_quotes', {q: search, status: selected_status, page: current_page - 1}) }}">← Précédent</a>{% endif %}
+                    <strong aria-current="page">Page {{ current_page }} / {{ page_count }}</strong>
+                    {% if current_page < page_count %}<a href="{{ path('app_sales_quotes', {q: search, status: selected_status, page: current_page + 1}) }}">Suivant →</a>{% endif %}
+                </nav>
+            {% endif %}
+        {% endif %}
+    </section>
+{% endblock %}
