@@ -494,13 +494,15 @@ jobs:
           print("Automatic general ledger postings for supplier invoices and payments passed.")
           print("Automatic general ledger postings for sales invoices, payments and credit notes passed.")
           # Exercise the real year-end transaction on an isolated historical exercise.
-          closing_account_ids = {}
+          import subprocess
+          account_query = "SELECT code,id FROM app_accounting_account WHERE code IN ('607000','707000','401000','411000','445710') ORDER BY code"
+          account_output = subprocess.check_output([
+              "docker", "compose", "--env-file", ".env.docker", "exec", "-T", "db_symfony",
+              "sh", "-lc", 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" -N -e "' + account_query + '"'
+          ], text=True)
+          closing_account_ids = {parts[0]: parts[1] for parts in (line.split() for line in account_output.splitlines()) if len(parts) == 2}
           for code in ("607000", "707000", "401000", "411000", "445710"):
-              match = re.search(r'<option value="(\\d+)"[^>]*>\\s*' + code + r'\\s*(?:—|&mdash;)', ledger_html)
-              if not match:
-                  match = re.search(r'href="/accounting/accounts/(\\d+)[^"]*">' + code + r'</a>', ledger_html)
-              assert match, "Missing account for fiscal close test: " + code
-              closing_account_ids[code] = match.group(1)
+              assert code in closing_account_ids, "Missing account for fiscal close test: " + code
           closing_entry = {
               "_token": ledger_token, "journal_id": journal_match.group(1),
               "entry_date": "2024-12-15", "reference": "CI-YEAR-CLOSE-2024",
