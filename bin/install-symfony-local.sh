@@ -4,6 +4,16 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+TEST_MODE=0
+if [[ "${1:-}" == "--test-mode" ]]; then
+    TEST_MODE=1
+    shift
+fi
+if [[ "$#" -gt 0 ]]; then
+    echo "Usage: bash bin/install-symfony-local.sh [--test-mode]" >&2
+    exit 2
+fi
+
 for command in docker openssl curl; do
     if ! command -v "$command" >/dev/null 2>&1; then
         echo "Prérequis manquant : $command" >&2
@@ -87,19 +97,34 @@ docker exec symfoerp-symfony php -r "$database_check"
 echo "Validation des mappings Doctrine (schéma géré par les migrations) :"
 console doctrine:schema:validate --skip-sync --no-ansi
 
-read -r -p "E-mail du premier administrateur : " admin_email
-read -r -s -p "Mot de passe administrateur (12 caractères minimum) : " admin_password
-printf '\\n'
-if [[ -z "$admin_email" || ${#admin_password} -lt 12 ]]; then
-    echo "E-mail requis et mot de passe d'au moins 12 caractères." >&2
-    exit 1
+if [[ "$TEST_MODE" -eq 1 ]]; then
+    echo "MODE TEST LOCAL : identifiants fixes activés (ne jamais utiliser en production)."
+    admin_email="admin@local.local"
+    admin_password="admin"
+    docker exec \
+        -e APP_ENV=dev \
+        -e SYMFOERP_TEST_MODE=1 \
+        -e "SYMFOERP_ADMIN_EMAIL=$admin_email" \
+        -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \
+        --workdir /app symfoerp-symfony php -d display_errors=1 /app/bin/console app:user:create </dev/null
+else
+    read -r -p "E-mail du premier administrateur : " admin_email
+    read -r -s -p "Mot de passe administrateur (12 caractères minimum) : " admin_password
+    printf '\\n'
+    if [[ -z "$admin_email" || ${#admin_password} -lt 12 ]]; then
+        echo "E-mail requis et mot de passe d'au moins 12 caractères." >&2
+        exit 1
+    fi
+    docker exec \
+        -e "SYMFOERP_ADMIN_EMAIL=$admin_email" \
+        -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \
+        --workdir /app symfoerp-symfony php -d display_errors=1 /app/bin/console app:user:create </dev/null
+    unset admin_password
 fi
-docker exec \
-    -e "SYMFOERP_ADMIN_EMAIL=$admin_email" \
-    -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \
-    --workdir /app symfoerp-symfony php -d display_errors=1 /app/bin/console app:user:create </dev/null
-unset admin_password
 echo
 echo "Installation SYMFOERP terminée : http://localhost:8000/login"
+if [[ "$TEST_MODE" -eq 1 ]]; then
+    echo "Compte de test : admin@local.local / admin (réservé au mode test local)."
+fi
 echo "Les données sont conservées dans les volumes Docker. Pour arrêter :"
 echo "  docker compose --env-file .env.docker down"
