@@ -36,7 +36,7 @@ foreach ([
 foreach ([
     '$balanceSheetDifference = AccountingAmount::addSignedCents($totals[\'assets\'], -$balanceSheetTotal);',
     "'balance_sheet_balanced' => \$balanceSheetDifference === 0",
-    'balance_sheet_difference' => AccountingAmount::formatFrenchCents($balanceSheetDifference),
+    "'balance_sheet_difference' => AccountingAmount::formatFrenchCents(\$balanceSheetDifference)",
 ] as $required) {
     expectFinancialStatements(str_contains($source, $required), 'Missing balance sheet control calculation: '.$required);
 }
