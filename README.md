@@ -32,6 +32,14 @@ git pull --ff-only origin main
 bash bin/install-symfony-local.sh
 ```
 
+Pour une installation de démonstration locale avec un compte de test prédéfini :
+
+```bash
+bash bin/install-symfony-local.sh --test-mode
+```
+
+Le mode test crée le compte **admin@local.local** avec le mot de passe **admin**. Il est strictement réservé à une base locale de développement : ne l'utilisez jamais en production et ne rendez pas le service accessible depuis Internet. Le mode normal reste le comportement par défaut et impose un mot de passe d'au moins 12 caractères.
+
 Le script :
 - génère un fichier local `.env.docker` avec des secrets aléatoires s'il n'existe pas ;
 - démarre Symfony et une base MariaDB dédiée ;
@@ -97,6 +105,26 @@ docker run --rm --network "$NETWORK" \
   "$IMAGE" php /app/bin/console app:user:create
 unset SYMFOERP_ADMIN_EMAIL SYMFOERP_ADMIN_PASSWORD
 ```
+
+## Outil de tests et rapports
+
+Après avoir démarré l'installation locale, exécuter toute la suite de tests smoke :
+
+```bash
+bash bin/test-symfoerp.sh
+```
+
+L'outil exécute automatiquement chaque fichier `tests/*_smoke.php` dans le conteneur Symfony et produit :
+- `var/test-reports/test-report.md` : bilan lisible PASS/FAIL ;
+- `var/test-reports/logs/*.log` : sortie détaillée de chaque test.
+
+Pour tester une image Docker de CI sans démarrer le service web :
+
+```bash
+bash bin/test-symfoerp.sh --image symfoerp-symfony:ci
+```
+
+GitHub Actions exécute cette même suite et publie le dossier de rapports comme artefact `symfoerp-test-report`, même si un test échoue.
 
 ## Périmètre fonctionnel présent
 
