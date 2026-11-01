@@ -45,6 +45,7 @@ foreach ([
 $fecTemplate = file_get_contents(dirname(__DIR__).'/templates/accounting/fec.html.twig');
 expectFiscalClosing(is_string($fecTemplate) && str_contains($fecTemplate, '{{ summary.lines }}'), 'FEC template must render the normalized line count.');
 expectFiscalClosing(str_contains($source, "'lines' => (int) ($summary['line_count'] ?? 0)"), 'FEC summary must map the SQL line_count alias.');
+expectFiscalClosing(str_contains($source, 'COUNT(l.id) AS line_count'), 'FEC query must expose its line-count alias.');
 
 $migration = file_get_contents(dirname(__DIR__).'/migrations/Version20261101080000.php');
 expectFiscalClosing(is_string($migration), 'Unable to inspect fiscal closing migration.');
