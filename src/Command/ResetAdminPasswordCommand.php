@@ -16,7 +16,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 #[AsCommand(
     name: 'app:user:reset-password',
-    description: 'Reset the password of an existing administrator from environment variables.'
+    description: 'Securely reset the password of an existing administrator.'
 )]
 final class ResetAdminPasswordCommand extends Command
 {
