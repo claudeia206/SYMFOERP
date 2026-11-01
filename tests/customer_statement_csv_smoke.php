@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use App\\Service\\CustomerStatementCsvFormatter;
+use App\Service\CustomerStatementCsvFormatter;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
@@ -33,9 +33,9 @@ $csv = CustomerStatementCsvFormatter::format([
     ],
 ]);
 
-expectStatementCsv(str_starts_with($csv, "\\xEF\\xBB\\xBF"), 'CSV must include a UTF-8 BOM for spreadsheet compatibility.');
+expectStatementCsv(str_starts_with($csv, "\xEF\xBB\xBF"), 'CSV must include a UTF-8 BOM for spreadsheet compatibility.');
 expectStatementCsv(str_contains($csv, 'Date;Type;Document;Description;Débit (€);Crédit (€);Solde (€)'), 'CSV must use the French semicolon-separated header.');
 expectStatementCsv(str_contains($csv, 'Facture;FAC-2026-000001;Facture client;120,00;0,00;120,00'), 'Invoice movement must preserve debit and balance.');
 expectStatementCsv(str_contains($csv, "'=HYPERLINK"), 'Formula-like document values must be neutralized.');
 expectStatementCsv(str_contains($csv, "'+Commande importée"), 'Formula-like descriptions must be neutralized.');
-echo "Customer statement CSV encoding, amounts and spreadsheet formula safety passed.\\n";
+echo "Customer statement CSV encoding, amounts and spreadsheet formula safety passed.\n";
