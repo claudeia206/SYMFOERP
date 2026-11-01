@@ -38,7 +38,7 @@ jobs:
         run: docker compose --env-file .env.docker config --quiet
 
       - name: Validate native installer shell syntax
-        run: bash -n bin/install-symfony-local.sh
+        run: bash -n bin/install-symfony-local.sh bin/test-symfoerp.sh
 
       - name: Build Symfony application image
         run: docker build --tag symfoerp-symfony:ci --file Dockerfile .
@@ -85,7 +85,7 @@ jobs:
           set -eu
           trap 'echo "=== Symfony and MariaDB container logs (last 300 lines) ==="; docker compose --env-file .env.docker logs --no-color --tail=300 symfony db_symfony || true' ERR
           # Exercise the same first-install path used by developers, not a parallel CI-only sequence.
-          printf '%s\n%s\n' 'admin@local.local' 'admin' | bash bin/install-symfony-local.sh
+          bash bin/install-symfony-local.sh --test-mode
           # Confirm the installer created the account and that all Doctrine mappings are valid.
           # Accounting tables are migration-managed and intentionally not all ORM-mapped.
           set -a
