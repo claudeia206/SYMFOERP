@@ -92,11 +92,6 @@ final class GeneralLedgerController extends AbstractController
         ]);
     }
 
-    private function safeCsvText(string $value): string
-    {
-        return preg_match('/^[\\s]*[=+@\\-]/u', $value) ? "'".$value : $value;
-    }
-
     #[Route('/entries',name:'app_general_ledger_entry_create',methods:['POST'])]
     public function create(Request $request,Connection $db, AccountingPeriodGuard $periodGuard):Response
     {
