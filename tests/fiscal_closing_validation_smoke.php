@@ -12,7 +12,9 @@ function expectFiscalClosing(bool $condition, string $message): void
 }
 
 $source = file_get_contents(dirname(__DIR__).'/src/Controller/FiscalClosingController.php');
+$template = file_get_contents(dirname(__DIR__).'/templates/accounting/fec.html.twig');
 expectFiscalClosing(is_string($source), 'Unable to inspect fiscal closing validation.');
+expectFiscalClosing(is_string($template), 'Unable to inspect fiscal closing screen.');
 
 foreach ([
     'COUNT(l.id)<2',
@@ -25,6 +27,13 @@ foreach ([
     "\$summary['line_count'] ?? 0",
 ] as $required) {
     expectFiscalClosing(str_contains($source, $required), 'Missing fiscal closing integrity check: '.$required);
+}
+
+foreach ([
+    'Verrouiller les écritures de {{ year }}',
+    'ne génère ni journal de clôture, ni résultat affecté, ni à-nouveaux',
+] as $required) {
+    expectFiscalClosing(str_contains($template, $required), 'Missing lock-only disclosure: '.$required);
 }
 
 echo "Fiscal closing persisted journal-line integrity checks passed.\n";
