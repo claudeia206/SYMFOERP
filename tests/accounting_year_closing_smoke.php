@@ -36,6 +36,7 @@ foreach ([
     'commit',
     'unclosedHistoricalEntries',
     'nextYearEntries',
+    'historicalProfitAndLossBalances',
 ] as $required) {
     expectFiscalClosing(str_contains($source, $required), 'Missing fiscal closing control: '.$required);
 }
