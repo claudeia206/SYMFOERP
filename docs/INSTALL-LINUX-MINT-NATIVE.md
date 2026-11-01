@@ -104,10 +104,8 @@ Si le mot de passe administrateur est perdu, il peut être remplacé depuis le t
 ~~~bash
 read -r -p "E-mail du compte existant : " SYMFOERP_ADMIN_EMAIL
 read -r -s -p "Nouveau mot de passe (12 caractères minimum) : " SYMFOERP_ADMIN_PASSWORD
-printf '\\n'
-SYMFOERP_ADMIN_EMAIL="$SYMFOERP_ADMIN_EMAIL" \\
-SYMFOERP_ADMIN_PASSWORD="$SYMFOERP_ADMIN_PASSWORD" \\
-php bin/console app:user:password-reset
+printf '\n'
+SYMFOERP_ADMIN_EMAIL="$SYMFOERP_ADMIN_EMAIL" SYMFOERP_ADMIN_PASSWORD="$SYMFOERP_ADMIN_PASSWORD" php bin/console app:user:password-reset
 unset SYMFOERP_ADMIN_EMAIL SYMFOERP_ADMIN_PASSWORD
 ~~~
 
