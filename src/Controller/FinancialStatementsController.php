@@ -82,8 +82,18 @@ SQL, [$to, $to, $from, $to, $from, $to, $to]);
             }
         }
 
-        $balanceSheetTotal = AccountingAmount::addSignedCents($totals['liabilities'], $totals['equity']);
+        // The current-period result belongs in equity until the closing entry
+        // transfers it to retained earnings (account 12).
         $netResult = AccountingAmount::addSignedCents($totals['income'], -$totals['expenses']);
+        if ($netResult !== 0) {
+            $groups['equity'][] = [
+                'code' => 'Résultat',
+                'name' => 'Résultat de la période (avant affectation)',
+                'balance' => AccountingAmount::formatFrenchCents($netResult),
+            ];
+            $totals['equity'] = AccountingAmount::addSignedCents($totals['equity'], $netResult);
+        }
+        $balanceSheetTotal = AccountingAmount::addSignedCents($totals['liabilities'], $totals['equity']);
         foreach ($totals as &$value) {
             $value = AccountingAmount::formatFrenchCents($value);
         }
