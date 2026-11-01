@@ -110,7 +110,7 @@ if [[ "$TEST_MODE" -eq 1 ]]; then
 else
     read -r -p "E-mail du premier administrateur : " admin_email
     read -r -s -p "Mot de passe administrateur (12 caractères minimum) : " admin_password
-    printf '\\n'
+    printf '\n'
     if [[ -z "$admin_email" || ${#admin_password} -lt 12 ]]; then
         echo "E-mail requis et mot de passe d'au moins 12 caractères." >&2
         exit 1
