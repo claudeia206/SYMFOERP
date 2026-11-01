@@ -36,7 +36,7 @@ class PurchaseOrderLine
     #[ORM\Column(name: 'received_quantity', type: 'decimal', precision: 10, scale: 3)]
     private string $receivedQuantity = '0.000';
 
-    #[ORM\Column(name: 'invoiced_quantity', type: 'decimal', precision: 10, scale: 3)]
+    #[ORM\Column(name: 'invoiced_quantity', type: 'decimal', precision: 10, scale: 3, options: ['default' => '0.000'])]
     private string $invoicedQuantity = '0.000';
 
     #[ORM\Column(name: 'unit_price', type: 'decimal', precision: 12, scale: 2)]
