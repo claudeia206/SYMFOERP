@@ -96,6 +96,15 @@ final class GeneralLedgerController extends AbstractController
             'Solde clôture débiteur', 'Solde clôture créditeur',
         ], ';', '"', '');
 
+        $totals = [
+            'opening_debit' => 0,
+            'opening_credit' => 0,
+            'period_debit' => 0,
+            'period_credit' => 0,
+            'closing_debit' => 0,
+            'closing_credit' => 0,
+        ];
+
         foreach ($accounts as $account) {
             $opening = AccountingAmount::addSignedCents(
                 AccountingAmount::toCents((string) $account['opening_debit']),
@@ -104,6 +113,18 @@ final class GeneralLedgerController extends AbstractController
             $debit = AccountingAmount::toCents((string) $account['period_debit']);
             $credit = AccountingAmount::toCents((string) $account['period_credit']);
             $closing = AccountingAmount::addSignedCents($opening, $debit, -$credit);
+
+            $row = [
+                max(0, $opening),
+                max(0, -$opening),
+                $debit,
+                $credit,
+                max(0, $closing),
+                max(0, -$closing),
+            ];
+            foreach (array_keys($totals) as $index => $key) {
+                $totals[$key] = AccountingAmount::addCents($totals[$key], $row[$index]);
+            }
 
             fputcsv($stream, [
                 $this->safeCsvText((string) $account['code']),
@@ -117,6 +138,16 @@ final class GeneralLedgerController extends AbstractController
                 AccountingAmount::formatFrenchCents(max(0, -$closing)),
             ], ';', '"', '');
         }
+
+        fputcsv($stream, [
+            'TOTAL', '', '',
+            AccountingAmount::formatFrenchCents($totals['opening_debit']),
+            AccountingAmount::formatFrenchCents($totals['opening_credit']),
+            AccountingAmount::formatFrenchCents($totals['period_debit']),
+            AccountingAmount::formatFrenchCents($totals['period_credit']),
+            AccountingAmount::formatFrenchCents($totals['closing_debit']),
+            AccountingAmount::formatFrenchCents($totals['closing_credit']),
+        ], ';', '"', '');
 
         rewind($stream);
         $csv = stream_get_contents($stream);
