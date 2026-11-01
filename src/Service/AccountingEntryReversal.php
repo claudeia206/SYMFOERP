@@ -14,8 +14,8 @@ final class AccountingEntryReversal
      */
     public static function reverseLines(array $lines): array
     {
-        if (count($lines) < 2 || count($lines) > 100) {
-            throw new InvalidArgumentException('Une contrepassation exige entre 2 et 100 lignes.');
+        if (count($lines) < 2) {
+            throw new InvalidArgumentException('Une contrepassation exige au moins 2 lignes.');
         }
 
         $debitTotal = 0;
