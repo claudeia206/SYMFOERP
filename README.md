@@ -51,7 +51,15 @@ Accès : http://localhost:8000/login
 
 ### Récupérer l'accès administrateur local
 
-Si le mot de passe administrateur est perdu, démarrez les conteneurs puis lancez la commande de récupération depuis le terminal du projet :
+Si SYMFOERP est installé directement sur Linux avec Apache/PHP (sans Docker), placez-vous à la racine du projet et lancez :
+
+```bash
+php bin/console app:user:reset-password
+```
+
+La commande demande l'adresse e-mail du compte administrateur, puis le nouveau mot de passe deux fois sans l'afficher. Elle utilise la configuration Symfony locale (`.env.local` / `DATABASE_URL`) et ne touche qu'au mot de passe du compte administrateur existant.
+
+Si SYMFOERP est installé avec Docker, démarrez les conteneurs puis lancez la commande dans le conteneur :
 
 ```bash
 docker compose --env-file .env.docker up -d
