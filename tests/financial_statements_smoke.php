@@ -15,14 +15,18 @@ $source = file_get_contents(dirname(__DIR__).'/src/Controller/FinancialStatement
 expectFinancialStatements(is_string($source), 'Unable to inspect financial statement calculation.');
 
 foreach ([
-    'The current-period result belongs in equity',
+    '$fiscalYearStart = (new DateTimeImmutable($to))->modify(\'first day of january\')->format(\'Y-m-d\');',
+    'AS fiscal_debit',
+    'AS fiscal_credit',
+    '$fiscalExpenses = AccountingAmount::addSignedCents($fiscalExpenses, AccountingAmount::addSignedCents($yearDebit, -$yearCredit));',
+    '$fiscalIncome = AccountingAmount::addSignedCents($fiscalIncome, AccountingAmount::addSignedCents($yearCredit, -$yearDebit));',
     '$netResult = AccountingAmount::addSignedCents($totals[\'income\'], -$totals[\'expenses\']);',
-    "'code' => 'Résultat'",
-    "'name' => 'Résultat de la période (avant affectation)'",
-    "\$totals['equity'] = AccountingAmount::addSignedCents(\$totals['equity'], \$netResult);",
+    '$balanceSheetResult = AccountingAmount::addSignedCents($fiscalIncome, -$fiscalExpenses);',
+    "'name' => 'Résultat de l’exercice (avant affectation)'",
+    "\$totals['equity'] = AccountingAmount::addSignedCents(\$totals['equity'], \$balanceSheetResult);",
     "\$balanceSheetTotal = AccountingAmount::addSignedCents(\$totals['liabilities'], \$totals['equity']);",
 ] as $required) {
     expectFinancialStatements(str_contains($source, $required), 'Missing balance sheet result integration: '.$required);
 }
 
-echo "Financial statement current-period result integration checks passed.\n";
+echo "Financial statement fiscal-year result integration checks passed.\\n";
