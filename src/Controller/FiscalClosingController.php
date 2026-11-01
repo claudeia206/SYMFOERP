@@ -196,7 +196,12 @@ final class FiscalClosingController extends AbstractController
                 LEFT JOIN app_journal_entry_line l ON l.entry_id=e.id
                 WHERE e.status=? AND e.entry_date BETWEEN ? AND ?
                 GROUP BY e.id
-                HAVING COUNT(l.id)<2 OR COALESCE(SUM(l.debit),0)<>COALESCE(SUM(l.credit),0)
+                HAVING COUNT(l.id)<2
+                    OR COALESCE(SUM(l.debit),0)<>COALESCE(SUM(l.credit),0)
+                    OR SUM(CASE WHEN l.debit<0 OR l.credit<0
+                                     OR (l.debit>0 AND l.credit>0)
+                                     OR (l.debit=0 AND l.credit=0)
+                                THEN 1 ELSE 0 END)>0
              ) invalid_entries',
             ['posted', $from, $to]
         );
