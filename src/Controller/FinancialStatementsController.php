@@ -105,6 +105,7 @@ SQL, [$to, $to, $from, $to, $from, $to, $fiscalYearStart, $to, $fiscalYearStart,
             $totals['equity'] = AccountingAmount::addSignedCents($totals['equity'], $balanceSheetResult);
         }
         $balanceSheetTotal = AccountingAmount::addSignedCents($totals['liabilities'], $totals['equity']);
+        $balanceSheetDifference = AccountingAmount::addSignedCents($totals['assets'], -$balanceSheetTotal);
         foreach ($totals as &$value) {
             $value = AccountingAmount::formatFrenchCents($value);
         }
@@ -116,6 +117,8 @@ SQL, [$to, $to, $from, $to, $from, $to, $fiscalYearStart, $to, $fiscalYearStart,
             'from' => $from,
             'to' => $to,
             'balance_sheet_total' => AccountingAmount::formatFrenchCents($balanceSheetTotal),
+            'balance_sheet_difference' => AccountingAmount::formatFrenchCents($balanceSheetDifference),
+            'balance_sheet_balanced' => $balanceSheetDifference === 0,
             'net_result' => AccountingAmount::formatFrenchCents($netResult),
         ]);
     }
