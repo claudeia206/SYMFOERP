@@ -47,7 +47,7 @@ expectTrialBalanceCsv(
     'CSV export must include a totals row for balance control.'
 );
 expectTrialBalanceCsv(
-    str_contains($controller, "AccountingAmount::addCents($totals[$key], $row[$index])"),
+    str_contains($controller, 'AccountingAmount::addCents($totals[$key], $row[$index])'),
     'CSV totals must be accumulated using exact integer cents.'
 );
 expectTrialBalanceCsv(
