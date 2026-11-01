@@ -1,22 +1,56 @@
 {% extends 'base.html.twig' %}
-
 {% block title %}Tableau de bord · SYMFOERP{% endblock %}
-
 {% block body %}
-    <p class="muted">ESPACE DE TRAVAIL</p>
-    <h1>Tableau de bord</h1>
-    <p class="muted">Les modules disponibles sont accessibles depuis cet espace. Les autres seront développés progressivement.</p>
-    <section class="grid" aria-label="Modules ERP">
+    <section class="dashboard-hero">
+        <div>
+            <p class="eyebrow">Vue d'ensemble · {{ 'now'|date('d/m/Y') }}</p>
+            <h1>Tableau de bord</h1>
+            <p class="page-intro">Pilotez votre activité depuis un espace unique. Les indicateurs ci-dessous sont calculés à partir des données de votre base.</p>
+        </div>
+        <div class="hero-note"><strong>Bienvenue dans SYMFOERP</strong><br>Vos opérations, vos clients et votre gestion réunis au même endroit.</div>
+    </section>
+
+    <section class="metric-grid" aria-label="Indicateurs clés">
+        {% for metric in metrics %}
+            <a class="metric-card" href="{{ path(metric.route) }}">
+                <span class="metric-label">{{ metric.label }}</span>
+                <strong class="metric-value">{{ metric.value|number_format(0, ',', ' ') }}</strong>
+                <span class="metric-hint">{{ metric.hint }}</span>
+            </a>
+        {% endfor %}
+    </section>
+
+    <div class="section-heading">
+        <h2>À surveiller</h2>
+        <span class="muted">{{ alerts|length }} alerte(s)</span>
+    </div>
+    {% if alerts is empty %}
+        <div class="empty-state"><span class="empty-check">✓</span><div><strong>Aucune alerte détectée</strong><p class="muted">Les stocks et les factures ne signalent rien à traiter pour le moment.</p></div></div>
+    {% else %}
+        <section class="alert-grid" aria-label="Alertes de gestion">
+            {% for alert in alerts %}
+                <a class="alert-card" href="{{ path(alert.route) }}"><span>{{ alert.label }}</span><strong>{{ alert.value }}</strong><span aria-hidden="true">→</span></a>
+            {% endfor %}
+        </section>
+    {% endif %}
+
+    <div class="section-heading">
+        <h2>Accès rapides</h2>
+        <span class="muted">{{ modules|length }} modules</span>
+    </div>
+    <section class="module-grid" aria-label="Modules ERP">
         {% for module in modules %}
-            <article class="card">
+            <article class="module-card">
+                <div class="module-top"><span class="module-icon" aria-hidden="true">{{ module.name|slice(0, 1)|upper }}</span><span class="status">{{ module.status }}</span></div>
                 <h2>{{ module.name }}</h2>
-                <p class="muted">{{ module.description }}</p>
-                {% if module.route is defined %}
-                    <a class="button" href="{{ path(module.route) }}">Ouvrir le module</a>
-                {% else %}
-                    <span class="status">{{ module.status }}</span>
-                {% endif %}
+                <p>{{ module.description }}</p>
+                <a class="module-action" href="{{ path(module.route) }}">Accéder au module <span aria-hidden="true">→</span></a>
             </article>
         {% endfor %}
+    </section>
+
+    <section class="panel settings-panel">
+        <div><p class="eyebrow">Configuration</p><h2>Paramètres de l'entreprise</h2><p class="muted">Identité légale, coordonnées et informations nécessaires à la facturation.</p></div>
+        <a class="button" href="{{ path('app_company_settings') }}">Ouvrir les paramètres <span aria-hidden="true">→</span></a>
     </section>
 {% endblock %}

@@ -3,22 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#14243b">
     <title>{% block title %}SYMFOERP{% endblock %}</title>
     <style>
-        :root { font-family: Inter, system-ui, sans-serif; color: #172033; background: #f4f6fa; }
-        * { box-sizing: border-box; } body { margin: 0; }
-        header { display:flex; align-items:center; justify-content:space-between; padding:18px 5vw; color:white; background:#172b4d; }
-        header strong { letter-spacing:.08em; } header nav { display:flex; gap:18px; } header nav a { color:#dbeafe; text-decoration:none; } header nav a:hover { text-decoration:underline; } main { max-width:1120px; margin:40px auto; padding:0 24px; }
-        .muted { color:#64748b; } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px; margin-top:28px; }
-        .card { background:white; border:1px solid #e5eaf1; border-radius:14px; padding:22px; box-shadow:0 4px 18px #172b4d0a; }
-        .status { display:inline-block; margin-top:12px; padding:5px 9px; border-radius:99px; background:#eef2f7; color:#475569; font-size:12px; }
-        .table-scroll { overflow-x:auto; } .data-table { width:100%; border-collapse:collapse; text-align:left; } .data-table th, .data-table td { padding:12px 14px; border-bottom:1px solid #e5eaf1; } .data-table th { color:#475569; font-size:13px; } footer { max-width:1120px; margin:48px auto 24px; padding:0 24px; color:#64748b; font-size:13px; }
+        :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17243a;background:#f3f6fb;font-synthesis:none;text-rendering:optimizeLegibility}
+        *{box-sizing:border-box}body{margin:0;min-width:320px}a{color:inherit}
+        .topbar{background:#14243b;color:#fff;border-bottom:1px solid #263b58}
+        .topbar-inner{max-width:1440px;margin:auto;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+        .brand{display:flex;align-items:center;gap:12px;text-decoration:none;font-weight:800;letter-spacing:.09em;white-space:nowrap}
+        .brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:#3478f6;color:#fff;font-size:17px;letter-spacing:0}
+        .brand small{display:block;color:#9fb0c8;font-size:10px;letter-spacing:.14em;font-weight:600;margin-top:2px}
+        .main-nav{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap}
+        .main-nav a{padding:9px 11px;border-radius:8px;color:#d3deed;text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap}
+        .main-nav a:hover,.main-nav a.active{background:#263d5c;color:#fff}
+        .user-area{display:flex;align-items:center;gap:12px;padding-left:14px;border-left:1px solid #344761;color:#c4d0e0;font-size:12px}
+        .user-area form{margin:0}.logout{border:1px solid #52647b;background:transparent;color:#fff;border-radius:8px;padding:8px 10px;cursor:pointer}
+        main{max-width:1440px;margin:0 auto;padding:34px 28px 56px;min-height:calc(100vh - 150px)}
+        h1{font-size:clamp(26px,3vw,34px);letter-spacing:-.04em;margin:5px 0 10px;color:#14243b}
+        h2{font-size:17px;letter-spacing:-.02em;margin:0 0 8px}
+        p{line-height:1.6}.eyebrow{font-size:11px;font-weight:800;letter-spacing:.13em;color:#647895;text-transform:uppercase;margin:0}
+        .muted{color:#718096}.page-intro{max-width:760px;margin:0 0 26px;color:#64748b}
+        .dashboard-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:28px}
+        .hero-note{background:#e8efff;border:1px solid #d8e4ff;color:#34558c;padding:12px 16px;border-radius:12px;font-size:13px;max-width:310px}
+        .section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:30px 0 14px}
+        .section-heading h2{margin:0;font-size:18px}
+        .module-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:16px}
+        .module-card,.panel{background:#fff;border:1px solid #e2e9f2;border-radius:15px;padding:21px;box-shadow:0 5px 20px rgba(25,48,80,.045)}
+        .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:22px 0 30px}.metric-card{display:flex;flex-direction:column;gap:8px;padding:20px;background:#fff;border:1px solid #e2e9f2;border-radius:14px;text-decoration:none;box-shadow:0 5px 20px rgba(25,48,80,.04)}.metric-card:hover{border-color:#9bb9e8}.metric-label{font-size:12px;color:#64748b;font-weight:700}.metric-value{font-size:30px;letter-spacing:-.04em;color:#14243b}.metric-hint{font-size:12px;color:#8793a5}.alert-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.alert-card{display:flex;align-items:center;gap:12px;padding:15px;background:#fff7ed;border:1px solid #fed7aa;border-radius:11px;text-decoration:none;color:#9a4b12;font-size:13px}.alert-card strong{margin-left:auto;font-size:20px}.empty-state{display:flex;align-items:center;gap:14px;padding:17px 20px;background:#effaf3;border:1px solid #ccebd7;border-radius:12px}.empty-check{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#d6f3df;color:#23734c;font-weight:900}.empty-state p{margin:3px 0 0;font-size:13px}.module-card{display:flex;flex-direction:column;min-height:190px;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+        .module-card:hover{transform:translateY(-2px);border-color:#b9ccef;box-shadow:0 10px 26px rgba(25,48,80,.08)}
+        .module-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+        .module-icon{display:grid;place-items:center;width:39px;height:39px;border-radius:11px;background:#edf3ff;color:#3268c8;font-weight:800;font-size:16px}
+        .status{font-size:11px;color:#23734c;background:#e8f7ef;padding:5px 9px;border-radius:30px;font-weight:700}
+        .module-card p{font-size:13px;color:#718096;margin:0 0 20px}
+        .module-action{margin-top:auto;display:inline-flex;align-items:center;gap:7px;color:#2864c5;text-decoration:none;font-weight:700;font-size:13px}
+        .module-action:hover{text-decoration:underline}
+        .button{display:inline-flex;align-items:center;justify-content:center;padding:10px 15px;border-radius:9px;background:#2868d7;color:#fff;text-decoration:none;font-weight:700;border:0;cursor:pointer}
+        .button:hover{background:#1e55b8}.button-secondary{background:#edf2f8;color:#29415f}
+        .settings-link{display:flex;align-items:center;justify-content:space-between;gap:18px;text-decoration:none}
+        .settings-link:hover h2{color:#2864c5}
+        .settings-panel{margin-top:30px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+        .table-scroll{overflow-x:auto}.data-table{width:100%;border-collapse:collapse;text-align:left}.data-table th,.data-table td{padding:12px 14px;border-bottom:1px solid #e5eaf1}.data-table th{color:#475569;font-size:13px}
+        input,select,textarea{font:inherit}label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#33445c}
+        input,select,textarea{width:100%;padding:11px 12px;border:1px solid #d7e0eb;border-radius:8px;background:#fff;color:#17243a}
+        input:focus,select:focus,textarea:focus{outline:3px solid #dce8ff;border-color:#5a8ee5}
+        form p{margin:0 0 16px}form button{font:inherit}
+        .flash-success{padding:13px 16px;border:1px solid #bfe6ce;background:#effaf3;color:#23613d;border-radius:10px}
+        footer{max-width:1440px;margin:0 auto;padding:18px 28px 28px;color:#8290a3;font-size:12px;border-top:1px solid #e3e9f1}
+        @media(max-width:900px){.topbar-inner{align-items:flex-start;flex-direction:column}.main-nav{justify-content:flex-start}.user-area{border-left:0;padding-left:0}}
+        @media(max-width:600px){.topbar-inner{padding:14px 17px}main{padding:25px 17px 40px}.main-nav{gap:2px}.main-nav a{padding:8px;font-size:12px}.dashboard-hero,.settings-panel{align-items:flex-start;flex-direction:column}.hero-note{max-width:none}.module-grid{grid-template-columns:1fr}}
     </style>
     {% block stylesheets %}{% endblock %}
 </head>
 <body>
-<header><strong>SYMFOERP</strong><nav aria-label="Navigation principale"><a href="{{ path('app_dashboard') }}">Accueil</a><a href="{{ path('app_third_parties') }}">Tiers</a><a href="{{ path('app_products') }}">Produits</a><a href="{{ path('app_sales_quotes') }}">Devis</a><a href="{{ path('app_sales_orders') }}">Commandes</a><a href="{{ path('app_purchase_orders') }}">Achats</a><a href="{{ path('app_supplier_invoices') }}">Factures fournisseurs</a><a href="{{ path('app_sales_invoices') }}">Factures</a><a href="{{ path('app_company_settings') }}">Entreprise</a>{% if app.user %}<span>{{ app.user.userIdentifier }}</span><form method="post" action="{{ path('app_logout') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}"><button type="submit">Déconnexion</button></form>{% endif %}</nav></header>
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="{{ path('app_dashboard') }}"><span class="brand-mark">S</span><span>SYMFOERP<small>GESTION D'ENTREPRISE</small></span></a>
+        <nav class="main-nav" aria-label="Navigation principale">
+            <a class="{{ app.request.attributes.get('_route') == 'app_dashboard' ? 'active' : '' }}" href="{{ path('app_dashboard') }}">Accueil</a>
+            <a href="{{ path('app_third_parties') }}">Tiers</a>
+            <a href="{{ path('app_products') }}">Produits</a>
+            <a href="{{ path('app_sales_quotes') }}">Devis</a>
+            <a href="{{ path('app_sales_orders') }}">Ventes</a>
+            <a href="{{ path('app_purchase_orders') }}">Achats</a>
+            <a href="{{ path('app_supplier_invoices') }}">Factures fournisseurs</a>
+            <a href="{{ path('app_sales_invoices') }}">Factures clients</a>
+            <a class="{{ app.request.attributes.get('_route') == 'app_company_settings' ? 'active' : '' }}" href="{{ path('app_company_settings') }}">Paramètres</a>
+        </nav>
+        {% if app.user %}<div class="user-area"><span>{{ app.user.userIdentifier }}</span><form method="post" action="{{ path('app_logout') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}"><button class="logout" type="submit">Déconnexion</button></form></div>{% endif %}
+    </div>
+</header>
 <main>{% block body %}{% endblock %}</main>
-<footer>SYMFOERP · Socle applicatif Symfony 7.4 LTS</footer>
+<footer>SYMFOERP · Symfony 7.4 · Espace de gestion</footer>
 </body>
 </html>
