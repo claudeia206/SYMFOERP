@@ -38,7 +38,7 @@ final class FinancialStatementsController extends AbstractController
         );
         $balanceStart = ($period['opening_entry_id'] ?? null) !== null
             ? sprintf('%04d-01-01', $year)
-            : '0001-01-01';
+            : '2000-01-01';
         $closingEntryId = (int) ($period['closing_entry_id'] ?? 0);
 
         // If an opening entry exists, it replaces the prior years' cumulative postings.
