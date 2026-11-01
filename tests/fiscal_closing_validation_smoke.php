@@ -22,7 +22,7 @@ foreach ([
     '(l.debit=0 AND l.credit=0)',
     'countInvalidPostedEntries($db, $from, $to)',
     'COUNT(l.id) AS line_count',
-    "$summary['line_count'] ?? 0",
+    "\$summary['line_count'] ?? 0",
 ] as $required) {
     expectFiscalClosing(str_contains($source, $required), 'Missing fiscal closing integrity check: '.$required);
 }
