@@ -63,7 +63,7 @@ final class GeneralLedgerController extends AbstractController
     }
 
     #[Route('/export.csv', name: 'app_general_ledger_export', methods: ['GET'])]
-    public function export(Request $request, Connection $db): Response
+    public function export(Request $request, Connection $db, \\App\\Service\\TrialBalanceCsvFormatter $formatter): Response
     {
         $from = (string) $request->query->get('from', (new DateTimeImmutable('first day of january this year'))->format('Y-m-d'));
         $to = (string) $request->query->get('to', (new DateTimeImmutable('today'))->format('Y-m-d'));
@@ -83,78 +83,7 @@ final class GeneralLedgerController extends AbstractController
             [$from, $from, $from, $to, $from, $to, 'posted']
         );
 
-        $stream = fopen('php://temp', 'r+');
-        if ($stream === false) {
-            throw new \RuntimeException('Impossible de préparer le fichier CSV.');
-        }
-
-        fwrite($stream, "\xEF\xBB\xBF");
-        fputcsv($stream, [
-            'Compte', 'Intitulé', 'Classe',
-            'Solde antérieur débiteur', 'Solde antérieur créditeur',
-            'Mouvements débit', 'Mouvements crédit',
-            'Solde clôture débiteur', 'Solde clôture créditeur',
-        ], ';', '"', '');
-
-        $totals = [
-            'opening_debit' => 0,
-            'opening_credit' => 0,
-            'period_debit' => 0,
-            'period_credit' => 0,
-            'closing_debit' => 0,
-            'closing_credit' => 0,
-        ];
-
-        foreach ($accounts as $account) {
-            $opening = AccountingAmount::addSignedCents(
-                AccountingAmount::toCents((string) $account['opening_debit']),
-                -AccountingAmount::toCents((string) $account['opening_credit'])
-            );
-            $debit = AccountingAmount::toCents((string) $account['period_debit']);
-            $credit = AccountingAmount::toCents((string) $account['period_credit']);
-            $closing = AccountingAmount::addSignedCents($opening, $debit, -$credit);
-
-            $row = [
-                max(0, $opening),
-                max(0, -$opening),
-                $debit,
-                $credit,
-                max(0, $closing),
-                max(0, -$closing),
-            ];
-            foreach (array_keys($totals) as $index => $key) {
-                $totals[$key] = AccountingAmount::addCents($totals[$key], $row[$index]);
-            }
-
-            fputcsv($stream, [
-                $this->safeCsvText((string) $account['code']),
-                $this->safeCsvText((string) $account['name']),
-                $this->safeCsvText((string) $account['account_class']),
-                AccountingAmount::formatFrenchCents(max(0, $opening)),
-                AccountingAmount::formatFrenchCents(max(0, -$opening)),
-                AccountingAmount::formatFrenchCents($debit),
-                AccountingAmount::formatFrenchCents($credit),
-                AccountingAmount::formatFrenchCents(max(0, $closing)),
-                AccountingAmount::formatFrenchCents(max(0, -$closing)),
-            ], ';', '"', '');
-        }
-
-        fputcsv($stream, [
-            'TOTAL', '', '',
-            AccountingAmount::formatFrenchCents($totals['opening_debit']),
-            AccountingAmount::formatFrenchCents($totals['opening_credit']),
-            AccountingAmount::formatFrenchCents($totals['period_debit']),
-            AccountingAmount::formatFrenchCents($totals['period_credit']),
-            AccountingAmount::formatFrenchCents($totals['closing_debit']),
-            AccountingAmount::formatFrenchCents($totals['closing_credit']),
-        ], ';', '"', '');
-
-        rewind($stream);
-        $csv = stream_get_contents($stream);
-        fclose($stream);
-        if ($csv === false) {
-            throw new \RuntimeException('Impossible de lire le fichier CSV généré.');
-        }
+        $csv = $formatter->format($accounts);
 
         return new Response($csv, Response::HTTP_OK, [
             'Content-Type' => 'text/csv; charset=UTF-8',
