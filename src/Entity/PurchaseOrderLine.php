@@ -68,6 +68,21 @@ public function setPurchaseOrder(PurchaseOrder $order): self { $this->purchaseOr
     public function getDescription(): string { return $this->description; }
     public function getQuantity(): string { return $this->quantity; }
     public function getReceivedQuantity(): string { return $this->receivedQuantity; }
+    public function getInvoicedQuantity(): string { return $this->invoicedQuantity; }
+    public function getRemainingInvoicableQuantity(): string
+    {
+        return StockQuantity::format(max(0, StockQuantity::toMilliunits($this->receivedQuantity) - StockQuantity::toMilliunits($this->invoicedQuantity)));
+    }
+    public function markInvoiced(string $quantity): self
+    {
+        $milliunits = StockQuantity::toMilliunits($quantity);
+        $remaining = StockQuantity::toMilliunits($this->getRemainingInvoicableQuantity());
+        if ($milliunits <= 0 || $milliunits > $remaining) {
+            throw new InvalidArgumentException('La quantité facturée doit être positive et ne peut pas dépasser la quantité réceptionnée non encore facturée.');
+        }
+        $this->invoicedQuantity = StockQuantity::format(StockQuantity::toMilliunits($this->invoicedQuantity) + $milliunits);
+        return $this;
+    }
     public function getRemainingQuantity(): string { return StockQuantity::format(max(0, StockQuantity::toMilliunits($this->quantity) - StockQuantity::toMilliunits($this->receivedQuantity))); }
     public function getUnitPrice(): string { return $this->unitPrice; }
     public function getVatRate(): string { return $this->vatRate; }
