@@ -35,4 +35,4 @@ expectActiveAccountingAccount(
     'Manual journal posting must independently reject inactive accounts.'
 );
 
-echo "Accounting account selection and manual journal capacity smoke tests passed.\\n";
+echo "Accounting account selection and manual journal capacity smoke tests passed.\n";
