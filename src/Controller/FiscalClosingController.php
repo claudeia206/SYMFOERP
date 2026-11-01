@@ -28,7 +28,7 @@ final class FiscalClosingController extends AbstractController
         $to = sprintf('%04d-12-31', $year);
 
         $summary = $db->fetchAssociative(
-            'SELECT COUNT(DISTINCT e.id) AS entries, COUNT(l.id) AS lines,
+            'SELECT COUNT(DISTINCT e.id) AS entries, COUNT(l.id) AS line_count,
                     COALESCE(SUM(l.debit),0) AS debit, COALESCE(SUM(l.credit),0) AS credit
              FROM app_journal_entry e
              LEFT JOIN app_journal_entry_line l ON l.entry_id=e.id
