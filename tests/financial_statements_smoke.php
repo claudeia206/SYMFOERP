@@ -12,7 +12,9 @@ function expectFinancialStatements(bool $condition, string $message): void
 }
 
 $source = file_get_contents(dirname(__DIR__).'/src/Controller/FinancialStatementsController.php');
+$template = file_get_contents(dirname(__DIR__).'/templates/accounting/statements.html.twig');
 expectFinancialStatements(is_string($source), 'Unable to inspect financial statement calculation.');
+expectFinancialStatements(is_string($template), 'Unable to inspect financial statement screen.');
 
 foreach ([
     '$fiscalYearStart = (new DateTimeImmutable($to))->modify(\'first day of january\')->format(\'Y-m-d\');',
@@ -28,5 +30,14 @@ foreach ([
 ] as $required) {
     expectFinancialStatements(str_contains($source, $required), 'Missing balance sheet result integration: '.$required);
 }
+
+foreach ([
+    '$balanceSheetDifference = AccountingAmount::addSignedCents($totals[\'assets\'], -$balanceSheetTotal);',
+    "'balance_sheet_balanced' => \$balanceSheetDifference === 0",
+    'balance_sheet_difference' => AccountingAmount::formatFrenchCents($balanceSheetDifference),
+] as $required) {
+    expectFinancialStatements(str_contains($source, $required), 'Missing balance sheet control calculation: '.$required);
+}
+expectFinancialStatements(str_contains($template, 'Contrôle d’équilibre du bilan'), 'Missing visible balance sheet control.');
 
 echo "Financial statement fiscal-year result integration checks passed.\\n";
