@@ -286,7 +286,7 @@ final class FiscalClosingController extends AbstractController
 
             $balanceSheetRows = $db->fetchAllAssociative(
                 'SELECT a.id AS account_id, a.code, a.name, a.account_class,
-                        COALESCE(SUM(l.debit), 0) AS debit, COALESCE(SUM(l.credit), 0) AS credit
+                        COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END), 0) AS debit, COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END), 0) AS credit
                  FROM app_accounting_account a
                  LEFT JOIN app_journal_entry_line l ON l.account_id = a.id
                  LEFT JOIN app_journal_entry e ON e.id = l.entry_id AND e.status = ? AND e.entry_date <= ?
