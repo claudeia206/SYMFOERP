@@ -9,7 +9,7 @@
 </form>
 <section class="grid">
     <article class="card"><p class="muted">Écritures comptabilisées</p><h2>{{ summary.entries }}</h2></article>
-    <article class="card"><p class="muted">Lignes exportables</p><h2>{{ summary.lines }}</h2></article>
+    <article class="card"><p class="muted">Lignes exportables</p><h2>{{ summary.line_count }}</h2></article>
     <article class="card"><p class="muted">Total débit</p><h2>{{ summary.debit }} €</h2></article>
     <article class="card"><p class="muted">Total crédit</p><h2>{{ summary.credit }} €</h2></article>
 </section>
@@ -18,19 +18,49 @@
     <p>{% if balanced %}✓{% else %}⚠{% endif %} Équilibre global : {{ summary.difference }} € d’écart</p>
     <p>{% if unbalanced_count == 0 %}✓{% else %}⚠{% endif %} Écritures déséquilibrées : {{ unbalanced_count }}</p>
     <p>{% if draft_count == 0 %}✓{% else %}⚠{% endif %} Écritures non comptabilisées : {{ draft_count }}</p>
+    {% if opening_entry_id %}
+        <p>À-nouveaux de l’exercice : écriture #{{ opening_entry_id }}</p>
+    {% endif %}
     {% if closed_at %}
         <p class="status">Exercice clôturé le {{ closed_at|date('d/m/Y H:i') }} — écritures verrouillées</p>
-    {% elseif ready %}
-        <p class="status">Contrôles techniques réussis — validation humaine toujours requise</p>
-        <form method="post" action="{{ path('app_accounting_fiscal_year_close') }}" onsubmit="return confirm('Clôturer définitivement cet exercice ? Les nouvelles écritures seront bloquées.');">
-            <input type="hidden" name="_token" value="{{ csrf_token('accounting_fiscal_year_close') }}">
-            <input type="hidden" name="year" value="{{ year }}">
-            <button type="submit">Clôturer l’exercice {{ year }}</button>
-        </form>
+        {% if closing_entry_id %}
+            <p>Écriture de clôture du résultat : #{{ closing_entry_id }}</p>
+        {% else %}
+            <p>Résultat nul : aucune écriture de transfert du résultat nécessaire.</p>
+        {% endif %}
+        {% if next_opening_entry_id %}
+            <p>À-nouveaux de l’exercice {{ next_year }} générés : écriture #{{ next_opening_entry_id }}</p>
+        {% else %}
+            <p>Aucun solde de bilan à reprendre dans l’exercice {{ next_year }}.</p>
+        {% endif %}
     {% else %}
-        <p class="status">Des anomalies doivent être corrigées avant la clôture</p>
+        {% if year >= current_year %}
+            <p class="status">L’exercice ne peut être clôturé qu’après le 31 décembre.</p>
+        {% endif %}
+        {% if unclosed_historical_entries > 0 %}
+            <p class="status">Clôturez d’abord les exercices antérieurs contenant des écritures.</p>
+        {% endif %}
+        {% if historical_profit_and_loss_balances > 0 %}
+            <p class="status">Des comptes de charges ou produits antérieurs ne sont pas soldés : régularisez-les avant la clôture.</p>
+        {% endif %}
+        {% if next_year_entries > 0 %}
+            <p class="status">L’exercice {{ next_year }} contient déjà des écritures : les à-nouveaux ne peuvent plus y être insérés automatiquement.</p>
+        {% endif %}
+        {% if next_opening_entry_id %}
+            <p class="status">Les à-nouveaux de l’exercice suivant sont déjà référencés.</p>
+        {% endif %}
+        {% if ready %}
+            <p class="status">Contrôles techniques réussis — validation humaine toujours requise</p>
+            <form method="post" action="{{ path('app_accounting_fiscal_year_close') }}" onsubmit="return confirm('Clôturer cet exercice ? Le résultat sera transféré en 120000/129000, les soldes des classes 1 à 5 seront repris au 1er janvier suivant et l’exercice sera verrouillé.');">
+                <input type="hidden" name="_token" value="{{ csrf_token('accounting_fiscal_year_close') }}">
+                <input type="hidden" name="year" value="{{ year }}">
+                <button type="submit">Clôturer l’exercice {{ year }}</button>
+            </form>
+        {% else %}
+            <p class="status">Des prérequis doivent être satisfaits avant la clôture.</p>
+        {% endif %}
     {% endif %}
     <p><a href="{{ path('app_accounting_fec_export', {year: year}) }}">Télécharger le FEC {{ year }}</a></p>
 </section>
-<p class="muted">L’export contient les 18 colonnes du format FEC et les écritures au statut « posted ». Les auxiliaires, lettrages et montants en devise restent vides car ils ne sont pas disponibles dans le modèle actuel. La clôture verrouille les nouvelles écritures de l’exercice. Les à-nouveaux ne sont pas générés automatiquement. Faites valider le fichier par votre expert-comptable avant dépôt.</p>
+<p class="muted">La clôture génère l’écriture de résultat (120000/129000) et les à-nouveaux des comptes de bilan (classes 1 à 5) au 1er janvier suivant. L’exercice suivant doit être vierge d’écritures et les exercices antérieurs contenant des écritures doivent déjà être clôturés. Les auxiliaires, lettrages et montants en devise restent vides car ils ne sont pas disponibles dans le modèle actuel. Faites valider le plan comptable, les écritures de clôture et le FEC par votre expert-comptable avant tout usage légal.</p>
 {% endblock %}

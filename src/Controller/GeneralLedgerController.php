@@ -19,17 +19,24 @@ final class GeneralLedgerController extends AbstractController
         $from=(string)$request->query->get('from',(new DateTimeImmutable('first day of january this year'))->format('Y-m-d'));
         $to=(string)$request->query->get('to',(new DateTimeImmutable('today'))->format('Y-m-d'));
         $this->validatePeriod($from,$to);
+        $fiscalYear = (int) substr($from, 0, 4);
+        $fiscalYearStart = sprintf('%04d-01-01', $fiscalYear);
+        $fiscalPeriod = $db->fetchAssociative(
+            'SELECT opening_entry_id FROM app_accounting_fiscal_year WHERE fiscal_year = ?',
+            [$fiscalYear]
+        );
+        $openingFrom = ($fiscalPeriod['opening_entry_id'] ?? null) !== null ? $fiscalYearStart : '2000-01-01';
         $accounts=$db->fetchAllAssociative(
             'SELECT a.id,a.code,a.name,a.account_class,
-                    COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.debit ELSE 0 END),0) AS opening_debit,
-                    COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.credit ELSE 0 END),0) AS opening_credit,
+                    COALESCE(SUM(CASE WHEN e.entry_date >= ? AND e.entry_date < ? THEN l.debit ELSE 0 END),0) AS opening_debit,
+                    COALESCE(SUM(CASE WHEN e.entry_date >= ? AND e.entry_date < ? THEN l.credit ELSE 0 END),0) AS opening_credit,
                     COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.debit ELSE 0 END),0) AS debit,
                     COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.credit ELSE 0 END),0) AS credit
              FROM app_accounting_account a
              LEFT JOIN app_journal_entry_line l ON l.account_id=a.id
              LEFT JOIN app_journal_entry e ON e.id=l.entry_id AND e.status=?
              GROUP BY a.id,a.code,a.name,a.account_class ORDER BY a.code',
-            [$from,$from,$from,$to,$from,$to,'posted']
+            [$openingFrom,$from,$openingFrom,$from,$from,$to,$from,$to,'posted']
         );
         $debitTotal=0;$creditTotal=0;
         foreach($accounts as &$account){
@@ -110,14 +117,18 @@ final class GeneralLedgerController extends AbstractController
     {
         $from=(string)$request->query->get('from',(new DateTimeImmutable('first day of january this year'))->format('Y-m-d'));
         $to=(string)$request->query->get('to',(new DateTimeImmutable('today'))->format('Y-m-d'));$this->validatePeriod($from,$to);
+        $fiscalYear = (int) substr($from, 0, 4);
+        $fiscalYearStart = sprintf('%04d-01-01', $fiscalYear);
+        $fiscalPeriod = $db->fetchAssociative('SELECT opening_entry_id FROM app_accounting_fiscal_year WHERE fiscal_year = ?', [$fiscalYear]);
+        $openingFrom = ($fiscalPeriod['opening_entry_id'] ?? null) !== null ? $fiscalYearStart : '2000-01-01';
         $account=$db->fetchAssociative('SELECT * FROM app_accounting_account WHERE id=?',[$id]);
         if(!$account)throw $this->createNotFoundException();
         $opening=$db->fetchAssociative(
             'SELECT COALESCE(SUM(l.debit),0) AS debit, COALESCE(SUM(l.credit),0) AS credit
              FROM app_journal_entry_line l
              INNER JOIN app_journal_entry e ON e.id=l.entry_id
-             WHERE l.account_id=? AND e.status=? AND e.entry_date < ?',
-            [$id,'posted',$from]
+             WHERE l.account_id=? AND e.status=? AND e.entry_date >= ? AND e.entry_date < ?',
+            [$id,'posted',$openingFrom,$from]
         ) ?: ['debit'=>'0.00','credit'=>'0.00'];
         $openingCents=AccountingAmount::addSignedCents(AccountingAmount::toCents((string)$opening['debit']),-AccountingAmount::toCents((string)$opening['credit']));
         $lines=$db->fetchAllAssociative('SELECT e.entry_date,j.code AS journal_code,e.entry_number,e.reference,e.description,l.label,l.debit,l.credit FROM app_journal_entry_line l INNER JOIN app_journal_entry e ON e.id=l.entry_id INNER JOIN app_accounting_journal j ON j.id=e.journal_id WHERE l.account_id=? AND e.status=? AND e.entry_date BETWEEN ? AND ? ORDER BY e.entry_date,e.id,l.id',[$id,'posted',$from,$to]);
@@ -164,6 +175,6 @@ final class GeneralLedgerController extends AbstractController
     private function validatePeriod(string $from,string $to):void
     {
         $a=DateTimeImmutable::createFromFormat('!Y-m-d',$from);$b=DateTimeImmutable::createFromFormat('!Y-m-d',$to);
-        if(!$a||!$b||$a->format('Y-m-d')!==$from||$b->format('Y-m-d')!==$to||$from>$to)throw new \InvalidArgumentException('Période comptable invalide.');
+        if(!$a||!$b||$a->format('Y-m-d')!==$from||$b->format('Y-m-d')!==$to||$from>$to||$a->format('Y')!==$b->format('Y')||(int)$a->format('Y')<2000||(int)$a->format('Y')>2100)throw new \InvalidArgumentException('Période comptable invalide.');
     }
 }

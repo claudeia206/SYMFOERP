@@ -67,6 +67,7 @@ INNER JOIN app_journal_entry e ON e.id=l.entry_id
 INNER JOIN app_accounting_account a ON a.id=l.account_id
 WHERE e.status='posted' AND e.entry_date BETWEEN ? AND ?
   AND a.code IN ('445710','445660','445620')
+  AND NOT EXISTS (SELECT 1 FROM app_accounting_fiscal_year fy WHERE fy.opening_entry_id = e.id)
 GROUP BY DATE_FORMAT(e.entry_date,'%Y-%m')
 ORDER BY period
 SQL,[$from,$to]);
