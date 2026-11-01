@@ -546,7 +546,7 @@ jobs:
           customer_ledger = client.open(
               base + "/accounting/accounts/" + closing_account_ids["411000"] + "?from=2025-01-01&to=2025-12-31"
           ).read().decode()
-          assert "120,00 € D" in customer_ledger, "General ledger did not include the customer opening balance"
+          assert "120,00 € débiteur" in customer_ledger, "General ledger did not include the customer opening balance"
           vat_2025 = client.open(base + "/accounting/vat/export.csv?from=2025-01-01&to=2025-12-31").read().decode("utf-8-sig")
           assert len([line for line in vat_2025.splitlines() if line.strip()]) == 1, "Opening balances were incorrectly counted as VAT movements"
           print("Annual closing integration passed: result transfer, next-year opening balances, FEC, statements, ledger and VAT exclusion.")
