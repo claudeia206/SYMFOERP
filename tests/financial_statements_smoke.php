@@ -19,8 +19,8 @@ foreach ([
     '$netResult = AccountingAmount::addSignedCents($totals[\'income\'], -$totals[\'expenses\']);',
     "'code' => 'Résultat'",
     "'name' => 'Résultat de la période (avant affectation)'",
-    "$totals['equity'] = AccountingAmount::addSignedCents($totals['equity'], $netResult);",
-    "$balanceSheetTotal = AccountingAmount::addSignedCents($totals['liabilities'], $totals['equity']);",
+    "\$totals['equity'] = AccountingAmount::addSignedCents(\$totals['equity'], \$netResult);",
+    "\$balanceSheetTotal = AccountingAmount::addSignedCents(\$totals['liabilities'], \$totals['equity']);",
 ] as $required) {
     expectFinancialStatements(str_contains($source, $required), 'Missing balance sheet result integration: '.$required);
 }
