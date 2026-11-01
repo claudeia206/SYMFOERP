@@ -175,6 +175,6 @@ final class GeneralLedgerController extends AbstractController
     private function validatePeriod(string $from,string $to):void
     {
         $a=DateTimeImmutable::createFromFormat('!Y-m-d',$from);$b=DateTimeImmutable::createFromFormat('!Y-m-d',$to);
-        if(!$a||!$b||$a->format('Y-m-d')!==$from||$b->format('Y-m-d')!==$to||$from>$to||$a->format('Y')!==$b->format('Y'))throw new \InvalidArgumentException('Période comptable invalide.');
+        if(!$a||!$b||$a->format('Y-m-d')!==$from||$b->format('Y-m-d')!==$to||$from>$to||$a->format('Y')!==$b->format('Y')||(int)$a->format('Y')<2000||(int)$a->format('Y')>2100)throw new \InvalidArgumentException('Période comptable invalide.');
     }
 }
