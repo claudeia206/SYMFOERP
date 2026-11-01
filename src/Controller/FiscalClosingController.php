@@ -320,7 +320,7 @@ final class FiscalClosingController extends AbstractController
                 );
             }
 
-            $balanceStart = $period['opening_entry_id'] !== null ? $from : '0001-01-01';
+            $balanceStart = $period['opening_entry_id'] !== null ? $from : '2000-01-01';
             $balanceSheetRows = $db->fetchAllAssociative(
                 'SELECT a.id AS account_id, a.code, a.name, a.account_class,
                         COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END), 0) AS debit, COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END), 0) AS credit
