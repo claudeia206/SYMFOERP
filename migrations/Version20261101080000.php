@@ -29,6 +29,5 @@ final class Version20261101080000 extends AbstractMigration
         $this->addSql('DROP INDEX uniq_accounting_fiscal_closing_entry ON app_accounting_fiscal_year');
         $this->addSql('DROP INDEX uniq_accounting_fiscal_opening_entry ON app_accounting_fiscal_year');
         $this->addSql('ALTER TABLE app_accounting_fiscal_year DROP closing_entry_id, DROP opening_entry_id');
-        $this->addSql("DELETE FROM app_accounting_account WHERE code IN ('120000', '129000') AND id NOT IN (SELECT account_id FROM app_journal_entry_line)");
     }
 }
