@@ -33,16 +33,24 @@
         {% else %}
             <p>Aucun solde de bilan à reprendre dans l’exercice {{ next_year }}.</p>
         {% endif %}
-    {% elseif ready %}
+    {% else %}
+        {% if unclosed_historical_entries > 0 %}
+            <p class="status">Clôturez d’abord les exercices antérieurs contenant des écritures.</p>
+        {% endif %}
+        {% if next_year_entries > 0 %}
+            <p class="status">L’exercice {{ next_year }} contient déjà des écritures : les à-nouveaux ne peuvent plus y être insérés automatiquement.</p>
+        {% endif %}
+        {% if next_year_entries == 0 and unclosed_historical_entries == 0 and next_opening_entry_id %}
+            <p class="status">Les à-nouveaux de l’exercice suivant ont déjà été générés.</p>
+        {% endif %}
+    {% endif %}
+    {% if ready %}
         <p class="status">Contrôles techniques réussis — validation humaine toujours requise</p>
         <form method="post" action="{{ path('app_accounting_fiscal_year_close') }}" onsubmit="return confirm('Clôturer cet exercice ? Le résultat sera transféré en 120000/129000, les soldes des classes 1 à 5 seront repris au 1er janvier suivant et l’exercice sera verrouillé.');">
             <input type="hidden" name="_token" value="{{ csrf_token('accounting_fiscal_year_close') }}">
             <input type="hidden" name="year" value="{{ year }}">
             <button type="submit">Clôturer l’exercice {{ year }}</button>
         </form>
-    {% else %}
-        <p class="status">Des anomalies doivent être corrigées avant la clôture</p>
-    {% endif %}
     <p><a href="{{ path('app_accounting_fec_export', {year: year}) }}">Télécharger le FEC {{ year }}</a></p>
 </section>
 <p class="muted">L’export contient les 18 colonnes du format FEC et les écritures au statut « posted ». Les auxiliaires, lettrages et montants en devise restent vides car ils ne sont pas disponibles dans le modèle actuel. La clôture verrouille les nouvelles écritures de l’exercice. La clôture génère l’écriture de résultat (120000/129000) et les à-nouveaux des comptes de bilan (classes 1 à 5) au 1er janvier suivant. Elle exige que l’exercice suivant soit encore vierge d’écritures. Les auxiliaires, lettrages et montants en devise restent vides car ils ne sont pas disponibles dans le modèle actuel. Faites valider le fichier par votre expert-comptable avant dépôt.</p>
