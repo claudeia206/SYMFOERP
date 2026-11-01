@@ -16,7 +16,7 @@ final class Version20261101080000 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql("INSERT IGNORE INTO app_accounting_account (code, name, account_class, is_active, created_at) VALUES ('120000', 'Résultat de l’exercice – bénéfice', 1, 1, NOW()), ('129000', 'Résultat de l’exercice – perte', 1, 1, NOW())");
+        $this->addSql("INSERT IGNORE INTO app_accounting_account (code, name, account_class, is_active) VALUES ('120000', 'Résultat de l’exercice – bénéfice', 1, 1), ('129000', 'Résultat de l’exercice – perte', 1, 1)");
         $this->addSql('ALTER TABLE app_accounting_fiscal_year ADD closing_entry_id INT DEFAULT NULL, ADD opening_entry_id INT DEFAULT NULL');
         $this->addSql('CREATE UNIQUE INDEX uniq_accounting_fiscal_closing_entry ON app_accounting_fiscal_year (closing_entry_id)');
         $this->addSql('CREATE UNIQUE INDEX uniq_accounting_fiscal_opening_entry ON app_accounting_fiscal_year (opening_entry_id)');
