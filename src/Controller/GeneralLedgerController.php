@@ -31,7 +31,7 @@ final class GeneralLedgerController extends AbstractController
              GROUP BY a.id,a.code,a.name,a.account_class ORDER BY a.code',
             [$from,$from,$from,$to,$from,$to,'posted']
         );
-        $debitTotal=0;$creditTotal=0;
+        $debitTotal=0;$creditTotal=0;$balanceDebitTotal=0;$balanceCreditTotal=0;
         foreach($accounts as &$account){
             $openingDebit=AccountingAmount::toCents((string)$account['opening_debit']);
             $openingCredit=AccountingAmount::toCents((string)$account['opening_credit']);
@@ -44,6 +44,8 @@ final class GeneralLedgerController extends AbstractController
             $account['debit']=AccountingAmount::formatFrenchCents($debit);
             $account['credit']=AccountingAmount::formatFrenchCents($credit);
             $closingBalance=AccountingAmount::addSignedCents($openingBalance,$debit,-$credit);
+            if($closingBalance>0)$balanceDebitTotal=AccountingAmount::addCents($balanceDebitTotal,$closingBalance);
+            elseif($closingBalance<0)$balanceCreditTotal=AccountingAmount::addCents($balanceCreditTotal,-$closingBalance);
             $account['balance']=AccountingAmount::formatCents($closingBalance);
             $account['balance_display']=AccountingAmount::formatFrenchCents(abs($closingBalance));
             $account['balance_side']=$closingBalance>0?'D':($closingBalance<0?'C':'—');
@@ -57,7 +59,7 @@ final class GeneralLedgerController extends AbstractController
             $entry['credit']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$entry['credit']));
         }
         unset($entry);
-        return $this->render('general_ledger/index.html.twig',['accounts'=>$accounts,'journals'=>$journals,'entries'=>$entries,'from'=>$from,'to'=>$to,'debit_total'=>AccountingAmount::formatFrenchCents($debitTotal),'credit_total'=>AccountingAmount::formatFrenchCents($creditTotal)]);
+        return $this->render('general_ledger/index.html.twig',['accounts'=>$accounts,'journals'=>$journals,'entries'=>$entries,'from'=>$from,'to'=>$to,'debit_total'=>AccountingAmount::formatFrenchCents($debitTotal),'credit_total'=>AccountingAmount::formatFrenchCents($creditTotal),'balance_debit_total'=>AccountingAmount::formatFrenchCents($balanceDebitTotal),'balance_credit_total'=>AccountingAmount::formatFrenchCents($balanceCreditTotal)]);
     }
 
     #[Route('/entries',name:'app_general_ledger_entry_create',methods:['POST'])]
