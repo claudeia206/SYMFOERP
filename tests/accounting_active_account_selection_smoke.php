@@ -23,8 +23,16 @@ expectActiveAccountingAccount(
     'Manual journal form must not offer inactive accounts.'
 );
 expectActiveAccountingAccount(
+    str_contains($template, '{% for row in 0..9 %}'),
+    'Manual journal form must provide ten editable lines.'
+);
+expectActiveAccountingAccount(
+    str_contains($controller, 'count($raw)>30'),
+    'Manual journal endpoint must enforce its 30-line safety limit.'
+);
+expectActiveAccountingAccount(
     str_contains($controller, "WHERE id=? AND is_active=1 FOR UPDATE"),
     'Manual journal posting must independently reject inactive accounts.'
 );
 
-echo "Inactive accounting accounts are excluded from manual posting.\\n";
+echo "Accounting account selection and manual journal capacity smoke tests passed.\\n";
