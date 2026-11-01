@@ -496,10 +496,18 @@ jobs:
           # Exercise the real year-end transaction on an isolated historical exercise.
           import subprocess
           account_query = "SELECT code,id FROM app_accounting_account WHERE code IN ('607000','707000','401000','411000','445710') ORDER BY code"
+          db_config = {}
+          with open(".env.docker", encoding="utf-8") as db_env_file:
+              for env_line in db_env_file:
+                  env_line = env_line.strip()
+                  if env_line and not env_line.startswith("#") and "=" in env_line:
+                      env_key, env_value = env_line.split("=", 1)
+                      db_config[env_key] = env_value.strip().strip('"').strip("'")
           account_output = subprocess.check_output([
               "docker", "compose", "--env-file", ".env.docker", "exec", "-T", "db_symfony",
-              "sh", "-lc", 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" -N -e "' + account_query + '"'
-          ], text=True)
+              "mariadb", "-u", db_config["SYMFONY_DB_USER"], "-p" + db_config["SYMFONY_DB_PASSWORD"],
+              db_config["SYMFONY_DB_NAME"], "-N", "-e", account_query
+          ], text=True, timeout=20)
           closing_account_ids = {parts[0]: parts[1] for parts in (line.split() for line in account_output.splitlines()) if len(parts) == 2}
           for code in ("607000", "707000", "401000", "411000", "445710"):
               assert code in closing_account_ids, "Missing account for fiscal close test: " + code
