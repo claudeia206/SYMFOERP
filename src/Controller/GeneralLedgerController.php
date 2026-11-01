@@ -20,7 +20,7 @@ final class GeneralLedgerController extends AbstractController
         $to=(string)$request->query->get('to',(new DateTimeImmutable('today'))->format('Y-m-d'));
         $this->validatePeriod($from,$to);
         $accounts=$db->fetchAllAssociative(
-            'SELECT a.id,a.code,a.name,a.account_class,
+            'SELECT a.id,a.code,a.name,a.account_class,a.is_active,
                     COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.debit ELSE 0 END),0) AS opening_debit,
                     COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.credit ELSE 0 END),0) AS opening_credit,
                     COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.debit ELSE 0 END),0) AS debit,
