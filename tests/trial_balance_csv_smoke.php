@@ -23,7 +23,7 @@ expectTrialBalanceCsv(
     'CSV export must declare UTF-8 content.'
 );
 expectTrialBalanceCsv(
-    str_contains($controller, "fwrite($stream, \"\\xEF\\xBB\\xBF\")"),
+    str_contains($controller, 'fwrite($stream, "\\xEF\\xBB\\xBF")'),
     'CSV export must include a UTF-8 BOM for spreadsheet compatibility.'
 );
 expectTrialBalanceCsv(
@@ -47,4 +47,4 @@ expectTrialBalanceCsv(
     'The general ledger page must expose the CSV download with current filters.'
 );
 
-echo "Trial balance CSV export smoke tests passed.\\n";
+echo "Trial balance CSV export smoke tests passed.\n";
