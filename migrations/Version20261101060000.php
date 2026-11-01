@@ -52,8 +52,10 @@ final class Version20261101060000 extends AbstractMigration
             ) allocated ON allocated.order_line_id = pol.id
             SET pol.invoiced_quantity = allocated.allocated_quantity
             SQL);
-        $this->addSql('ALTER TABLE app_supplier_invoice DROP INDEX uniq_supplier_invoice_order');
+        // Add the replacement index before dropping the unique index: InnoDB
+        // requires an index for the purchase_order_id foreign key at every step.
         $this->addSql('CREATE INDEX idx_supplier_invoice_order ON app_supplier_invoice (purchase_order_id)');
+        $this->addSql('ALTER TABLE app_supplier_invoice DROP INDEX uniq_supplier_invoice_order');
     }
 
     public function down(Schema $schema): void
