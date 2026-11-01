@@ -506,7 +506,7 @@ jobs:
           account_output = subprocess.check_output([
               "docker", "compose", "--env-file", ".env.docker", "exec", "-T", "db_symfony",
               "mariadb", "-u", db_config["SYMFONY_DB_USER"], "-p" + db_config["SYMFONY_DB_PASSWORD"],
-              db_config["SYMFONY_DB_NAME"], "-N", "-e", account_query
+              "-N", "-e", account_query, db_config["SYMFONY_DB_NAME"]
           ], text=True, timeout=20)
           closing_account_ids = {parts[0]: parts[1] for parts in (line.split() for line in account_output.splitlines()) if len(parts) == 2}
           for code in ("607000", "707000", "401000", "411000", "445710"):
