@@ -85,7 +85,7 @@ jobs:
           set -eu
           trap 'echo "=== Symfony and MariaDB container logs (last 300 lines) ==="; docker compose --env-file .env.docker logs --no-color --tail=300 symfony db_symfony || true' ERR
           # Exercise the same first-install path used by developers, not a parallel CI-only sequence.
-          printf '%s\n%s\n' 'admin@local.local' 'admin' | bash bin/install-symfony-local.sh
+          bash bin/install-symfony-local.sh --test-mode
           # Exercise the local recovery path without exposing the password in command arguments.
           docker exec \
             -e SYMFOERP_ADMIN_EMAIL=admin@local.local \
