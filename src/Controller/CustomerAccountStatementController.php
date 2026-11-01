@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Controller;
 use App\Service\AccountingAmount;
+use App\Service\CustomerStatementCsvFormatter;
 use App\Entity\CompanyProfile;
 use App\Entity\ThirdParty;
 use DateTimeImmutable;
@@ -35,6 +36,20 @@ final class CustomerAccountStatementController extends AbstractController
         $dompdf->loadHtml($this->renderView('customer_account_statement/pdf.html.twig',['customer'=>$thirdParty,'movements'=>$movements,'balance'=>$balance,'as_of'=>$asOf,'company'=>$profile]),'UTF-8');
         $dompdf->setPaper('A4','portrait');$dompdf->render();
         return new Response($dompdf->output(),200,['Content-Type'=>'application/pdf','Content-Disposition'=>'inline; filename="releve-client-'.$thirdParty->getId().'.pdf"','X-Content-Type-Options'=>'nosniff']);
+    }
+
+    #[Route('/csv',name:'app_customer_account_statement_csv',methods:['GET'])]
+    public function csv(ThirdParty $thirdParty,Connection $db):Response
+    {
+        if($thirdParty->getCategory()!==ThirdParty::CATEGORY_CUSTOMER)throw $this->createNotFoundException('Relevé disponible uniquement pour un client.');
+        [$movements]=$this->buildStatement($db,(int)$thirdParty->getId(),new DateTimeImmutable('today'));
+        $content=CustomerStatementCsvFormatter::format($movements);
+        return new Response($content,200,[
+            'Content-Type'=>'text/csv; charset=UTF-8',
+            'Content-Disposition'=>'attachment; filename="releve-client-'.$thirdParty->getId().'.csv"',
+            'Cache-Control'=>'private, no-store',
+            'X-Content-Type-Options'=>'nosniff',
+        ]);
     }
 
     /** @return array{0:list<array<string,mixed>>,1:string} */
