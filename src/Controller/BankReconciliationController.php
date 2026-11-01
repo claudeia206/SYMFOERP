@@ -109,22 +109,22 @@ final class BankReconciliationController extends AbstractController
         try {
             $db->beginTransaction();
             $transaction=$db->fetchAssociative('SELECT id,matched_sales_payment_id,matched_supplier_payment_id FROM app_bank_transaction WHERE id=? FOR UPDATE',[$id]);
-            if(!$transaction) throw new \\InvalidArgumentException('Opération bancaire introuvable.');
+            if(!$transaction) throw new \InvalidArgumentException('Opération bancaire introuvable.');
 
             if($transaction['matched_sales_payment_id']!==null) {
                 $column='matched_sales_payment_id';
             } elseif($transaction['matched_supplier_payment_id']!==null) {
                 $column='matched_supplier_payment_id';
             } else {
-                throw new \\InvalidArgumentException('Cette opération n’est pas rapprochée.');
+                throw new \InvalidArgumentException('Cette opération n’est pas rapprochée.');
             }
 
             $updated=$db->executeStatement("UPDATE app_bank_transaction SET {$column}=NULL WHERE id=? AND {$column} IS NOT NULL",[$id]);
-            if($updated!==1) throw new \\InvalidArgumentException('Le rapprochement a changé. Actualisez la page.');
+            if($updated!==1) throw new \InvalidArgumentException('Le rapprochement a changé. Actualisez la page.');
 
             $db->commit();
             $this->addFlash('success','Rapprochement annulé. Le règlement est de nouveau disponible.');
-        } catch(\\InvalidArgumentException $e) {
+        } catch(\InvalidArgumentException $e) {
             if($db->isTransactionActive()) $db->rollBack();
             $this->addFlash('error',$e->getMessage());
         } catch(Throwable) {
