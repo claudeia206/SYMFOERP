@@ -49,7 +49,7 @@ final class SupplierInvoiceController extends AbstractController
         } catch (InvalidArgumentException $e) {
             $this->addFlash('error', $e->getMessage());
         } catch (\Throwable) {
-            $this->addFlash('error', 'Création impossible : vérifiez que cette commande ne possède pas déjà une facture et que la référence fournisseur est unique.');
+            $this->addFlash('error', 'Création impossible : vérifiez les quantités réceptionnées non encore facturées et l’unicité de la référence fournisseur.');
         }
         return $this->redirectToRoute('app_supplier_invoices');
     }
