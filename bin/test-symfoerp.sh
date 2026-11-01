@@ -44,12 +44,12 @@ for path in "${TEST_FILES[@]}"; do
   fi
   if [[ "$status" -eq 0 ]]; then
     echo "PASS"
-    echo "| `$name` | PASS |" >> "$SUMMARY"
+    printf "| %s | PASS |\n" "$name" >> "$SUMMARY"
     PASS_COUNT=$((PASS_COUNT + 1))
   else
     echo "FAIL — $log"
     cat "$log"
-    echo "| `$name` | FAIL |" >> "$SUMMARY"
+    printf "| %s | FAIL |\n" "$name" >> "$SUMMARY"
     FAIL_COUNT=$((FAIL_COUNT + 1))
   fi
 done
@@ -57,7 +57,7 @@ done
   echo
   echo "**Bilan : $PASS_COUNT/$TOTAL réussis — $FAIL_COUNT échec(s).**"
   echo
-  echo "Journaux détaillés : `var/test-reports/logs/`"
+  echo "Journaux détaillés : var/test-reports/logs/"
 } >> "$SUMMARY"
 echo
 echo "Rapport : $SUMMARY"
