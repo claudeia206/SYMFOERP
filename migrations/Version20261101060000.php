@@ -33,19 +33,21 @@ final class Version20261101060000 extends AbstractMigration
                            pol.received_quantity,
                            COALESCE(invoice_totals.invoice_quantity, 0) AS invoice_quantity,
                            SUM(pol.received_quantity) OVER (
-                               PARTITION BY pol.purchase_order_id, pol.product_id
+                               PARTITION BY pol.purchase_order_id, pol.product_id, pol.unit_price, pol.vat_rate
                                ORDER BY pol.position, pol.id
                                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
                            ) AS cumulative_received
                     FROM app_purchase_order_line pol
                     LEFT JOIN (
-                        SELECT si.purchase_order_id, sil.product_id, SUM(sil.quantity) AS invoice_quantity
+                        SELECT si.purchase_order_id, sil.product_id, sil.unit_price, sil.vat_rate, SUM(sil.quantity) AS invoice_quantity
                         FROM app_supplier_invoice si
                         INNER JOIN app_supplier_invoice_line sil ON sil.invoice_id = si.id
-                        GROUP BY si.purchase_order_id, sil.product_id
+                        GROUP BY si.purchase_order_id, sil.product_id, sil.unit_price, sil.vat_rate
                     ) invoice_totals
                       ON invoice_totals.purchase_order_id = pol.purchase_order_id
                      AND invoice_totals.product_id = pol.product_id
+                     AND invoice_totals.unit_price = pol.unit_price
+                     AND invoice_totals.vat_rate = pol.vat_rate
                 ) allocation
             ) allocated ON allocated.order_line_id = pol.id
             SET pol.invoiced_quantity = allocated.allocated_quantity
