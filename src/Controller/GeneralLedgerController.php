@@ -25,7 +25,7 @@ final class GeneralLedgerController extends AbstractController
             'SELECT opening_entry_id FROM app_accounting_fiscal_year WHERE fiscal_year = ?',
             [$fiscalYear]
         );
-        $openingFrom = ($fiscalPeriod['opening_entry_id'] ?? null) !== null ? $fiscalYearStart : '0001-01-01';
+        $openingFrom = ($fiscalPeriod['opening_entry_id'] ?? null) !== null ? $fiscalYearStart : '2000-01-01';
         $accounts=$db->fetchAllAssociative(
             'SELECT a.id,a.code,a.name,a.account_class,
                     COALESCE(SUM(CASE WHEN e.entry_date >= ? AND e.entry_date < ? THEN l.debit ELSE 0 END),0) AS opening_debit,
@@ -120,7 +120,7 @@ final class GeneralLedgerController extends AbstractController
         $fiscalYear = (int) substr($from, 0, 4);
         $fiscalYearStart = sprintf('%04d-01-01', $fiscalYear);
         $fiscalPeriod = $db->fetchAssociative('SELECT opening_entry_id FROM app_accounting_fiscal_year WHERE fiscal_year = ?', [$fiscalYear]);
-        $openingFrom = ($fiscalPeriod['opening_entry_id'] ?? null) !== null ? $fiscalYearStart : '0001-01-01';
+        $openingFrom = ($fiscalPeriod['opening_entry_id'] ?? null) !== null ? $fiscalYearStart : '2000-01-01';
         $account=$db->fetchAssociative('SELECT * FROM app_accounting_account WHERE id=?',[$id]);
         if(!$account)throw $this->createNotFoundException();
         $opening=$db->fetchAssociative(
