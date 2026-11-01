@@ -10,6 +10,7 @@ use App\Service\FecExportFormatter;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use RuntimeException;
+use Throwable;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -184,6 +185,24 @@ final class FiscalClosingController extends AbstractController
                 throw new RuntimeException('Les à-nouveaux de l’exercice suivant ont déjà été générés.');
             }
 
+            $unclosedHistoricalEntries = (int) $db->fetchOne(
+                'SELECT COUNT(*) FROM app_journal_entry e
+                 INNER JOIN app_accounting_fiscal_year fy ON fy.fiscal_year = YEAR(e.entry_date)
+                 WHERE e.status = ? AND e.entry_date < ? AND fy.closed_at IS NULL',
+                ['posted', $from]
+            );
+            if ($unclosedHistoricalEntries > 0) {
+                throw new RuntimeException('Clôturez d’abord les exercices antérieurs qui contiennent déjà des écritures.');
+            }
+
+            $nextYearEntries = (int) $db->fetchOne(
+                'SELECT COUNT(*) FROM app_journal_entry WHERE entry_date BETWEEN ? AND ?',
+                [$nextFrom, sprintf('%04d-12-31', $nextYear)]
+            );
+            if ($nextYearEntries > 0) {
+                throw new RuntimeException('Des écritures existent déjà dans l’exercice suivant : les à-nouveaux doivent être générés avant leur saisie.');
+            }
+
             $draftCount = (int) $db->fetchOne(
                 'SELECT COUNT(*) FROM app_journal_entry WHERE status <> ? AND entry_date BETWEEN ? AND ?',
                 ['posted', $from, $to]
@@ -221,7 +240,7 @@ final class FiscalClosingController extends AbstractController
 
             $profitAndLossRows = $db->fetchAllAssociative(
                 'SELECT a.id AS account_id, a.code, a.name, a.account_class,
-                        COALESCE(SUM(l.debit), 0) AS debit, COALESCE(SUM(l.credit), 0) AS credit
+                        COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END), 0) AS debit, COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END), 0) AS credit
                  FROM app_accounting_account a
                  LEFT JOIN app_journal_entry_line l ON l.account_id = a.id
                  LEFT JOIN app_journal_entry e ON e.id = l.entry_id AND e.status = ? AND e.entry_date BETWEEN ? AND ?
@@ -301,7 +320,7 @@ final class FiscalClosingController extends AbstractController
                 $nextYear,
                 $openingEntryId === null ? 'aucun solde à reprendre' : '#'.$openingEntryId
             ));
-        } catch (\\Throwable $exception) {
+        } catch (Throwable $exception) {
             if ($db->isTransactionActive()) {
                 $db->rollBack();
             }
