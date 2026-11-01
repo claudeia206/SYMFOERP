@@ -88,19 +88,34 @@ class SupplierInvoice
         $this->lines = new ArrayCollection();
         $this->payments = new ArrayCollection();
 
+        $pendingLines = [];
         foreach ($order->getLines() as $line) {
-            if (StockQuantity::toMilliunits($line->getReceivedQuantity()) <= 0) { continue; }
-            $this->addLine(new SupplierInvoiceLine(
-                $line->getProduct(),
-                $line->getDescription(),
-                $line->getReceivedQuantity(),
-                $line->getUnitPrice(),
-                $line->getVatRate(),
-                $line->getPosition()
-            ));
+            $quantity = $line->getRemainingInvoicableQuantity();
+            if (StockQuantity::toMilliunits($quantity) <= 0) {
+                continue;
+            }
+
+            $pendingLines[] = [
+                'order_line' => $line,
+                'quantity' => $quantity,
+                'invoice_line' => new SupplierInvoiceLine(
+                    $line->getProduct(),
+                    $line->getDescription(),
+                    $quantity,
+                    $line->getUnitPrice(),
+                    $line->getVatRate(),
+                    $line->getPosition()
+                ),
+            ];
         }
-        if ($this->lines->isEmpty()) {
-            throw new InvalidArgumentException('Aucune quantité réceptionnée ne peut être facturée.');
+
+        if ($pendingLines === []) {
+            throw new InvalidArgumentException('Aucune quantité réceptionnée non encore facturée ne peut être facturée.');
+        }
+
+        foreach ($pendingLines as $pendingLine) {
+            $pendingLine['order_line']->markInvoiced($pendingLine['quantity']);
+            $this->addLine($pendingLine['invoice_line']);
         }
     }
 
