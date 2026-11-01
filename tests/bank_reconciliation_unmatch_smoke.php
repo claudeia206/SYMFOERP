@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-use App\\Controller\\BankReconciliationController;
-use Symfony\\Component\\Routing\\Attribute\\Route;
+use App\Controller\BankReconciliationController;
+use Symfony\Component\Routing\Attribute\Route;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
@@ -63,4 +63,4 @@ foreach (['', '01.00', '1.001', '+1.00', '1e3', '10000000000.00'] as $invalid) {
     expectBankUnmatch($rejected, 'Invalid bank amount was accepted: '.$invalid);
 }
 
-echo "Bank reconciliation unmatch regression smoke tests passed.\\n";
+echo "Bank reconciliation unmatch regression smoke tests passed.\n";
