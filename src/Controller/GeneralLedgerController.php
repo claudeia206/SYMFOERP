@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Controller;
 use App\Service\AccountingAmount;
 use App\Service\AccountingPeriodGuard;
+use App\Service\TrialBalanceCsvFormatter;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -28,7 +29,7 @@ final class GeneralLedgerController extends AbstractController
              FROM app_accounting_account a
              LEFT JOIN app_journal_entry_line l ON l.account_id=a.id
              LEFT JOIN app_journal_entry e ON e.id=l.entry_id AND e.status=?
-             GROUP BY a.id,a.code,a.name,a.account_class ORDER BY a.code',
+             GROUP BY a.id,a.code,a.name,a.account_class,a.is_active ORDER BY a.code',
             [$from,$from,$from,$to,$from,$to,'posted']
         );
         $debitTotal=0;$creditTotal=0;$balanceDebitTotal=0;$balanceCreditTotal=0;
@@ -63,7 +64,7 @@ final class GeneralLedgerController extends AbstractController
     }
 
     #[Route('/export.csv', name: 'app_general_ledger_export', methods: ['GET'])]
-    public function export(Request $request, Connection $db, \\App\\Service\\TrialBalanceCsvFormatter $formatter): Response
+    public function export(Request $request, Connection $db, TrialBalanceCsvFormatter $formatter): Response
     {
         $from = (string) $request->query->get('from', (new DateTimeImmutable('first day of january this year'))->format('Y-m-d'));
         $to = (string) $request->query->get('to', (new DateTimeImmutable('today'))->format('Y-m-d'));
