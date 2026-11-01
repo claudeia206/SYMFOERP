@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\\Service;
+namespace App\Service;
 
 final class CustomerStatementCsvFormatter
 {
@@ -12,10 +12,10 @@ final class CustomerStatementCsvFormatter
     {
         $stream = fopen('php://temp', 'r+');
         if ($stream === false) {
-            throw new \\RuntimeException('Impossible de préparer le relevé CSV.');
+            throw new \RuntimeException('Impossible de préparer le relevé CSV.');
         }
 
-        fwrite($stream, "\\xEF\\xBB\\xBF");
+        fwrite($stream, "\xEF\xBB\xBF");
         fputcsv($stream, ['Date', 'Type', 'Document', 'Description', 'Débit (€)', 'Crédit (€)', 'Solde (€)'], ';', '"', '');
 
         foreach ($movements as $movement) {
@@ -41,7 +41,7 @@ final class CustomerStatementCsvFormatter
         fclose($stream);
 
         if ($csv === false) {
-            throw new \\RuntimeException('Impossible de lire le relevé CSV généré.');
+            throw new \RuntimeException('Impossible de lire le relevé CSV généré.');
         }
 
         return $csv;
@@ -49,6 +49,6 @@ final class CustomerStatementCsvFormatter
 
     private static function safeText(string $value): string
     {
-        return preg_match('/^[\\x00-\\x20]*[=+\\-@]/u', $value) === 1 ? "'".$value : $value;
+        return preg_match('/^[\x00-\x20]*[=+\-@]/u', $value) === 1 ? "'".$value : $value;
     }
 }
