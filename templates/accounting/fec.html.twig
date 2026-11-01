@@ -34,6 +34,9 @@
             <p>Aucun solde de bilan à reprendre dans l’exercice {{ next_year }}.</p>
         {% endif %}
     {% else %}
+        {% if year >= current_year %}
+            <p class="status">L’exercice ne peut être clôturé qu’après le 31 décembre.</p>
+        {% endif %}
         {% if unclosed_historical_entries > 0 %}
             <p class="status">Clôturez d’abord les exercices antérieurs contenant des écritures.</p>
         {% endif %}
