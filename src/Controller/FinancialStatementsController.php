@@ -27,6 +27,8 @@ final class FinancialStatementsController extends AbstractController
             || $toDate->format('Y-m-d') !== $to
             || $from > $to
             || $fromDate->format('Y') !== $toDate->format('Y')
+            || (int) $fromDate->format('Y') < 2000
+            || (int) $fromDate->format('Y') > 2100
         ) {
             throw $this->createNotFoundException('Période invalide : les états financiers doivent rester dans un même exercice.');
         }
