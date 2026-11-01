@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\AccountingAmount;
-
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -30,24 +29,31 @@ final class FinancialStatementsController extends AbstractController
             throw $this->createNotFoundException('Période invalide.');
         }
 
+        $fiscalYearStart = (new DateTimeImmutable($to))->modify('first day of january')->format('Y-m-d');
+
         // Balance sheet: cumulative posted balances through the closing date.
-        // Income statement: movements restricted to the selected financial year.
+        // Its unclosed result is calculated from the start of the fiscal year.
+        // Income statement: movements restricted to the user-selected period.
         $rows = $db->fetchAllAssociative(<<<'SQL'
 SELECT a.code, a.name, LEFT(a.code, 1) AS class,
        ROUND(COALESCE(SUM(CASE WHEN e.entry_date <= ? THEN l.debit ELSE 0 END), 0), 2) AS cumulative_debit,
        ROUND(COALESCE(SUM(CASE WHEN e.entry_date <= ? THEN l.credit ELSE 0 END), 0), 2) AS cumulative_credit,
        ROUND(COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.debit ELSE 0 END), 0), 2) AS period_debit,
-       ROUND(COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.credit ELSE 0 END), 0), 2) AS period_credit
+       ROUND(COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.credit ELSE 0 END), 0), 2) AS period_credit,
+       ROUND(COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.debit ELSE 0 END), 0), 2) AS fiscal_debit,
+       ROUND(COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.credit ELSE 0 END), 0), 2) AS fiscal_credit
 FROM app_accounting_account a
 LEFT JOIN app_journal_entry_line l ON l.account_id = a.id
 LEFT JOIN app_journal_entry e ON e.id = l.entry_id AND e.status = 'posted' AND e.entry_date <= ?
 WHERE a.code REGEXP '^[1-7]'
 GROUP BY a.id, a.code, a.name
 ORDER BY a.code
-SQL, [$to, $to, $from, $to, $from, $to, $to]);
+SQL, [$to, $to, $from, $to, $from, $to, $fiscalYearStart, $to, $fiscalYearStart, $to, $to]);
 
         $groups = ['assets' => [], 'liabilities' => [], 'equity' => [], 'income' => [], 'expenses' => []];
         $totals = ['assets' => 0, 'liabilities' => 0, 'equity' => 0, 'income' => 0, 'expenses' => 0];
+        $fiscalIncome = 0;
+        $fiscalExpenses = 0;
 
         foreach ($rows as $row) {
             $class = (string) $row['class'];
@@ -56,6 +62,8 @@ SQL, [$to, $to, $from, $to, $from, $to, $to]);
             $credit = AccountingAmount::toCents((string) $row['cumulative_credit']);
             $periodDebit = AccountingAmount::toCents((string) $row['period_debit']);
             $periodCredit = AccountingAmount::toCents((string) $row['period_credit']);
+            $yearDebit = AccountingAmount::toCents((string) $row['fiscal_debit']);
+            $yearCredit = AccountingAmount::toCents((string) $row['fiscal_credit']);
 
             $add = static function (array &$groups, array &$totals, string $key, array $row, int $balance): void {
                 if ($balance === 0) {
@@ -77,21 +85,24 @@ SQL, [$to, $to, $from, $to, $from, $to, $to]);
                 $add($groups, $totals, $key, $row, abs($signed));
             } elseif ($class === '6') {
                 $add($groups, $totals, 'expenses', $row, AccountingAmount::addSignedCents($periodDebit, -$periodCredit));
+                $fiscalExpenses = AccountingAmount::addSignedCents($fiscalExpenses, AccountingAmount::addSignedCents($yearDebit, -$yearCredit));
             } elseif ($class === '7') {
                 $add($groups, $totals, 'income', $row, AccountingAmount::addSignedCents($periodCredit, -$periodDebit));
+                $fiscalIncome = AccountingAmount::addSignedCents($fiscalIncome, AccountingAmount::addSignedCents($yearCredit, -$yearDebit));
             }
         }
 
-        // The current-period result belongs in equity until the closing entry
-        // transfers it to retained earnings (account 12).
+        // The period result belongs in the income statement; the fiscal-year
+        // result belongs in equity until the closing entry transfers it.
         $netResult = AccountingAmount::addSignedCents($totals['income'], -$totals['expenses']);
-        if ($netResult !== 0) {
+        $balanceSheetResult = AccountingAmount::addSignedCents($fiscalIncome, -$fiscalExpenses);
+        if ($balanceSheetResult !== 0) {
             $groups['equity'][] = [
                 'code' => 'Résultat',
-                'name' => 'Résultat de la période (avant affectation)',
-                'balance' => AccountingAmount::formatFrenchCents($netResult),
+                'name' => 'Résultat de l’exercice (avant affectation)',
+                'balance' => AccountingAmount::formatFrenchCents($balanceSheetResult),
             ];
-            $totals['equity'] = AccountingAmount::addSignedCents($totals['equity'], $netResult);
+            $totals['equity'] = AccountingAmount::addSignedCents($totals['equity'], $balanceSheetResult);
         }
         $balanceSheetTotal = AccountingAmount::addSignedCents($totals['liabilities'], $totals['equity']);
         foreach ($totals as &$value) {
