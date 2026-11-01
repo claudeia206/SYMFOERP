@@ -62,6 +62,81 @@ final class GeneralLedgerController extends AbstractController
         return $this->render('general_ledger/index.html.twig',['accounts'=>$accounts,'journals'=>$journals,'entries'=>$entries,'from'=>$from,'to'=>$to,'debit_total'=>AccountingAmount::formatFrenchCents($debitTotal),'credit_total'=>AccountingAmount::formatFrenchCents($creditTotal),'balance_debit_total'=>AccountingAmount::formatFrenchCents($balanceDebitTotal),'balance_credit_total'=>AccountingAmount::formatFrenchCents($balanceCreditTotal)]);
     }
 
+    #[Route('/export.csv', name: 'app_general_ledger_export', methods: ['GET'])]
+    public function export(Request $request, Connection $db): Response
+    {
+        $from = (string) $request->query->get('from', (new DateTimeImmutable('first day of january this year'))->format('Y-m-d'));
+        $to = (string) $request->query->get('to', (new DateTimeImmutable('today'))->format('Y-m-d'));
+        $this->validatePeriod($from, $to);
+
+        $accounts = $db->fetchAllAssociative(
+            'SELECT a.code, a.name, a.account_class,
+                    COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.debit ELSE 0 END), 0) AS opening_debit,
+                    COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.credit ELSE 0 END), 0) AS opening_credit,
+                    COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.debit ELSE 0 END), 0) AS period_debit,
+                    COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.credit ELSE 0 END), 0) AS period_credit
+             FROM app_accounting_account a
+             LEFT JOIN app_journal_entry_line l ON l.account_id = a.id
+             LEFT JOIN app_journal_entry e ON e.id = l.entry_id AND e.status = ?
+             GROUP BY a.id, a.code, a.name, a.account_class
+             ORDER BY a.code',
+            [$from, $from, $from, $to, $from, $to, 'posted']
+        );
+
+        $stream = fopen('php://temp', 'r+');
+        if ($stream === false) {
+            throw new \RuntimeException('Impossible de préparer le fichier CSV.');
+        }
+
+        fwrite($stream, "\xEF\xBB\xBF");
+        fputcsv($stream, [
+            'Compte', 'Intitulé', 'Classe',
+            'Solde antérieur débiteur', 'Solde antérieur créditeur',
+            'Mouvements débit', 'Mouvements crédit',
+            'Solde clôture débiteur', 'Solde clôture créditeur',
+        ], ';', '"', '');
+
+        foreach ($accounts as $account) {
+            $opening = AccountingAmount::addSignedCents(
+                AccountingAmount::toCents((string) $account['opening_debit']),
+                -AccountingAmount::toCents((string) $account['opening_credit'])
+            );
+            $debit = AccountingAmount::toCents((string) $account['period_debit']);
+            $credit = AccountingAmount::toCents((string) $account['period_credit']);
+            $closing = AccountingAmount::addSignedCents($opening, $debit, -$credit);
+
+            fputcsv($stream, [
+                $this->safeCsvText((string) $account['code']),
+                $this->safeCsvText((string) $account['name']),
+                $this->safeCsvText((string) $account['account_class']),
+                AccountingAmount::formatFrenchCents(max(0, $opening)),
+                AccountingAmount::formatFrenchCents(max(0, -$opening)),
+                AccountingAmount::formatFrenchCents($debit),
+                AccountingAmount::formatFrenchCents($credit),
+                AccountingAmount::formatFrenchCents(max(0, $closing)),
+                AccountingAmount::formatFrenchCents(max(0, -$closing)),
+            ], ';', '"', '');
+        }
+
+        rewind($stream);
+        $csv = stream_get_contents($stream);
+        fclose($stream);
+        if ($csv === false) {
+            throw new \RuntimeException('Impossible de lire le fichier CSV généré.');
+        }
+
+        return new Response($csv, Response::HTTP_OK, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => sprintf('attachment; filename="balance-generale-%s-%s.csv"', $from, $to),
+            'Cache-Control' => 'no-store, private',
+        ]);
+    }
+
+    private function safeCsvText(string $value): string
+    {
+        return preg_match('/^[\\s]*[=+@\\-]/u', $value) ? "'".$value : $value;
+    }
+
     #[Route('/entries',name:'app_general_ledger_entry_create',methods:['POST'])]
     public function create(Request $request,Connection $db, AccountingPeriodGuard $periodGuard):Response
     {
