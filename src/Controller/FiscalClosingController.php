@@ -51,6 +51,19 @@ final class FiscalClosingController extends AbstractController
             'SELECT COUNT(*) FROM app_journal_entry WHERE entry_date BETWEEN ? AND ?',
             [sprintf('%04d-01-01', $year + 1), sprintf('%04d-12-31', $year + 1)]
         ) : 0;
+        $historicalProfitAndLossBalances = (int) $db->fetchOne(
+            'SELECT COUNT(*) FROM (
+                SELECT a.id
+                FROM app_accounting_account a
+                LEFT JOIN app_journal_entry_line l ON l.account_id = a.id
+                LEFT JOIN app_journal_entry e ON e.id = l.entry_id AND e.status = ? AND e.entry_date < ?
+                WHERE a.account_class IN (6, 7)
+                GROUP BY a.id
+                HAVING COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END), 0)
+                    <> COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END), 0)
+            ) historical_result_accounts',
+            ['posted', sprintf('%04d-01-01', $year)]
+        );
         $debit = (string) ($summary['debit'] ?? '0.00');
         $credit = (string) ($summary['credit'] ?? '0.00');
         $debitCents = AccountingAmount::toCents($debit);
@@ -69,7 +82,7 @@ final class FiscalClosingController extends AbstractController
             'draft_count' => $draftCount,
             'unbalanced_count' => $unbalanced,
             'balanced' => $differenceCents === 0,
-            'ready' => $draftCount === 0 && $unbalanced === 0 && $differenceCents === 0 && ($period['closed_at'] ?? null) === null && $nextPeriod !== null && ($nextPeriod['closed_at'] ?? null) === null && ($nextPeriod['opening_entry_id'] ?? null) === null && $unclosedHistoricalEntries === 0 && $nextYearEntries === 0,
+            'ready' => $draftCount === 0 && $unbalanced === 0 && $differenceCents === 0 && ($period['closed_at'] ?? null) === null && $nextPeriod !== null && ($nextPeriod['closed_at'] ?? null) === null && ($nextPeriod['opening_entry_id'] ?? null) === null && $unclosedHistoricalEntries === 0 && $nextYearEntries === 0 && $historicalProfitAndLossBalances === 0,
             'closed_at' => $period['closed_at'] ?? null,
             'closing_entry_id' => $period['closing_entry_id'] ?? null,
             'opening_entry_id' => $period['opening_entry_id'] ?? null,
@@ -77,6 +90,7 @@ final class FiscalClosingController extends AbstractController
             'next_year' => $year + 1,
             'unclosed_historical_entries' => $unclosedHistoricalEntries,
             'next_year_entries' => $nextYearEntries,
+            'historical_profit_and_loss_balances' => $historicalProfitAndLossBalances,
         ]);
     }
 
@@ -205,6 +219,22 @@ final class FiscalClosingController extends AbstractController
             );
             if ($unclosedHistoricalEntries > 0) {
                 throw new RuntimeException('Clôturez d’abord les exercices antérieurs qui contiennent déjà des écritures.');
+            }
+            $historicalProfitAndLossBalances = (int) $db->fetchOne(
+                'SELECT COUNT(*) FROM (
+                    SELECT a.id
+                    FROM app_accounting_account a
+                    LEFT JOIN app_journal_entry_line l ON l.account_id = a.id
+                    LEFT JOIN app_journal_entry e ON e.id = l.entry_id AND e.status = ? AND e.entry_date < ?
+                    WHERE a.account_class IN (6, 7)
+                    GROUP BY a.id
+                    HAVING COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END), 0)
+                        <> COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END), 0)
+                ) historical_result_accounts',
+                ['posted', $from]
+            );
+            if ($historicalProfitAndLossBalances > 0) {
+                throw new RuntimeException('Des comptes de charges ou produits des exercices antérieurs ne sont pas soldés : régularisez-les avant cette clôture.');
             }
 
             $nextYearEntries = (int) $db->fetchOne(
