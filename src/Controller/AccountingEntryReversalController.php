@@ -41,11 +41,14 @@ final class AccountingEntryReversalController extends AbstractController
             $db->beginTransaction();
             try {
                 $original = $db->fetchAssociative(
-                    'SELECT id, journal_id, entry_number, entry_date, status FROM app_journal_entry WHERE id = ? FOR UPDATE',
+                    'SELECT id, journal_id, entry_number, entry_date, status, reversal_of_entry_id FROM app_journal_entry WHERE id = ? FOR UPDATE',
                     [$id]
                 );
                 if (!$original || $original['status'] !== 'posted') {
                     throw new InvalidArgumentException('Écriture comptable introuvable ou non comptabilisée.');
+                }
+                if ($original['reversal_of_entry_id'] !== null) {
+                    throw new InvalidArgumentException('Une contrepassation ne peut pas être contrepassée à son tour.');
                 }
                 if ($date < (string) $original['entry_date']) {
                     throw new InvalidArgumentException('La contrepassation ne peut pas être antidatée avant l’écriture d’origine.');
@@ -108,7 +111,7 @@ final class AccountingEntryReversalController extends AbstractController
                 $journal['code'],
                 $number
             ));
-        } catch (InvalidArgumentException $exception) {
+        } catch (InvalidArgumentException|\\RuntimeException $exception) {
             $this->addFlash('error', $exception->getMessage());
         } catch (Throwable) {
             $this->addFlash('error', 'La contrepassation a échoué ; aucune écriture partielle n’a été conservée.');
