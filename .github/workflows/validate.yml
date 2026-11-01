@@ -47,58 +47,17 @@ jobs:
         run: |
           docker run --rm symfoerp-symfony:ci sh -lc 'find src config public migrations tests -type f -name "*.php" -print0 | xargs -0 -r -n1 php -l'
 
-      - name: Test third-party entity invariants
-        run: docker run --rm symfoerp-symfony:ci php tests/third_party_entity_smoke.php
+      - name: Run complete smoke test suite and generate report
+        run: bash bin/test-symfoerp.sh --image symfoerp-symfony:ci
 
-      - name: Test sales quote entity and totals
-        run: docker run --rm symfoerp-symfony:ci php tests/sales_quote_entity_smoke.php
+      - name: Upload test report and detailed logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: symfoerp-test-report
+          path: var/test-reports/
+          if-no-files-found: warn
 
-      - name: Test sales invoice payment rules
-        run: docker run --rm symfoerp-symfony:ci php tests/sales_invoice_entity_smoke.php
-
-      - name: Test partial customer deliveries and stock movements
-        run: docker run --rm symfoerp-symfony:ci php tests/sales_delivery_entity_smoke.php
-
-      - name: Test customer returns and stock reintegration
-        run: docker run --rm symfoerp-symfony:ci php tests/sales_return_entity_smoke.php
-
-      - name: Test customer credit notes and receivables
-        run: docker run --rm symfoerp-symfony:ci php tests/sales_credit_note_entity_smoke.php
-      - name: Test customer payment reminder validation
-        run: docker run --rm symfoerp-symfony:ci php tests/payment_reminder_input_smoke.php
-
-      - name: Test bank transaction reconciliation
-        run: docker run --rm symfoerp-symfony:ci php tests/bank_transaction_entity_smoke.php
-      - name: Test strict bank statement parsing
-        run: docker run --rm symfoerp-symfony:ci php tests/bank_statement_value_parser_smoke.php
-      - name: Test FEC export formatting invariants
-        run: docker run --rm symfoerp-symfony:ci php tests/fec_export_formatter_smoke.php
-
-      - name: Test product catalogue and stock invariants
-        run: docker run --rm symfoerp-symfony:ci php tests/product_entity_smoke.php
-
-      - name: Test exact stock quantity arithmetic
-        run: docker run --rm symfoerp-symfony:ci php tests/stock_quantity_smoke.php
-
-      - name: Test supplier purchase orders and receipts
-        run: docker run --rm symfoerp-symfony:ci php tests/purchase_order_entity_smoke.php
-
-      - name: Test supplier invoice and outgoing payment rules
-        run: docker run --rm symfoerp-symfony:ci php tests/supplier_invoice_entity_smoke.php
-
-      - name: Test accounting posting validation
-        run: docker run --rm symfoerp-symfony:ci php tests/accounting_posting_validation_smoke.php
-      - name: Test balanced accounting entry invariants
-        run: docker run --rm symfoerp-symfony:ci php tests/accounting_entry_validator_smoke.php
-      - name: Test exact-cent accounting arithmetic
-        run: docker run --rm symfoerp-symfony:ci php tests/accounting_amount_smoke.php
-      - name: Test fixed asset exact-cent depreciation
-        run: docker run --rm symfoerp-symfony:ci php tests/fixed_asset_depreciation_smoke.php
-      - name: Test strict accounting form dates
-        run: docker run --rm symfoerp-symfony:ci php tests/accounting_form_date_smoke.php
-
-      - name: Test accounting fiscal period boundaries
-        run: docker run --rm symfoerp-symfony:ci php tests/accounting_period_guard_smoke.php
       - name: Smoke test Symfony HTTP application
         run: |
           set -eu
@@ -161,7 +120,7 @@ jobs:
           parser = TokenParser()
           parser.feed(login_page)
           assert parser.token, "Login CSRF token is missing"
-          payload = urllib.parse.urlencode({"email": "ci-admin@example.test", "password": "CI-Only-Password-2026", "_csrf_token": parser.token}).encode()
+          payload = urllib.parse.urlencode({"email": "admin@local.local", "password": "admin", "_csrf_token": parser.token}).encode()
           client.open(urllib.request.Request(base + "/login", data=payload)).read()
           registry = client.open(base + "/third-parties")
           html = registry.read().decode()
