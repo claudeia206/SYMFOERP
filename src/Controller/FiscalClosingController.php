@@ -41,6 +41,16 @@ final class FiscalClosingController extends AbstractController
         $unbalanced = $this->countInvalidPostedEntries($db, $from, $to);
         $period = $db->fetchAssociative('SELECT closed_at, closing_entry_id, opening_entry_id FROM app_accounting_fiscal_year WHERE fiscal_year = ?', [$year]);
         $nextPeriod = $year < 2100 ? $db->fetchAssociative('SELECT closed_at, opening_entry_id FROM app_accounting_fiscal_year WHERE fiscal_year = ?', [$year + 1]) : null;
+        $unclosedHistoricalEntries = (int) $db->fetchOne(
+            'SELECT COUNT(*) FROM app_journal_entry e
+             INNER JOIN app_accounting_fiscal_year fy ON fy.fiscal_year = YEAR(e.entry_date)
+             WHERE e.status = ? AND e.entry_date < ? AND fy.closed_at IS NULL',
+            ['posted', sprintf('%04d-01-01', $year)]
+        );
+        $nextYearEntries = $year < 2100 ? (int) $db->fetchOne(
+            'SELECT COUNT(*) FROM app_journal_entry WHERE entry_date BETWEEN ? AND ?',
+            [sprintf('%04d-01-01', $year + 1), sprintf('%04d-12-31', $year + 1)]
+        ) : 0;
         $debit = (string) ($summary['debit'] ?? '0.00');
         $credit = (string) ($summary['credit'] ?? '0.00');
         $debitCents = AccountingAmount::toCents($debit);
@@ -59,12 +69,14 @@ final class FiscalClosingController extends AbstractController
             'draft_count' => $draftCount,
             'unbalanced_count' => $unbalanced,
             'balanced' => $differenceCents === 0,
-            'ready' => $draftCount === 0 && $unbalanced === 0 && $differenceCents === 0 && ($period['closed_at'] ?? null) === null && $nextPeriod !== null && ($nextPeriod['closed_at'] ?? null) === null && ($nextPeriod['opening_entry_id'] ?? null) === null,
+            'ready' => $draftCount === 0 && $unbalanced === 0 && $differenceCents === 0 && ($period['closed_at'] ?? null) === null && $nextPeriod !== null && ($nextPeriod['closed_at'] ?? null) === null && ($nextPeriod['opening_entry_id'] ?? null) === null && $unclosedHistoricalEntries === 0 && $nextYearEntries === 0,
             'closed_at' => $period['closed_at'] ?? null,
             'closing_entry_id' => $period['closing_entry_id'] ?? null,
             'opening_entry_id' => $period['opening_entry_id'] ?? null,
             'next_opening_entry_id' => $nextPeriod['opening_entry_id'] ?? null,
             'next_year' => $year + 1,
+            'unclosed_historical_entries' => $unclosedHistoricalEntries,
+            'next_year_entries' => $nextYearEntries,
         ]);
     }
 
