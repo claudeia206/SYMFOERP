@@ -18,8 +18,12 @@
 <td>{{ account.debit }} €</td><td>{{ account.credit }} €</td>
 <td>{{ account.balance_display }} € {{ account.balance_side }}</td>
 </tr>{% endfor %}
-</tbody><tfoot><tr><th colspan="4">Totaux des mouvements de la période</th><th>{{ debit_total }} €</th><th>{{ credit_total }} €</th><th>—</th></tr></tfoot></table></div>
-<p class="muted">Les soldes de clôture incluent les à-nouveaux antérieurs ; les colonnes débit et crédit ne présentent que les mouvements de la période.</p>
+</tbody><tfoot>
+<tr><th colspan="4">Totaux des mouvements de la période</th><th>{{ debit_total }} €</th><th>{{ credit_total }} €</th><th>—</th></tr>
+<tr><th colspan="6">Total soldes débiteurs</th><th>{{ balance_debit_total }} €</th></tr>
+<tr><th colspan="6">Total soldes créditeurs</th><th>{{ balance_credit_total }} €</th></tr>
+</tfoot></table></div>
+<p class="muted">Les soldes de clôture incluent les à-nouveaux antérieurs ; les colonnes débit et crédit ne présentent que les mouvements de la période. La balance générale doit présenter des soldes débiteurs et créditeurs égaux.</p>
 </section>
 <section class="card">
 <h2>Saisir une écriture comptable</h2>
