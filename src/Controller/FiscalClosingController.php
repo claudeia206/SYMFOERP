@@ -275,11 +275,14 @@ final class FiscalClosingController extends AbstractController
             }
 
             $resultAccounts = $db->fetchAllAssociative(
-                'SELECT id, code FROM app_accounting_account WHERE code IN (?, ?) AND is_active = 1 ORDER BY code FOR UPDATE',
+                'SELECT id, code, account_class FROM app_accounting_account WHERE code IN (?, ?) AND is_active = 1 ORDER BY code FOR UPDATE',
                 ['120000', '129000']
             );
             $resultAccountIds = [];
             foreach ($resultAccounts as $account) {
+                if ((int) $account['account_class'] !== 1) {
+                    throw new RuntimeException('Les comptes de résultat 120000 et 129000 doivent appartenir à la classe 1.');
+                }
                 $resultAccountIds[(string) $account['code']] = (int) $account['id'];
             }
             if (!isset($resultAccountIds['120000'], $resultAccountIds['129000'])) {
