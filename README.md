@@ -41,6 +41,17 @@ Le script :
 
 Accès : http://localhost:8000/login
 
+### Récupérer l'accès administrateur local
+
+Si le mot de passe administrateur est perdu, démarrez les conteneurs puis lancez la commande de récupération depuis le terminal du projet :
+
+```bash
+docker compose --env-file .env.docker up -d
+docker exec -it --workdir /app symfoerp-symfony php /app/bin/console app:user:reset-password
+```
+
+La commande demande l'adresse e-mail du compte administrateur, puis le nouveau mot de passe deux fois sans l'afficher. Elle ne réinitialise que le mot de passe d'un compte qui possède déjà le rôle administrateur ; elle ne crée pas de compte et ne promeut aucun utilisateur. Les données et les autres comptes ne sont pas modifiés.
+
 Les ports sont liés à `127.0.0.1`. Les données persistantes sont conservées dans les volumes Docker `symfony_database` et `symfony_var`. Arrêter les conteneurs sans supprimer les données :
 
 ```bash
