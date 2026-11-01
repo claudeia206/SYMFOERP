@@ -482,6 +482,11 @@ jobs:
           assert "enregistré et comptabilisé" in supplier_paid, "Supplier payment was not automatically posted"
           ledger_after_purchases = client.open(base + "/accounting").read().decode()
           assert "Facture fournisseur CI-FOUR-001" in ledger_after_purchases, "Supplier invoice accounting entry is missing"
+          debit_balance_match = re.search(r"Total soldes débiteurs</th>\\s*<th>(.*?)\\s*€</th>", ledger_after_purchases, re.S)
+          credit_balance_match = re.search(r"Total soldes créditeurs</th>\\s*<th>(.*?)\\s*€</th>", ledger_after_purchases, re.S)
+          assert debit_balance_match and credit_balance_match, "Trial balance debit and credit totals are missing"
+          normalize_amount = lambda value: re.sub(r"\\s+", "", re.sub(r"<[^>]+>", "", value)).replace(",", ".")
+          assert normalize_amount(debit_balance_match.group(1)) == normalize_amount(credit_balance_match.group(1)), "Trial balance closing debit and credit totals do not balance"
           assert "Règlement fournisseur CI-FOUR-001" in ledger_after_purchases, "Supplier payment accounting entry is missing"
           # Reconcile the real double-entry postings across sales, purchases, payments,
           # credit notes and opening balances before declaring the accounting MVP green.
