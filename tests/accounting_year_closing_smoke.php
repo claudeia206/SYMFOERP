@@ -37,6 +37,7 @@ foreach ([
     'unclosedHistoricalEntries',
     'nextYearEntries',
     'historicalProfitAndLossBalances',
+    'ne peut être clôturé qu’après sa date de fin',
 ] as $required) {
     expectFiscalClosing(str_contains($source, $required), 'Missing fiscal closing control: '.$required);
 }
