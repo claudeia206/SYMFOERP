@@ -56,6 +56,7 @@ foreach ([
     'isCsrfTokenValid',
     'FOR UPDATE',
     'reversal_of_entry_id',
+    'ne peut pas être contrepassée à son tour',
     'assertOpenDate',
     'beginTransaction',
     'rollBack',
