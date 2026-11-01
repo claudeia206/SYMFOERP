@@ -75,17 +75,14 @@ final class AccountingPostingService
             // before one waits on the journal lock, then the second reports a unique
             // constraint error instead of treating the retry as an idempotent no-op.
             if($db->fetchOne('SELECT 1 FROM app_accounting_source_posting WHERE source_type=? AND source_id=?',[$type,$sourceId]))return;
-            $debit=0;$credit=0;$resolved=[];
+            $totals=AccountingEntryValidator::validate($lines);
+            $resolved=[];
             foreach($lines as $line){
-                if(!is_array($line)||!isset($line['account'],$line['label'],$line['debit'],$line['credit'])||!is_string($line['account'])||!is_string($line['label']))throw new RuntimeException('Ligne de comptabilisation automatique invalide.');
-                $lineDebit=$line['debit'];$lineCredit=$line['credit'];
-                if(!is_int($lineDebit)||!is_int($lineCredit)||$lineDebit<0||$lineCredit<0||(($lineDebit>0)===($lineCredit>0)))throw new RuntimeException('Montants de ligne comptable invalides.');
                 $account=$db->fetchAssociative('SELECT id FROM app_accounting_account WHERE code=? AND is_active=1 FOR UPDATE',[$line['account']]);
                 if(!$account)throw new RuntimeException('Compte '.$line['account'].' absent ou inactif.');
-                $debit=AccountingAmount::addCents($debit,$lineDebit);$credit=AccountingAmount::addCents($credit,$lineCredit);
-                $resolved[]=['account_id'=>(int)$account['id'],'label'=>$line['label'],'debit'=>$lineDebit,'credit'=>$lineCredit];
+                $resolved[]=['account_id'=>(int)$account['id'],'label'=>$line['label'],'debit'=>$line['debit'],'credit'=>$line['credit']];
             }
-            if($debit<=0||$debit!==$credit)throw new RuntimeException('Écriture automatique déséquilibrée.');
+            $debit=$totals['debit'];$credit=$totals['credit'];
             $number=(int)$db->fetchOne('SELECT COALESCE(MAX(entry_number),0)+1 FROM app_journal_entry WHERE journal_id=?',[$journal['id']]);
             $db->insert('app_journal_entry',['journal_id'=>$journal['id'],'entry_number'=>$number,'entry_date'=>$date,'reference'=>$reference,'description'=>mb_substr($description,0,255),'status'=>'posted','created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
             $entryId=(int)$db->lastInsertId();
