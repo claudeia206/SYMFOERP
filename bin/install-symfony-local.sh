@@ -108,7 +108,7 @@ if [[ "$TEST_MODE" -eq 1 ]]; then
         -e "SYMFOERP_ADMIN_PASSWORD=$admin_password" \
         --workdir /app symfoerp-symfony php -d display_errors=1 /app/bin/console app:user:create </dev/null
 else
-        read -r -p "E-mail du premier administrateur : " admin_email
+    read -r -p "E-mail du premier administrateur : " admin_email
     read -r -s -p "Mot de passe administrateur (12 caractères minimum) : " admin_password
     printf '\\n'
     if [[ -z "$admin_email" || ${#admin_password} -lt 12 ]]; then
