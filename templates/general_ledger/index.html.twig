@@ -36,7 +36,7 @@
 <label>Libellé<input name="description" maxlength="255" required></label>
 </div>
 <div class="table-scroll"><table class="data-table"><thead><tr><th>Compte</th><th>Libellé de ligne</th><th>Débit (€)</th><th>Crédit (€)</th></tr></thead><tbody>
-{% for row in 0..3 %}<tr>
+{% for row in 0..9 %}<tr>
 <td><select name="lines[{{ row }}][account_id]" {{ row < 2 ? "required" : "" }}><option value="">Choisir…</option>{% for account in accounts %}{% if account.is_active %}<option value="{{ account.id }}">{{ account.code }} — {{ account.name }}</option>{% endif %}{% endfor %}</select></td>
 <td><input name="lines[{{ row }}][label]" maxlength="255" placeholder="Libellé"></td>
 <td><input name="lines[{{ row }}][debit]" inputmode="decimal" value="0.00"></td>
