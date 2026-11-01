@@ -76,7 +76,7 @@ final class FiscalClosingController extends AbstractController
             'current_year' => $currentYear,
             'summary' => [
                 'entries' => (int) ($summary['entries'] ?? 0),
-                'lines' => (int) ($summary['lines'] ?? 0),
+                'lines' => (int) ($summary['line_count'] ?? 0),
                 'debit' => $this->formatFrenchCents($debitCents),
                 'credit' => $this->formatFrenchCents($creditCents),
                 'difference' => $this->formatFrenchCents($differenceCents),
