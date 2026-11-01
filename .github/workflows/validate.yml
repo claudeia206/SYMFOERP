@@ -88,6 +88,8 @@ jobs:
 
       - name: Test accounting posting validation
         run: docker run --rm symfoerp-symfony:ci php tests/accounting_posting_validation_smoke.php
+      - name: Test balanced accounting entry invariants
+        run: docker run --rm symfoerp-symfony:ci php tests/accounting_entry_validator_smoke.php
       - name: Test exact-cent accounting arithmetic
         run: docker run --rm symfoerp-symfony:ci php tests/accounting_amount_smoke.php
       - name: Test fixed asset exact-cent depreciation
