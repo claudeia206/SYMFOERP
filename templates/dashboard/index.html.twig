@@ -1,22 +1,41 @@
 {% extends 'base.html.twig' %}
-
 {% block title %}Tableau de bord · SYMFOERP{% endblock %}
-
 {% block body %}
-    <p class="muted">ESPACE DE TRAVAIL</p>
-    <h1>Tableau de bord</h1>
-    <p class="muted">Les modules disponibles sont accessibles depuis cet espace. Les autres seront développés progressivement.</p>
-    <section class="grid" aria-label="Modules ERP">
+    <section class="dashboard-hero">
+        <div>
+            <p class="eyebrow">Espace de travail</p>
+            <h1>Tableau de bord</h1>
+            <p class="page-intro">Retrouvez vos outils de gestion et accédez rapidement aux principaux modules de votre entreprise.</p>
+        </div>
+        <div class="hero-note"><strong>Bienvenue dans SYMFOERP</strong><br>Votre espace centralisé pour piloter l'activité.</div>
+    </section>
+
+    <div class="section-heading">
+        <h2>Modules de gestion</h2>
+        <span class="muted">{{ modules|length }} modules accessibles</span>
+    </div>
+    <section class="module-grid" aria-label="Modules ERP">
         {% for module in modules %}
-            <article class="card">
+            <article class="module-card">
+                <div class="module-top">
+                    <span class="module-icon" aria-hidden="true">{{ module.name|slice(0, 1)|upper }}</span>
+                    <span class="status">{{ module.status|default('Disponible') }}</span>
+                </div>
                 <h2>{{ module.name }}</h2>
-                <p class="muted">{{ module.description }}</p>
+                <p>{{ module.description }}</p>
                 {% if module.route is defined %}
-                    <a class="button" href="{{ path(module.route) }}">Ouvrir le module</a>
-                {% else %}
-                    <span class="status">{{ module.status }}</span>
+                    <a class="module-action" href="{{ path(module.route) }}">Accéder au module <span aria-hidden="true">→</span></a>
                 {% endif %}
             </article>
         {% endfor %}
+    </section>
+
+    <section class="panel settings-panel">
+        <div>
+            <p class="eyebrow">Configuration</p>
+            <h2>Paramètres de l'entreprise</h2>
+            <p class="muted">Identité légale, coordonnées et informations nécessaires à la facturation.</p>
+        </div>
+        <a class="button" href="{{ path('app_company_settings') }}">Ouvrir les paramètres <span aria-hidden="true">→</span></a>
     </section>
 {% endblock %}
