@@ -23,6 +23,7 @@ final class FiscalClosingController extends AbstractController
     public function index(Connection $db, Request $request): Response
     {
         $year = $this->resolveYear($request->query->get('year'), (int) (new DateTimeImmutable())->format('Y'));
+        $currentYear = (int) (new DateTimeImmutable('today'))->format('Y');
         $from = sprintf('%04d-01-01', $year);
         $to = sprintf('%04d-12-31', $year);
 
@@ -72,6 +73,7 @@ final class FiscalClosingController extends AbstractController
 
         return $this->render('accounting/fec.html.twig', [
             'year' => $year,
+            'current_year' => $currentYear,
             'summary' => [
                 'entries' => (int) ($summary['entries'] ?? 0),
                 'lines' => (int) ($summary['lines'] ?? 0),
@@ -82,7 +84,7 @@ final class FiscalClosingController extends AbstractController
             'draft_count' => $draftCount,
             'unbalanced_count' => $unbalanced,
             'balanced' => $differenceCents === 0,
-            'ready' => $draftCount === 0 && $unbalanced === 0 && $differenceCents === 0 && ($period['closed_at'] ?? null) === null && $nextPeriod !== null && ($nextPeriod['closed_at'] ?? null) === null && ($nextPeriod['opening_entry_id'] ?? null) === null && $unclosedHistoricalEntries === 0 && $nextYearEntries === 0 && $historicalProfitAndLossBalances === 0,
+            'ready' => $year < $currentYear && $draftCount === 0 && $unbalanced === 0 && $differenceCents === 0 && ($period['closed_at'] ?? null) === null && $nextPeriod !== null && ($nextPeriod['closed_at'] ?? null) === null && ($nextPeriod['opening_entry_id'] ?? null) === null && $unclosedHistoricalEntries === 0 && $nextYearEntries === 0 && $historicalProfitAndLossBalances === 0,
             'closed_at' => $period['closed_at'] ?? null,
             'closing_entry_id' => $period['closing_entry_id'] ?? null,
             'opening_entry_id' => $period['opening_entry_id'] ?? null,
@@ -180,6 +182,10 @@ final class FiscalClosingController extends AbstractController
         $year = filter_var($request->request->get('year'), FILTER_VALIDATE_INT);
         if ($year === false || $year < 2000 || $year > 2099) {
             throw $this->createNotFoundException('Exercice invalide : un exercice suivant doit être disponible pour les à-nouveaux.');
+        }
+
+        if ($year >= (int) (new DateTimeImmutable('today'))->format('Y')) {
+            throw $this->createNotFoundException('Un exercice ne peut être clôturé qu’après sa date de fin.');
         }
 
         $from = sprintf('%04d-01-01', $year);
