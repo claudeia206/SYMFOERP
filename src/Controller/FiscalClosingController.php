@@ -196,7 +196,7 @@ final class FiscalClosingController extends AbstractController
         $db->beginTransaction();
         try {
             $period = $db->fetchAssociative(
-                'SELECT fiscal_year, closed_at FROM app_accounting_fiscal_year WHERE fiscal_year = ? FOR UPDATE',
+                'SELECT fiscal_year, closed_at, opening_entry_id FROM app_accounting_fiscal_year WHERE fiscal_year = ? FOR UPDATE',
                 [$year]
             );
             if (!$period) {
@@ -320,16 +320,17 @@ final class FiscalClosingController extends AbstractController
                 );
             }
 
+            $balanceStart = $period['opening_entry_id'] !== null ? $from : '0001-01-01';
             $balanceSheetRows = $db->fetchAllAssociative(
                 'SELECT a.id AS account_id, a.code, a.name, a.account_class,
                         COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END), 0) AS debit, COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END), 0) AS credit
                  FROM app_accounting_account a
                  LEFT JOIN app_journal_entry_line l ON l.account_id = a.id
-                 LEFT JOIN app_journal_entry e ON e.id = l.entry_id AND e.status = ? AND e.entry_date <= ?
+                 LEFT JOIN app_journal_entry e ON e.id = l.entry_id AND e.status = ? AND e.entry_date BETWEEN ? AND ?
                  WHERE a.account_class BETWEEN 1 AND 5
                  GROUP BY a.id, a.code, a.name, a.account_class
                  ORDER BY a.code',
-                ['posted', $to]
+                ['posted', $balanceStart, $to]
             );
             foreach ($balanceSheetRows as &$row) {
                 $row['debit'] = AccountingAmount::toCents((string) $row['debit']);
