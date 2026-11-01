@@ -53,6 +53,17 @@ foreach ([[PHP_INT_MAX, 1], [PHP_INT_MIN, -1]] as $invalidSignedSum) {
     }
 }
 
+try {
+    AccountingAmount::formatCents(PHP_INT_MIN);
+    throw new RuntimeException('The minimum native integer was formatted without overflow protection.');
+} catch (InvalidArgumentException) {
+}
+try {
+    AccountingAmount::formatFrenchCents(PHP_INT_MIN);
+    throw new RuntimeException('The minimum native integer was formatted in French without overflow protection.');
+} catch (InvalidArgumentException) {
+}
+
 foreach ([[-1], [99999999999999, 1]] as $invalidSum) {
     try {
         AccountingAmount::addCents(...$invalidSum);
