@@ -4,7 +4,7 @@
 <p class="muted">CRM / COMPTABILITÉ CLIENT</p>
 <p><a href="{{ path('app_third_party_show',{id:customer.id}) }}">← Fiche client</a></p>
 <h1>Relevé de compte client</h1>
-<section class="card"><h2>{{ customer.name }}</h2><p>{{ customer.address ?? '' }}{% if customer.postalCode %}, {{ customer.postalCode }}{% endif %} {{ customer.city ?? '' }}</p><p>Situation arrêtée au {{ as_of|date('d/m/Y') }}</p><p><a href="{{ path('app_customer_account_statement_pdf',{id:customer.id}) }}">Télécharger / imprimer le PDF</a></p></section>
+<section class="card"><h2>{{ customer.name }}</h2><p>{{ customer.address ?? '' }}{% if customer.postalCode %}, {{ customer.postalCode }}{% endif %} {{ customer.city ?? '' }}</p><p>Situation arrêtée au {{ as_of|date('d/m/Y') }}</p><p><a href="{{ path('app_customer_account_statement_pdf',{id:customer.id}) }}">Télécharger / imprimer le PDF</a></p> <span>·</span> <a href="{{ path('app_customer_account_statement_csv',{id:customer.id}) }}">Exporter en CSV (Excel)</a></section>
 <section class="card">
 <h2>Historique des mouvements</h2>
 <div class="table-scroll"><table class="data-table"><thead><tr><th>Date</th><th>Pièce</th><th>Libellé</th><th>Débit</th><th>Crédit</th><th>Solde dû</th></tr></thead><tbody>
