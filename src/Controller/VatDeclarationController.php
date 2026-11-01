@@ -27,7 +27,7 @@ final class VatDeclarationController extends AbstractController
             $monthNet=AccountingAmount::addSignedCents($monthCollected,-$monthDeductible);
             $month['net']=AccountingAmount::formatFrenchCents($monthNet);
             $month['net_abs']=AccountingAmount::formatFrenchCents(abs($monthNet));
-            $month['net_label']=$monthNet>0?'à payer':($monthNet<0?'crédit':'—');
+            $month['net_label']=$monthNet>0?'à payer':($monthNet<0?'crédit':'solde nul');
             $collectedCents=AccountingAmount::addSignedCents($collectedCents,$monthCollected);$deductibleCents=AccountingAmount::addSignedCents($deductibleCents,$monthDeductible);
         }
         unset($month);
@@ -37,7 +37,7 @@ final class VatDeclarationController extends AbstractController
             'collected'=>AccountingAmount::formatFrenchCents($collectedCents),
             'deductible'=>AccountingAmount::formatFrenchCents($deductibleCents),
             'net_abs'=>AccountingAmount::formatFrenchCents(abs($netCents)),
-            'net_label'=>$netCents>=0?'TVA nette à payer':'Crédit de TVA théorique',
+            'net_label'=>$netCents>0?'TVA nette à payer':($netCents<0?'Crédit de TVA théorique':'Solde de TVA nul'),
         ]);
     }
     #[Route('/export.csv',name:'app_vat_declaration_export',methods:['GET'])]
