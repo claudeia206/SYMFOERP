@@ -37,6 +37,9 @@
         {% if unclosed_historical_entries > 0 %}
             <p class="status">Clôturez d’abord les exercices antérieurs contenant des écritures.</p>
         {% endif %}
+        {% if historical_profit_and_loss_balances > 0 %}
+            <p class="status">Des comptes de charges ou produits antérieurs ne sont pas soldés : régularisez-les avant la clôture.</p>
+        {% endif %}
         {% if next_year_entries > 0 %}
             <p class="status">L’exercice {{ next_year }} contient déjà des écritures : les à-nouveaux ne peuvent plus y être insérés automatiquement.</p>
         {% endif %}
