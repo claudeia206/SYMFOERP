@@ -85,7 +85,7 @@ jobs:
           set -eu
           trap 'echo "=== Symfony and MariaDB container logs (last 300 lines) ==="; docker compose --env-file .env.docker logs --no-color --tail=300 symfony db_symfony || true' ERR
           # Exercise the same first-install path used by developers, not a parallel CI-only sequence.
-          printf '%s\n%s\n' 'ci-admin@example.test' 'CI-Only-Password-2026' | bash bin/install-symfony-local.sh
+          printf '%s\n%s\n' 'admin@local.local' 'admin' | bash bin/install-symfony-local.sh
           # Confirm the installer created the account and that all Doctrine mappings are valid.
           # Accounting tables are migration-managed and intentionally not all ORM-mapped.
           set -a
@@ -136,14 +136,14 @@ jobs:
           relogin_page = client.open(base + "/login").read().decode()
           relogin_parser = TokenParser()
           relogin_parser.feed(relogin_page)
-          relogin_payload = urllib.parse.urlencode({"email": "ci-admin@example.test", "password": "CI-Only-Password-2026", "_csrf_token": relogin_parser.token}).encode()
+          relogin_payload = urllib.parse.urlencode({"email": "admin@local.local", "password": "admin", "_csrf_token": relogin_parser.token}).encode()
           client.open(urllib.request.Request(base + "/login", data=relogin_payload)).read()
 
           # Verify administrator-only user management, account creation and role changes.
           admin_page = client.open(base + "/admin/users")
           admin_html = admin_page.read().decode()
           assert "Utilisateurs et rôles" in admin_html, "Administrator user management page did not render"
-          assert "ci-admin@example.test" in admin_html, "Initial administrator is missing from user management"
+          assert "admin@local.local" in admin_html, "Initial administrator is missing from user management"
           assert 'href="/admin/users/new"' in admin_html, "User creation link is missing"
           new_user_page = client.open(base + "/admin/users/new").read().decode()
           new_user_parser = TokenParser()
