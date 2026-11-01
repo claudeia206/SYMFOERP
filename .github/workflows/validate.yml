@@ -490,7 +490,8 @@ jobs:
           assert "Contrôle d’équilibre du bilan" in statements_after_postings, "Balance sheet reconciliation control is missing"
           assert "Résultat de la période" in statements_after_postings, "Income statement result is missing after accounting postings"
           vat_after_postings = client.open(base + "/accounting/vat?from=" + date.today().replace(month=1, day=1).isoformat() + "&to=" + date.today().isoformat()).read().decode()
-          assert "TVA collectée" in vat_after_postings and "TVA déductible" in vat_after_postings, "VAT declaration totals did not render after invoice postings"
+          assert "Préparation de la déclaration de TVA" in vat_after_postings, "VAT declaration page did not render; final URL: " + client.geturl()
+          assert "445710" in vat_after_postings and "445660" in vat_after_postings, "VAT declaration account totals did not render after invoice postings; page excerpt: " + vat_after_postings[:3000]
           fec_page = client.open(base + "/accounting/fec?year=" + str(date.today().year)).read().decode()
           assert "Préparation de clôture et export FEC" in fec_page, "Fiscal year closing and FEC overview page did not render"
           assert "Écritures comptabilisées" in fec_page and "Lignes exportables" in fec_page, "Fiscal closing summary metrics are missing"
