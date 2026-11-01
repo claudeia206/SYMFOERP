@@ -34,6 +34,18 @@ final class ResetAdminPasswordCommand extends Command
         $email = mb_strtolower(trim((string) getenv('SYMFOERP_ADMIN_EMAIL')));
         $plainPassword = (string) getenv('SYMFOERP_ADMIN_PASSWORD');
 
+        if ($email === '' && $input->isInteractive()) {
+            $email = mb_strtolower(trim((string) $io->ask('Administrator email')));
+        }
+        if ($plainPassword === '' && $input->isInteractive()) {
+            $plainPassword = (string) $io->askHidden('New password (12 characters minimum)');
+            $confirmation = (string) $io->askHidden('Confirm new password');
+            if (!hash_equals($plainPassword, $confirmation)) {
+                $io->error('The password confirmation does not match. No account was changed.');
+                return Command::INVALID;
+            }
+        }
+
         if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 180) {
             $io->error('Set a valid SYMFOERP_ADMIN_EMAIL in the command environment.');
             return Command::INVALID;
