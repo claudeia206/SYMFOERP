@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\AccountingAmount;
+
 use App\Repository\SalesQuoteRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -114,18 +116,22 @@ class SalesQuote
     /** @return Collection<int, SalesQuoteLine> */
     public function getLines(): Collection { return $this->lines; }
 
-    public function getTotalExcludingTax(): float
+    public function getTotalExcludingTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (float $sum, SalesQuoteLine $line): float => $sum + $line->getTotalExcludingTax(), 0.0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesQuoteLine $line): int => AccountingAmount::addCents($sum, $line->getTotalExcludingTaxCents()), 0);
     }
 
-    public function getTotalTax(): float
+    public function getTotalTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (float $sum, SalesQuoteLine $line): float => $sum + $line->getTotalTax(), 0.0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesQuoteLine $line): int => AccountingAmount::addCents($sum, $line->getTotalTaxCents()), 0);
     }
 
-    public function getTotalIncludingTax(): float
+    public function getTotalIncludingTaxCents(): int
     {
-        return $this->getTotalExcludingTax() + $this->getTotalTax();
+        return AccountingAmount::addCents($this->getTotalExcludingTaxCents(), $this->getTotalTaxCents());
     }
+
+    public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
+    public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
+    public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
 }

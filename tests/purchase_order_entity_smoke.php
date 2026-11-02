@@ -25,6 +25,14 @@ $order->setStatus(PurchaseOrder::STATUS_SENT);
 expectPurchase($order->getLines()->count() === 1, 'Purchase order line must be attached.');
 expectPurchase($line->getRemainingQuantity() === '10.000', 'Initial remaining quantity must equal ordered quantity.');
 expectPurchase($order->getTotalExcludingTax() === 125.0, 'Purchase subtotal must use the purchase price snapshot.');
+expectPurchase($order->getTotalExcludingTaxCents() === 12500 && $order->getTotalTaxCents() === 2500 && $order->getTotalIncludingTaxCents() === 15000, 'Purchase order aggregate totals must remain exact in cents.');
+
+$product->update(['sku'=>'SKU-ARRONDI','name'=>'Produit arrondi','unit'=>'pièce','purchase_price'=>'0.01','sale_price'=>'0.02','vat_rate'=>'20','stock_tracked'=>'1','stock_alert_threshold'=>'0','active'=>'1']);
+$roundingLine = new PurchaseOrderLine($product, '3', 1);
+expectPurchase($roundingLine->getTotalExcludingTax() === 0.03, 'Purchase order line net amount must be rounded to cents.');
+expectPurchase($roundingLine->getTotalTax() === 0.01, 'Purchase order line VAT must be rounded separately to cents.');
+expectPurchase($roundingLine->getTotalIncludingTax() === 0.04, 'Purchase order line gross amount must equal rounded net plus rounded VAT.');
+expectPurchase($roundingLine->getTotalExcludingTaxCents() === 3 && $roundingLine->getTotalTaxCents() === 1 && $roundingLine->getTotalIncludingTaxCents() === 4, 'Purchase order line exact-cent getters must preserve the rounded amounts.');
 $line->receive('4');
 $product->adjustStock('4');
 $movement = new ProductStockMovement($product, '4', 'purchase', 'Réception commande fournisseur');
@@ -37,6 +45,17 @@ expectPurchase($order->getStatus() === PurchaseOrder::STATUS_PARTIALLY_RECEIVED,
 $line->receive('6');
 $order->refreshReceiptStatus();
 expectPurchase($order->getStatus() === PurchaseOrder::STATUS_RECEIVED, 'Full receipt must close the order.');
+
+$precisionOrder = new PurchaseOrder($supplier);
+$precisionLine = new PurchaseOrderLine($product, '1.001', 1);
+$precisionOrder->addLine($precisionLine);
+$precisionOrder->setStatus(PurchaseOrder::STATUS_SENT);
+$precisionLine->receive('1.000');
+$precisionOrder->refreshReceiptStatus();
+expectPurchase($precisionOrder->getStatus() === PurchaseOrder::STATUS_PARTIALLY_RECEIVED, 'A one-milliunit remainder must keep the purchase order partially received.');
+$precisionLine->receive('0.001');
+$precisionOrder->refreshReceiptStatus();
+expectPurchase($precisionOrder->getStatus() === PurchaseOrder::STATUS_RECEIVED, 'The final milliunit must complete the purchase order exactly.');
 foreach ([
     fn () => $line->receive('0.001'),
     fn () => new PurchaseOrderLine($product, '0.0004', 3),

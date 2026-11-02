@@ -9,12 +9,13 @@ use App\Entity\CompanyProfile;
 use App\Entity\SalesOrder;
 use App\Entity\SalesPayment;
 use App\Repository\SalesInvoiceRepository;
+use App\Service\AccountingPostingService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\LockMode;
+use Doctrine\DBAL\LockMode;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,7 +32,7 @@ final class SalesInvoiceController extends AbstractController
         ]);
     }
 
-    #[Route('/from-order/{id}', name: 'app_sales_invoice_from_order', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    #[Route('/from-order/{id}', name: 'app_sales_invoice_from_order', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function createFromOrder(Request $request, SalesOrder $order, SalesInvoiceRepository $invoices, EntityManagerInterface $entityManager): Response
     {
         if (!$this->isCsrfTokenValid('sales_invoice_create_'.$order->getId(), (string) $request->request->get('_token'))) {
@@ -55,16 +56,18 @@ final class SalesInvoiceController extends AbstractController
     }
 
 
-    #[Route('/{id}/issue', name: 'app_sales_invoice_issue', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function issue(Request $request, SalesInvoice $invoice, EntityManagerInterface $entityManager): Response
+    #[Route('/{id}/issue', name: 'app_sales_invoice_issue', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function issue(Request $request, SalesInvoice $invoice, EntityManagerInterface $entityManager, AccountingPostingService $posting): Response
     {
         if (!$this->isCsrfTokenValid('sales_invoice_issue_'.$invoice->getId(), (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Jeton de sécurité invalide.');
         }
 
         try {
-            $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice): void {
+            $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice, $posting): void {
                 $entityManager->lock($invoice, LockMode::PESSIMISTIC_WRITE);
+                // Reload state after the lock; the route converter may have loaded a stale draft.
+                $entityManager->refresh($invoice);
                 $profile = $entityManager->find(CompanyProfile::class, 1);
                 if (!$profile instanceof CompanyProfile) {
                     throw new InvalidArgumentException('Configurez d’abord l’identité légale de l’entreprise.');
@@ -96,8 +99,9 @@ final class SalesInvoiceController extends AbstractController
                 $dueDate = $issuedAt->modify(sprintf('+%d days', $profile->getPaymentDelayDays()));
                 $invoice->issue(sprintf('FAC-%d-%06d', $year, $sequence), $issuedAt, $dueDate, $profile->toInvoiceSnapshot(), $customerSnapshot);
                 $entityManager->flush();
+                $posting->postSalesInvoice((int) $invoice->getId());
             });
-            $this->addFlash('success', 'La facture a été émise et numérotée.');
+            $this->addFlash('success', 'La facture a été émise, numérotée et comptabilisée.');
         } catch (InvalidArgumentException $exception) {
             $this->addFlash('error', $exception->getMessage());
         } catch (\Throwable) {
@@ -108,7 +112,7 @@ final class SalesInvoiceController extends AbstractController
     }
 
 
-    #[Route('/{id}/pdf', name: 'app_sales_invoice_pdf', requirements: ['id' => '\\d+'], methods: ['GET'])]
+    #[Route('/{id}/pdf', name: 'app_sales_invoice_pdf', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function pdf(SalesInvoice $invoice): Response
     {
         if ($invoice->getNumber() === null || $invoice->getSellerSnapshot() === null || $invoice->getCustomerSnapshot() === null) {
@@ -134,8 +138,8 @@ final class SalesInvoiceController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/payments', name: 'app_sales_invoice_payment', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function addPayment(Request $request, SalesInvoice $invoice, EntityManagerInterface $entityManager): Response
+    #[Route('/{id}/payments', name: 'app_sales_invoice_payment', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function addPayment(Request $request, SalesInvoice $invoice, EntityManagerInterface $entityManager, AccountingPostingService $posting): Response
     {
         if (!$this->isCsrfTokenValid('sales_invoice_payment_'.$invoice->getId(), (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Jeton de sécurité invalide.');
@@ -143,19 +147,23 @@ final class SalesInvoiceController extends AbstractController
 
         try {
             $amount = trim((string) $request->request->get('amount', ''));
-            $date = new DateTimeImmutable((string) $request->request->get('paid_at', ''));
+            $date = $this->parseFormDate((string) $request->request->get('paid_at', ''), 'Date de règlement');
             $method = (string) $request->request->get('method', '');
             $reference = (string) $request->request->get('reference', '');
             $note = (string) $request->request->get('note', '');
 
-            $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice, $amount, $date, $method, $reference, $note): void {
+            $entityManager->getConnection()->transactional(function () use ($entityManager, $invoice, $amount, $date, $method, $reference, $note, $posting): void {
                 $entityManager->lock($invoice, LockMode::PESSIMISTIC_WRITE);
+                // The route converter loaded this entity before the transaction and lock.
+                // Refresh it after acquiring the lock so balance/status checks use current database state.
+                $entityManager->refresh($invoice);
                 $payment = new SalesPayment($invoice, $amount, $date, $method, $reference, $note);
                 $invoice->addPayment($payment);
                 $entityManager->persist($payment);
                 $entityManager->flush();
+                $posting->postSalesPayment((int) $payment->getId());
             });
-            $this->addFlash('success', 'Le règlement a été enregistré.');
+            $this->addFlash('success', 'Le règlement a été enregistré et comptabilisé.');
         } catch (InvalidArgumentException $exception) {
             $this->addFlash('error', $exception->getMessage());
         } catch (\Throwable) {
@@ -165,7 +173,22 @@ final class SalesInvoiceController extends AbstractController
         return $this->redirectToRoute('app_sales_invoice_show', ['id' => $invoice->getId()]);
     }
 
-    #[Route('/{id}', name: 'app_sales_invoice_show', requirements: ['id' => '\\d+'], methods: ['GET'])]
+    private function parseFormDate(string $value, string $label): DateTimeImmutable
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/D', $value)) {
+            throw new InvalidArgumentException($label.' : format attendu AAAA-MM-JJ.');
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        $errors = DateTimeImmutable::getLastErrors();
+        if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) || $date->format('Y-m-d') !== $value) {
+            throw new InvalidArgumentException($label.' : date calendrier invalide.');
+        }
+
+        return $date;
+    }
+
+    #[Route('/{id}', name: 'app_sales_invoice_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(SalesInvoice $invoice, EntityManagerInterface $entityManager): Response
     {
         $profile = $entityManager->find(CompanyProfile::class, 1);

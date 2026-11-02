@@ -35,8 +35,14 @@ final class CreateUserCommand extends Command
             $io->error('Set SYMFOERP_ADMIN_EMAIL and SYMFOERP_ADMIN_PASSWORD in the command environment.');
             return Command::INVALID;
         }
-        if (strlen($plainPassword) < 12) {
-            $io->error('The administrator password must contain at least 12 characters.');
+        $isExplicitLocalTestAccount =
+            getenv('APP_ENV') === 'dev'
+            && getenv('SYMFOERP_TEST_MODE') === '1'
+            && mb_strtolower($email) === 'admin@local.local'
+            && $plainPassword === 'admin';
+
+        if (strlen($plainPassword) < 12 && !$isExplicitLocalTestAccount) {
+            $io->error('The administrator password must contain at least 12 characters (except the explicit local test account).');
             return Command::INVALID;
         }
         if ($this->users->findOneBy(['email' => mb_strtolower($email)]) !== null) {

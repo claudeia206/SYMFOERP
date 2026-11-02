@@ -1,0 +1,165 @@
+<?php
+
+declare(strict_types=1);
+
+require dirname(__DIR__).'/src/Service/StockQuantity.php';
+require dirname(__DIR__).'/src/Entity/Product.php';
+require dirname(__DIR__).'/src/Service/AccountingAmount.php';
+require dirname(__DIR__).'/src/Entity/SalesInvoiceLine.php';
+require dirname(__DIR__).'/src/Entity/SalesOrderLine.php';
+require dirname(__DIR__).'/src/Entity/SupplierInvoiceLine.php';
+require dirname(__DIR__).'/src/Entity/SalesQuoteLine.php';
+require dirname(__DIR__).'/src/Entity/PurchaseOrderLine.php';
+require dirname(__DIR__).'/src/Entity/SalesPayment.php';
+require dirname(__DIR__).'/src/Entity/SupplierPayment.php';
+require dirname(__DIR__).'/src/Entity/SalesInvoice.php';
+require dirname(__DIR__).'/src/Entity/SupplierInvoice.php';
+
+use App\Service\StockQuantity;
+
+$assert = static function (bool $condition, string $message): void {
+    if (!$condition) {
+        throw new RuntimeException($message);
+    }
+};
+
+$assert(StockQuantity::toMilliunits('12') === 12000, 'Integer quantities must be converted exactly.');
+$assert(StockQuantity::toMilliunits('12.3') === 12300, 'One decimal place must be scaled exactly.');
+$assert(StockQuantity::toMilliunits('0.001') === 1, 'Smallest supported quantity must be preserved.');
+$assert(StockQuantity::toMilliunits('-1.125', true) === -1125, 'Negative movements must be preserved.');
+$assert(StockQuantity::format(-1125) === '-1.125', 'Negative quantities must be formatted exactly.');
+$assert(StockQuantity::format(12345) === '12.345', 'Quantities must be formatted with three decimals.');
+
+foreach (['1e3', '1,25', '1.0001', '-1', '', '1000000000'] as $invalid) {
+    try {
+        StockQuantity::toMilliunits($invalid);
+        throw new RuntimeException('Invalid stock quantity was accepted: '.$invalid);
+    } catch (\InvalidArgumentException) {
+    }
+}
+
+try {
+    StockQuantity::toMilliunits('-0.001');
+    throw new RuntimeException('Negative quantity was accepted for an inbound quantity.');
+} catch (\InvalidArgumentException) {
+}
+
+$productValues = [
+    'sku' => 'SKU-STOCK-TEST',
+    'name' => 'Produit stock test',
+    'unit' => 'pièce',
+    'purchase_price' => '9999999999.99',
+    'sale_price' => '12.30',
+    'vat_rate' => '20.00',
+    'stock_tracked' => '1',
+    'stock_alert_threshold' => '0',
+    'active' => '1',
+];
+$product = new \App\Entity\Product('SKU-STOCK-TEST', 'Produit stock test');
+$product->update($productValues);
+$assert($product->getPurchasePrice() === '9999999999.99', 'Maximum product price must be stored without float conversion.');
+$maximumVatValues = $productValues;
+$maximumVatValues['vat_rate'] = '100.00';
+$product->update($maximumVatValues);
+$assert($product->getVatRate() === '100.00', 'A VAT rate of exactly 100 percent must be accepted.');
+$invoiceStub = (new \ReflectionClass(\App\Entity\SalesInvoice::class))->newInstanceWithoutConstructor();
+$salesPayment = new \App\Entity\SalesPayment($invoiceStub, '12.3', new \DateTimeImmutable('2026-01-01'), 'bank_transfer');
+$supplierInvoiceStub = (new \ReflectionClass(\App\Entity\SupplierInvoice::class))->newInstanceWithoutConstructor();
+$supplierPayment = new \App\Entity\SupplierPayment($supplierInvoiceStub, '12.30', new \DateTimeImmutable('2026-01-01'), 'bank_transfer');
+$assert($salesPayment->getAmount() === '12.30', 'Customer payments must be normalized to exact cents.');
+$assert($supplierPayment->getAmount() === '12.30', 'Supplier payments must be normalized to exact cents.');
+foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00', '0.00'] as $invalidPayment) {
+    try {
+        new \App\Entity\SalesPayment($invoiceStub, $invalidPayment, new \DateTimeImmutable('2026-01-01'), 'bank_transfer');
+        throw new RuntimeException('Invalid payment amount was accepted: '.$invalidPayment);
+    } catch (\InvalidArgumentException) {
+    }
+}
+try {
+    new \App\Entity\SalesPayment($invoiceStub, '1.00', new \DateTimeImmutable('2026-01-01'), 'unknown');
+    throw new RuntimeException('Invalid customer payment method was accepted.');
+} catch (\InvalidArgumentException) {
+}
+try {
+    new \App\Entity\SupplierPayment($supplierInvoiceStub, '1.00', new \DateTimeImmutable('2026-01-01'), 'unknown');
+    throw new RuntimeException('Invalid supplier payment method was accepted.');
+} catch (\InvalidArgumentException) {
+}
+
+$productValues['purchase_price'] = '12.30';
+$product->update($productValues);
+foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00', 1.25] as $invalidPrice) {
+    $invalidValues = $productValues;
+    $invalidValues['purchase_price'] = $invalidPrice;
+    try {
+        (new \App\Entity\Product('SKU-STOCK-TEST', 'Produit stock test'))->update($invalidValues);
+        throw new RuntimeException('Invalid product price was accepted: '.var_export($invalidPrice, true));
+    } catch (\InvalidArgumentException) {
+    }
+}
+$invalidVatValues = $productValues;
+$invalidVatValues['vat_rate'] = '100.01';
+try {
+    (new \App\Entity\Product('SKU-STOCK-TEST', 'Produit stock test'))->update($invalidVatValues);
+    throw new RuntimeException('VAT rate above 100 percent was accepted.');
+} catch (\InvalidArgumentException) {
+}
+
+$salesLine = new \App\Entity\SalesInvoiceLine('Ligne test', '1.250', '12.30', '20.00', 1);
+$assert($salesLine->getUnitPrice() === '12.30' && $salesLine->getVatRate() === '20.00', 'Sales invoice line decimals must be normalized exactly.');
+$supplierLine = new \App\Entity\SupplierInvoiceLine($product, 'Ligne test', '1.250', '12.30', '20.00', 1);
+$assert($supplierLine->getUnitPrice() === '12.30' && $supplierLine->getVatRate() === '20.00', 'Supplier invoice line decimals must be normalized exactly.');
+$orderLine = new \App\Entity\SalesOrderLine('Ligne test', '1.250', '12.30', '20.00', 1, $product);
+$assert($orderLine->getUnitPrice() === '12.30' && $orderLine->getVatRate() === '20.00', 'Sales order line decimals must be normalized exactly.');
+$quoteLine = new \App\Entity\SalesQuoteLine('Ligne devis', '1.250', '12.30', '20.00', 1);
+$purchaseLine = new \App\Entity\PurchaseOrderLine($product, '1.250', 1);
+foreach ([$salesLine, $supplierLine, $orderLine, $quoteLine, $purchaseLine] as $line) {
+    $assert($line->getTotalExcludingTaxCents() === 1538, 'Line net must be rounded half-up to the cent without floats.');
+    $assert($line->getTotalTaxCents() === 308, 'Line VAT must be calculated from rounded net cents.');
+    $assert($line->getTotalIncludingTaxCents() === 1846, 'Line gross total must be the exact sum of net and VAT cents.');
+}
+$assert($quoteLine->getUnitPrice() === '12.30', 'Quote line price must be normalized without floats.');
+foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00'] as $invalidPrice) {
+    try {
+        new \App\Entity\SalesQuoteLine('Ligne devis', '1.000', $invalidPrice, '20.00', 1);
+        throw new RuntimeException('Invalid quote line price was accepted: '.$invalidPrice);
+    } catch (\InvalidArgumentException) {
+    }
+}
+try {
+    \App\Service\AccountingAmount::lineNetCents('9999999.999', '9999999999.99');
+    throw new RuntimeException('An amount beyond accounting precision was accepted.');
+} catch (\InvalidArgumentException) {
+}
+$assert(\App\Service\AccountingAmount::lineNetCents('100.000', '9999999999.99') === 99999999999900, 'Line totals must support the full 12-whole-digit journal precision.');
+$assert(\App\Service\AccountingAmount::taxCents(99999999999999, '100.00') === 99999999999999, 'VAT calculation must support the maximum journal amount.');
+try {
+    \App\Service\AccountingAmount::lineNetCents('100.001', '9999999999.99');
+    throw new RuntimeException('A line total beyond journal precision was accepted.');
+} catch (\InvalidArgumentException) {
+}
+
+foreach (['1e3', '1,25', '01.00', '1.001', '10000000000.00'] as $invalidPrice) {
+    try {
+        new \App\Entity\SalesInvoiceLine('Ligne test', '1.000', $invalidPrice, '20.00', 1);
+        throw new RuntimeException('Invalid sales invoice unit price was accepted: '.$invalidPrice);
+    } catch (\InvalidArgumentException) {
+    }
+}
+try {
+    new \App\Entity\SalesInvoiceLine('Ligne test', '1.000', '12.30', '100.01', 1);
+    throw new RuntimeException('VAT rate above 100 percent was accepted on a sales invoice line.');
+} catch (\InvalidArgumentException) {
+}
+try {
+    new \App\Entity\SupplierInvoiceLine($product, 'Ligne test', '1.000', '1e3', '20.00', 1);
+    throw new RuntimeException('Scientific notation was accepted on a supplier invoice line.');
+} catch (\InvalidArgumentException) {
+}
+try {
+    new \App\Entity\SalesOrderLine('Ligne test', '1.000', '12.30', '100.01', 1, $product);
+    throw new RuntimeException('VAT rate above 100 percent was accepted on a sales order line.');
+} catch (\InvalidArgumentException) {
+}
+
+echo "Exact stock quantity smoke checks passed.\n";

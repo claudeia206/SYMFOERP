@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\StockQuantity;
+use App\Service\AccountingAmount;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 
@@ -41,14 +43,17 @@ class SupplierInvoiceLine
     public function __construct(Product $product, string $description, string $quantity, string $unitPrice, string $vatRate, int $position)
     {
         $description = trim($description);
-        if ($description === '' || mb_strlen($description) > 255 || !is_numeric($quantity) || (float) $quantity <= 0 || !is_numeric($unitPrice) || (float) $unitPrice < 0 || !is_numeric($vatRate) || (float) $vatRate < 0 || (float) $vatRate > 100) {
+        $quantityMilliunits = StockQuantity::toMilliunits($quantity);
+        $unitPriceCents = AccountingAmount::toCents($unitPrice);
+        $vatRateCents = AccountingAmount::toCents($vatRate);
+        if ($description === '' || mb_strlen($description) > 255 || $quantityMilliunits <= 0 || $quantityMilliunits > 9_999_999_999 || $unitPriceCents < 0 || $unitPriceCents > 999999999999 || $vatRateCents < 0 || $vatRateCents > 10000) {
             throw new InvalidArgumentException('Ligne de facture fournisseur invalide.');
         }
         $this->product = $product;
         $this->description = $description;
-        $this->quantity = number_format((float) $quantity, 3, '.', '');
-        $this->unitPrice = number_format((float) $unitPrice, 2, '.', '');
-        $this->vatRate = number_format((float) $vatRate, 2, '.', '');
+        $this->quantity = StockQuantity::format($quantityMilliunits);
+        $this->unitPrice = AccountingAmount::formatCents($unitPriceCents);
+        $this->vatRate = AccountingAmount::formatCents($vatRateCents);
         $this->position = max(1, $position);
     }
     public function getId(): ?int { return $this->id; }
@@ -59,7 +64,22 @@ class SupplierInvoiceLine
     public function getUnitPrice(): string { return $this->unitPrice; }
     public function getVatRate(): string { return $this->vatRate; }
     public function getPosition(): int { return $this->position; }
-    public function getTotalExcludingTax(): float { return round((float) $this->quantity * (float) $this->unitPrice, 2); }
-    public function getTotalTax(): float { return round($this->getTotalExcludingTax() * (float) $this->vatRate / 100, 2); }
-    public function getTotalIncludingTax(): float { return $this->getTotalExcludingTax() + $this->getTotalTax(); }
+    public function getTotalExcludingTaxCents(): int
+    {
+        return AccountingAmount::lineNetCents($this->quantity, $this->unitPrice);
+    }
+
+    public function getTotalTaxCents(): int
+    {
+        return AccountingAmount::taxCents($this->getTotalExcludingTaxCents(), $this->vatRate);
+    }
+
+    public function getTotalIncludingTaxCents(): int
+    {
+        return AccountingAmount::addCents($this->getTotalExcludingTaxCents(), $this->getTotalTaxCents());
+    }
+
+    public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
+    public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
+    public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
 }

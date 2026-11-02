@@ -1,0 +1,202 @@
+<?php
+declare(strict_types=1);
+namespace App\Controller;
+use App\Service\AccountingAmount;
+use App\Service\AccountingPeriodGuard;
+use App\Service\TrialBalanceCsvFormatter;
+use DateTimeImmutable;
+use Doctrine\DBAL\Connection;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+use Throwable;
+#[Route('/accounting')]
+final class GeneralLedgerController extends AbstractController
+{
+    #[Route('',name:'app_general_ledger',methods:['GET'])]
+    public function index(Connection $db,Request $request):Response
+    {
+        $from=(string)$request->query->get('from',(new DateTimeImmutable('first day of january this year'))->format('Y-m-d'));
+        $to=(string)$request->query->get('to',(new DateTimeImmutable('today'))->format('Y-m-d'));
+        $this->validatePeriod($from,$to);
+        $accounts=$db->fetchAllAssociative(
+            'SELECT a.id,a.code,a.name,a.account_class,a.is_active,
+                    COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.debit ELSE 0 END),0) AS opening_debit,
+                    COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.credit ELSE 0 END),0) AS opening_credit,
+                    COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.debit ELSE 0 END),0) AS debit,
+                    COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.credit ELSE 0 END),0) AS credit
+             FROM app_accounting_account a
+             LEFT JOIN app_journal_entry_line l ON l.account_id=a.id
+             LEFT JOIN app_journal_entry e ON e.id=l.entry_id AND e.status=?
+             GROUP BY a.id,a.code,a.name,a.account_class,a.is_active ORDER BY a.code',
+            [$from,$from,$from,$to,$from,$to,'posted']
+        );
+        $debitTotal=0;$creditTotal=0;$balanceDebitTotal=0;$balanceCreditTotal=0;
+        foreach($accounts as &$account){
+            $openingDebit=AccountingAmount::toCents((string)$account['opening_debit']);
+            $openingCredit=AccountingAmount::toCents((string)$account['opening_credit']);
+            $debit=AccountingAmount::toCents((string)$account['debit']);
+            $credit=AccountingAmount::toCents((string)$account['credit']);
+            $openingBalance=AccountingAmount::addSignedCents($openingDebit,-$openingCredit);
+            $account['opening_balance']=AccountingAmount::formatCents($openingBalance);
+            $account['opening_balance_display']=AccountingAmount::formatFrenchCents(abs($openingBalance));
+            $account['opening_side']=$openingBalance>0?'D':($openingBalance<0?'C':'—');
+            $account['debit']=AccountingAmount::formatFrenchCents($debit);
+            $account['credit']=AccountingAmount::formatFrenchCents($credit);
+            $closingBalance=AccountingAmount::addSignedCents($openingBalance,$debit,-$credit);
+            if($closingBalance>0)$balanceDebitTotal=AccountingAmount::addCents($balanceDebitTotal,$closingBalance);
+            elseif($closingBalance<0)$balanceCreditTotal=AccountingAmount::addCents($balanceCreditTotal,-$closingBalance);
+            $account['balance']=AccountingAmount::formatCents($closingBalance);
+            $account['balance_display']=AccountingAmount::formatFrenchCents(abs($closingBalance));
+            $account['balance_side']=$closingBalance>0?'D':($closingBalance<0?'C':'—');
+            $debitTotal=AccountingAmount::addCents($debitTotal,$debit);$creditTotal=AccountingAmount::addCents($creditTotal,$credit);
+        }
+        unset($account);
+        $journals=$db->fetchAllAssociative('SELECT id,code,name FROM app_accounting_journal ORDER BY code');
+        $entries=$db->fetchAllAssociative('SELECT e.id,e.entry_number,e.entry_date,e.reference,e.description,e.reversal_of_entry_id,r.id AS reversed_by_id,r.entry_number AS reversed_by_number,j.code AS journal_code,j.name AS journal_name,COALESCE(SUM(l.debit),0) AS debit,COALESCE(SUM(l.credit),0) AS credit FROM app_journal_entry e INNER JOIN app_accounting_journal j ON j.id=e.journal_id INNER JOIN app_journal_entry_line l ON l.entry_id=e.id LEFT JOIN app_journal_entry r ON r.reversal_of_entry_id=e.id WHERE e.status=? AND e.entry_date BETWEEN ? AND ? GROUP BY e.id,e.entry_number,e.entry_date,e.reference,e.description,e.reversal_of_entry_id,r.id,r.entry_number,j.code,j.name ORDER BY e.entry_date DESC,e.id DESC LIMIT 100',['posted',$from,$to]);
+        foreach($entries as &$entry){
+            $entry['debit']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$entry['debit']));
+            $entry['credit']=AccountingAmount::formatFrenchCents(AccountingAmount::toCents((string)$entry['credit']));
+        }
+        unset($entry);
+        return $this->render('general_ledger/index.html.twig',['accounts'=>$accounts,'journals'=>$journals,'entries'=>$entries,'from'=>$from,'to'=>$to,'debit_total'=>AccountingAmount::formatFrenchCents($debitTotal),'credit_total'=>AccountingAmount::formatFrenchCents($creditTotal),'balance_debit_total'=>AccountingAmount::formatFrenchCents($balanceDebitTotal),'balance_credit_total'=>AccountingAmount::formatFrenchCents($balanceCreditTotal)]);
+    }
+
+    #[Route('/export.csv', name: 'app_general_ledger_export', methods: ['GET'])]
+    public function export(Request $request, Connection $db, TrialBalanceCsvFormatter $formatter): Response
+    {
+        $from = (string) $request->query->get('from', (new DateTimeImmutable('first day of january this year'))->format('Y-m-d'));
+        $to = (string) $request->query->get('to', (new DateTimeImmutable('today'))->format('Y-m-d'));
+        $this->validatePeriod($from, $to);
+
+        $accounts = $db->fetchAllAssociative(
+            'SELECT a.code, a.name, a.account_class,
+                    COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.debit ELSE 0 END), 0) AS opening_debit,
+                    COALESCE(SUM(CASE WHEN e.entry_date < ? THEN l.credit ELSE 0 END), 0) AS opening_credit,
+                    COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.debit ELSE 0 END), 0) AS period_debit,
+                    COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.credit ELSE 0 END), 0) AS period_credit
+             FROM app_accounting_account a
+             LEFT JOIN app_journal_entry_line l ON l.account_id = a.id
+             LEFT JOIN app_journal_entry e ON e.id = l.entry_id AND e.status = ?
+             GROUP BY a.id, a.code, a.name, a.account_class
+             ORDER BY a.code',
+            [$from, $from, $from, $to, $from, $to, 'posted']
+        );
+
+        $csv = $formatter->format($accounts);
+
+        return new Response($csv, Response::HTTP_OK, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => sprintf('attachment; filename="balance-generale-%s-%s.csv"', $from, $to),
+            'Cache-Control' => 'no-store, private',
+        ]);
+    }
+
+    #[Route('/entries',name:'app_general_ledger_entry_create',methods:['POST'])]
+    public function create(Request $request,Connection $db, AccountingPeriodGuard $periodGuard):Response
+    {
+        if(!$this->isCsrfTokenValid('general_ledger_entry',(string)$request->request->get('_token')))throw $this->createAccessDeniedException();
+        try{
+            $date=(string)$request->request->get('entry_date','');$parsed=DateTimeImmutable::createFromFormat('!Y-m-d',$date);
+            if(!$parsed||$parsed->format('Y-m-d')!==$date)throw new \InvalidArgumentException('Date d’écriture invalide.');
+            $journalId=$this->parsePositiveId($request->request->get('journal_id'));$description=trim((string)$request->request->get('description',''));
+            $reference=trim((string)$request->request->get('reference',''));
+            if($description===''||mb_strlen($description)>255||mb_strlen($reference)>120)throw new \InvalidArgumentException('Libellé obligatoire (255 caractères maximum) et référence limitée à 120 caractères.');
+            if($journalId===null)throw new \InvalidArgumentException('Journal comptable invalide.');
+            $journal=$db->fetchAssociative('SELECT id FROM app_accounting_journal WHERE id=?',[$journalId]);
+            if(!$journal)throw new \InvalidArgumentException('Journal comptable inconnu.');
+            $raw=$request->request->all('lines');
+            if(count($raw)<2||count($raw)>30)throw new \InvalidArgumentException('Une écriture doit comporter entre 2 et 30 lignes.');
+            $lines=[];$debitCents=0;$creditCents=0;
+            foreach($raw as $line){
+                if(!is_array($line))throw new \InvalidArgumentException('Format de ligne comptable invalide.');
+                $accountId=$this->parsePositiveId($line['account_id']??null);$label=trim((string)($line['label']??''))?:$description;
+                $debit=$this->toCents((string)($line['debit']??'0'));$credit=$this->toCents((string)($line['credit']??'0'));
+                if($accountId===null&&$debit===0&&$credit===0&&trim((string)($line['label']??''))==='')continue;
+                if($accountId===null||$label===''||mb_strlen($label)>255||(($debit>0)===($credit>0)))throw new \InvalidArgumentException('Chaque ligne doit avoir un compte, un libellé et un seul montant au débit ou au crédit.');
+                $lines[]=['account_id'=>$accountId,'label'=>$label,'debit'=>$debit,'credit'=>$credit];$debitCents=AccountingAmount::addCents($debitCents,$debit);$creditCents=AccountingAmount::addCents($creditCents,$credit);
+            }
+            if($debitCents<=0||$debitCents!==$creditCents)throw new \InvalidArgumentException('Écriture déséquilibrée : le total débit doit être égal au total crédit.');
+            $db->beginTransaction();
+            try{
+                $periodGuard->assertOpenDate($db, $date);
+                foreach(array_unique(array_column($lines,'account_id')) as $accountId){
+                    $account=$db->fetchAssociative('SELECT id FROM app_accounting_account WHERE id=? AND is_active=1 FOR UPDATE',[$accountId]);
+                    if(!$account)throw new \InvalidArgumentException('Un compte sélectionné est inexistant ou inactif.');
+                }
+                $db->fetchOne('SELECT id FROM app_accounting_journal WHERE id=? FOR UPDATE',[$journalId]);
+                $number=(int)$db->fetchOne('SELECT COALESCE(MAX(entry_number),0)+1 FROM app_journal_entry WHERE journal_id=?',[$journalId]);
+                $db->insert('app_journal_entry',['journal_id'=>$journalId,'entry_number'=>$number,'entry_date'=>$date,'reference'=>$reference!==''?$reference:null,'description'=>$description,'status'=>'posted','created_at'=>(new DateTimeImmutable())->format('Y-m-d H:i:s')]);
+                $entryId=(int)$db->lastInsertId();
+                foreach($lines as $line)$db->insert('app_journal_entry_line',['entry_id'=>$entryId,'account_id'=>$line['account_id'],'label'=>$line['label'],'debit'=>AccountingAmount::formatCents($line['debit']),'credit'=>AccountingAmount::formatCents($line['credit'])]);
+                $db->commit();
+            }catch(Throwable $e){$db->rollBack();throw $e;}
+            $this->addFlash('success',sprintf('Écriture %s-%06d enregistrée et équilibrée.',$db->fetchOne('SELECT code FROM app_accounting_journal WHERE id=?',[$journalId]),$number));
+        }catch(\InvalidArgumentException $e){$this->addFlash('error',$e->getMessage());}
+        catch(Throwable){$this->addFlash('error','Impossible d’enregistrer cette écriture comptable.');}
+        return $this->redirectToRoute('app_general_ledger');
+    }
+
+    #[Route('/accounts/{id}',name:'app_general_ledger_account',requirements:['id'=>'\\d+'],methods:['GET'])]
+    public function account(int $id,Connection $db,Request $request):Response
+    {
+        $from=(string)$request->query->get('from',(new DateTimeImmutable('first day of january this year'))->format('Y-m-d'));
+        $to=(string)$request->query->get('to',(new DateTimeImmutable('today'))->format('Y-m-d'));$this->validatePeriod($from,$to);
+        $account=$db->fetchAssociative('SELECT * FROM app_accounting_account WHERE id=?',[$id]);
+        if(!$account)throw $this->createNotFoundException();
+        $opening=$db->fetchAssociative(
+            'SELECT COALESCE(SUM(l.debit),0) AS debit, COALESCE(SUM(l.credit),0) AS credit
+             FROM app_journal_entry_line l
+             INNER JOIN app_journal_entry e ON e.id=l.entry_id
+             WHERE l.account_id=? AND e.status=? AND e.entry_date < ?',
+            [$id,'posted',$from]
+        ) ?: ['debit'=>'0.00','credit'=>'0.00'];
+        $openingCents=AccountingAmount::addSignedCents(AccountingAmount::toCents((string)$opening['debit']),-AccountingAmount::toCents((string)$opening['credit']));
+        $lines=$db->fetchAllAssociative('SELECT e.entry_date,j.code AS journal_code,e.entry_number,e.reference,e.description,l.label,l.debit,l.credit FROM app_journal_entry_line l INNER JOIN app_journal_entry e ON e.id=l.entry_id INNER JOIN app_accounting_journal j ON j.id=e.journal_id WHERE l.account_id=? AND e.status=? AND e.entry_date BETWEEN ? AND ? ORDER BY e.entry_date,e.id,l.id',[$id,'posted',$from,$to]);
+        $balanceCents=$openingCents;
+        foreach($lines as &$line){
+            $debit=AccountingAmount::toCents((string)$line['debit']);
+            $credit=AccountingAmount::toCents((string)$line['credit']);
+            $balanceCents=AccountingAmount::addSignedCents($balanceCents,$debit,-$credit);
+            $line['debit']=AccountingAmount::formatFrenchCents($debit);
+            $line['credit']=AccountingAmount::formatFrenchCents($credit);
+            $line['balance']=AccountingAmount::formatFrenchCents(abs($balanceCents));
+            $line['balance_side']=$balanceCents>0?'D':($balanceCents<0?'C':'—');
+        }
+        unset($line);
+        return $this->render('general_ledger/account.html.twig',[
+            'account'=>$account,'lines'=>$lines,'from'=>$from,'to'=>$to,
+            'opening_balance'=>AccountingAmount::formatFrenchCents(abs($openingCents)),
+            'opening_side'=>$openingCents>0?'D':($openingCents<0?'C':'—'),
+            'balance'=>AccountingAmount::formatFrenchCents(abs($balanceCents)),
+            'balance_side'=>$balanceCents>0?'débiteur':($balanceCents<0?'créditeur':'nul'),
+        ]);
+    }
+
+    private function parsePositiveId(mixed $value):?int
+    {
+        if(!is_string($value)&&!is_int($value))return null;
+        $raw=trim((string)$value);
+        if(!preg_match('/^[1-9]\d{0,8}$/D',$raw))return null;
+        return (int)$raw;
+    }
+
+    private function toCents(string $value):int
+    {
+        $value=trim($value);
+        $grouping='[ \\x{00A0}\\x{202F}]';
+        if(!preg_match('/^(?:0|[1-9]\\d{0,11}|[1-9]\\d{0,2}(?:'.$grouping.'\\d{3})+)(?:[,.]\\d{1,2})?$/uD',$value)){
+            throw new \InvalidArgumentException('Montant invalide : groupement des milliers et deux décimales maximum.');
+        }
+        $normalized=preg_replace('/'.$grouping.'/u','',$value);
+        $normalized=str_replace(',','.',$normalized);
+
+        return AccountingAmount::toCents($normalized);
+    }
+    private function validatePeriod(string $from,string $to):void
+    {
+        $a=DateTimeImmutable::createFromFormat('!Y-m-d',$from);$b=DateTimeImmutable::createFromFormat('!Y-m-d',$to);
+        if(!$a||!$b||$a->format('Y-m-d')!==$from||$b->format('Y-m-d')!==$to||$from>$to)throw new \InvalidArgumentException('Période comptable invalide.');
+    }
+}

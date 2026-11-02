@@ -32,6 +32,7 @@ expectInvoice($invoice->getLines()->count() === 1, 'Invoice must copy order line
 expectInvoice($invoice->getTotalExcludingTax() === 100.0, 'Invoice subtotal must match order subtotal.');
 expectInvoice($invoice->getTotalTax() === 20.0, 'Invoice VAT must be calculated per line.');
 expectInvoice($invoice->getTotalIncludingTax() === 120.0, 'Invoice total must include VAT.');
+expectInvoice($invoice->getTotalExcludingTaxCents() === 10000 && $invoice->getTotalTaxCents() === 2000 && $invoice->getTotalIncludingTaxCents() === 12000, 'Invoice totals must remain exact in integer cents.');
 expectInvoice($invoice->getCustomer() === $customer, 'Invoice must retain the order customer.');
 expectInvoice($invoice->getPaidAmount() === 0.0, 'New invoices must have no payments.');
 expectInvoice($invoice->getRemainingAmount() === 120.0, 'New invoices must have their full balance outstanding.');
@@ -45,6 +46,22 @@ $profile->update([
     'vatRegimeNote' => 'TVA selon régime applicable',
 ]);
 expectInvoice($profile->getInvoiceReadinessErrors() === [], 'Complete seller profile must be ready for invoice issuance.');
+expectInvoice($profile->getRecoveryFee() === '40.00', 'Recovery fee must be normalized to exact cents.');
+foreach (['1e2', '1,00', '-1.00', 1.25] as $invalidRecoveryFee) {
+    $invalidProfile = new CompanyProfile();
+    try {
+        $invalidProfile->update([
+            'legalName' => 'Société de test', 'address' => '1 rue du Test',
+            'postalCode' => '17000', 'city' => 'La Rochelle', 'country' => 'France',
+            'siren' => '123456789', 'siret' => '12345678900012',
+            'paymentTerms' => 'Paiement à 30 jours', 'latePenaltyRate' => 'Taux légal applicable',
+            'recoveryFee' => $invalidRecoveryFee, 'vatRegimeNote' => 'TVA selon régime applicable',
+        ]);
+        throw new RuntimeException('Invalid recovery fee was accepted: '.var_export($invalidRecoveryFee, true));
+    } catch (InvalidArgumentException) {
+    }
+}
+
 $customerSnapshot = ['name' => 'Client facture test', 'address' => '2 rue Client', 'postal_code' => '17000', 'city' => 'La Rochelle'];
 $invoice->issue('FAC-2026-000001', new DateTimeImmutable('2026-10-30 12:00:00'), new DateTimeImmutable('2026-11-29 12:00:00'), $profile->toInvoiceSnapshot(), $customerSnapshot);
 expectInvoice($invoice->getStatus() === SalesInvoice::STATUS_ISSUED, 'Issuing a draft must change its status.');
@@ -57,11 +74,23 @@ try {
 } catch (InvalidArgumentException) {
     // An issued invoice is immutable and cannot receive a second number.
 }
+$normalizedPayment = new SalesPayment($invoice, '0.5', new DateTimeImmutable('2026-10-30'), 'cash');
+expectInvoice($normalizedPayment->getAmount() === '0.50', 'Payment amounts must be normalized without floating-point conversion.');
+foreach (['0', '-1.00', '+1.00', '01.00', '1,00', '1.001', '1e2', '10000000000.00'] as $invalidAmount) {
+    try {
+        new SalesPayment($invoice, $invalidAmount, new DateTimeImmutable('2026-10-30'), 'cash');
+        throw new RuntimeException('Invalid customer payment amount was accepted: '.$invalidAmount);
+    } catch (InvalidArgumentException) {
+        // Payment amounts must use a positive, bounded decimal representation.
+    }
+}
+
 $firstPayment = new SalesPayment($invoice, '40.00', new DateTimeImmutable('2026-10-30'), 'bank_transfer', 'VIR-001');
 $invoice->addPayment($firstPayment);
 expectInvoice($invoice->getStatus() === SalesInvoice::STATUS_PARTIALLY_PAID, 'Partial payment must update invoice status.');
 expectInvoice($invoice->getPaidAmount() === 40.0, 'Paid amount must aggregate payments.');
 expectInvoice($invoice->getRemainingAmount() === 80.0, 'Remaining balance must decrease after payment.');
+expectInvoice($invoice->getPaidAmountCents() === 4000 && $invoice->getRemainingAmountCents() === 8000, 'Payment and remaining balance getters must preserve exact cents.');
 
 $secondPayment = new SalesPayment($invoice, '80.00', new DateTimeImmutable('2026-10-30'), 'card');
 $invoice->addPayment($secondPayment);
@@ -73,6 +102,17 @@ try {
     throw new RuntimeException('An overpayment was accepted.');
 } catch (InvalidArgumentException) {
     // Fully settled invoices reject further payments.
+}
+
+$boundaryInvoice = new SalesInvoice($order);
+$boundaryInvoice->issue('FAC-2026-000002', new DateTimeImmutable('2026-10-30 12:00:00'), new DateTimeImmutable('2026-11-29 12:00:00'), $profile->toInvoiceSnapshot(), $customerSnapshot);
+$boundaryInvoice->addPayment(new SalesPayment($boundaryInvoice, '119.99', new DateTimeImmutable('2026-10-30'), 'bank_transfer'));
+expectInvoice($boundaryInvoice->getRemainingAmountCents() === 1, 'A one-cent customer balance must remain outstanding exactly.');
+try {
+    $boundaryInvoice->addPayment(new SalesPayment($boundaryInvoice, '0.02', new DateTimeImmutable('2026-10-30'), 'cash'));
+    throw new RuntimeException('A customer payment one cent above the balance was accepted.');
+} catch (InvalidArgumentException) {
+    // Integer-cent comparisons must reject even a one-cent overpayment.
 }
 
 $order->setStatus(SalesOrder::STATUS_CANCELLED);

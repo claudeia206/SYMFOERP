@@ -27,22 +27,27 @@ $catalogLine->setProduct($catalogProduct);
 $quote->addLine($catalogLine);
 $catalogProduct->adjustStock('10');
 $quote->addLine(new SalesQuoteLine('Frais de dossier', '1', '10.00', '0.00', 2));
+$quote->addLine(new SalesQuoteLine('Arrondi au centime', '1.250', '12.30', '20.00', 3));
 
 expectSales($quote->getStatus() === SalesQuote::STATUS_DRAFT, 'New quotes must start as drafts.');
-expectSales($quote->getLines()->count() === 2, 'Quote lines must be attached to their quote.');
-expectSales($quote->getTotalExcludingTax() === 110.0, 'The quote subtotal must be calculated correctly.');
-expectSales($quote->getTotalTax() === 20.0, 'VAT must be rounded and summed per line.');
-expectSales($quote->getTotalIncludingTax() === 130.0, 'The total including VAT must be calculated correctly.');
+expectSales($quote->getLines()->count() === 3, 'Quote lines must be attached to their quote.');
+expectSales($quote->getTotalExcludingTax() === 125.38, 'The quote subtotal must be calculated correctly.');
+expectSales($quote->getTotalTax() === 23.08, 'VAT must be rounded and summed per line.');
+expectSales($quote->getTotalIncludingTax() === 148.46, 'The total including VAT must be calculated correctly.');
+expectSales($quote->getTotalExcludingTaxCents() === 12538, 'Quote subtotal must be aggregated in exact cents.');
+expectSales($quote->getTotalTaxCents() === 2308, 'Quote VAT must be aggregated in exact cents.');
+expectSales($quote->getTotalIncludingTaxCents() === 14846, 'Quote gross total must be aggregated in exact cents.');
 
 $quote->setStatus(SalesQuote::STATUS_SENT);
 expectSales($quote->getStatus() === SalesQuote::STATUS_SENT, 'Quote status must be mutable to a supported state.');
 $quote->setStatus(SalesQuote::STATUS_ACCEPTED);
 $order = new SalesOrder($quote);
-expectSales($order->getLines()->count() === 2, 'Order conversion must copy all quote lines.');
+expectSales($order->getLines()->count() === 3, 'Order conversion must copy all quote lines.');
 expectSales($order->getLines()->first()->getProduct() === $catalogProduct, 'Order conversion must preserve the product reference.');
 expectSales($order->getTotalExcludingTax() === $quote->getTotalExcludingTax(), 'Converted order subtotal must match the accepted quote.');
 expectSales($order->getTotalTax() === $quote->getTotalTax(), 'Converted order VAT must match the accepted quote.');
 expectSales($order->getTotalIncludingTax() === $quote->getTotalIncludingTax(), 'Converted order total must match the accepted quote.');
+expectSales($order->getTotalExcludingTaxCents() === $quote->getTotalExcludingTaxCents() && $order->getTotalTaxCents() === $quote->getTotalTaxCents() && $order->getTotalIncludingTaxCents() === $quote->getTotalIncludingTaxCents(), 'Converted sales order must preserve exact-cent quote totals.');
 $order->setStatus(SalesOrder::STATUS_FULFILLED);
 expectSales($order->getStatus() === SalesOrder::STATUS_FULFILLED, 'Order status must transition to fulfilled.');
 $catalogProduct->adjustStock('-2');
@@ -73,6 +78,8 @@ try {
 foreach ([
     fn () => new SalesQuoteLine('', '1', '10.00', '20.00', 1),
     fn () => new SalesQuoteLine('Quantité invalide', '0', '10.00', '20.00', 1),
+    fn () => new SalesQuoteLine('Notation scientifique', '1e3', '10.00', '20.00', 1),
+    fn () => new SalesQuoteLine('Trop de décimales', '0.0001', '10.00', '20.00', 1),
     fn () => new SalesQuoteLine('TVA invalide', '1', '10.00', '120.00', 1),
 ] as $invalidLine) {
     try {

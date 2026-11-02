@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Repository\ProductRepository;
+use App\Service\StockQuantity;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
@@ -43,10 +44,10 @@ class Product
     #[ORM\Column(name: 'stock_tracked', options: ['default' => true])]
     private bool $stockTracked = true;
 
-    #[ORM\Column(name: 'stock_quantity', type: 'decimal', precision: 12, scale: 3)]
+    #[ORM\Column(name: 'stock_quantity', type: 'decimal', precision: 12, scale: 3, options: ['default' => '0.000'])]
     private string $stockQuantity = '0.000';
 
-    #[ORM\Column(name: 'stock_alert_threshold', type: 'decimal', precision: 12, scale: 3)]
+    #[ORM\Column(name: 'stock_alert_threshold', type: 'decimal', precision: 12, scale: 3, options: ['default' => '0.000'])]
     private string $stockAlertThreshold = '0.000';
 
     #[ORM\Column(options: ['default' => true])]
@@ -80,7 +81,7 @@ class Product
     public function isActive(): bool { return $this->active; }
     public function setActive(bool $active): self { $this->active = $active; $this->updatedAt = new DateTimeImmutable(); return $this; }
     public function getCreatedAt(): DateTimeImmutable { return $this->createdAt; }
-    public function isLowStock(): bool { return $this->stockTracked && (float) $this->stockQuantity <= (float) $this->stockAlertThreshold; }
+    public function isLowStock(): bool { return $this->stockTracked && StockQuantity::toMilliunits($this->stockQuantity) <= StockQuantity::toMilliunits($this->stockAlertThreshold); }
 
     public function update(array $data): self
     {
@@ -93,17 +94,14 @@ class Product
         }
         $this->purchasePrice = $this->money($data['purchase_price'] ?? null, 'Prix d’achat');
         $this->salePrice = $this->money($data['sale_price'] ?? null, 'Prix de vente');
-        $vat = $data['vat_rate'] ?? null;
-        if (!is_numeric($vat) || (float) $vat < 0 || (float) $vat > 100) {
+        $vatCents = $this->decimalToCents($data['vat_rate'] ?? null, 'Taux de TVA', 3);
+        if ($vatCents > 10000) {
             throw new InvalidArgumentException('Le taux de TVA doit être compris entre 0 et 100.');
         }
-        $this->vatRate = number_format((float) $vat, 2, '.', '');
+        $this->vatRate = $this->formatCents($vatCents);
         $this->stockTracked = isset($data['stock_tracked']) && (string) $data['stock_tracked'] === '1';
         $threshold = $data['stock_alert_threshold'] ?? '0';
-        if (!is_numeric($threshold) || (float) $threshold < 0 || (float) $threshold > 999999999.999) {
-            throw new InvalidArgumentException('Le seuil de stock doit être un nombre positif ou nul.');
-        }
-        $this->stockAlertThreshold = number_format((float) $threshold, 3, '.', '');
+        $this->stockAlertThreshold = StockQuantity::format(StockQuantity::toMilliunits($threshold));
         $this->active = isset($data['active']) && (string) $data['active'] === '1';
         $this->updatedAt = new DateTimeImmutable();
         return $this;
@@ -131,23 +129,48 @@ class Product
 
     public function adjustStock(string $quantity): self
     {
-        if (!$this->stockTracked || !is_numeric($quantity) || (float) $quantity == 0.0 || abs((float) $quantity) > 999999999.999) {
-            throw new InvalidArgumentException('Mouvement de stock invalide.');
+        if (!$this->stockTracked) {
+            throw new InvalidArgumentException('Le suivi de stock est désactivé pour ce produit.');
         }
-        $next = round((float) $this->stockQuantity + (float) $quantity, 3);
+        $delta = StockQuantity::toMilliunits($quantity, true);
+        if ($delta === 0) {
+            throw new InvalidArgumentException('Un mouvement de stock doit être non nul.');
+        }
+        $next = StockQuantity::toMilliunits($this->stockQuantity) + $delta;
         if ($next < 0) {
             throw new InvalidArgumentException('Le stock disponible ne peut pas devenir négatif.');
         }
-        $this->stockQuantity = number_format($next, 3, '.', '');
+        if ($next > 999999999999) {
+            throw new InvalidArgumentException('Le stock dépasse la capacité maximale autorisée.');
+        }
+        $this->stockQuantity = StockQuantity::format($next);
         $this->updatedAt = new DateTimeImmutable();
         return $this;
     }
 
     private function money(mixed $value, string $label): string
     {
-        if (!is_numeric($value) || (float) $value < 0 || (float) $value > 9999999999.99) {
-            throw new InvalidArgumentException($label.' doit être un montant positif ou nul.');
+        return $this->formatCents($this->decimalToCents($value, $label, 10));
+    }
+
+    private function decimalToCents(mixed $value, string $label, int $maxWholeDigits): int
+    {
+        if (!is_string($value) && !is_int($value)) {
+            throw new InvalidArgumentException($label.' doit être un nombre décimal valide.');
         }
-        return number_format((float) $value, 2, '.', '');
+
+        $raw = trim((string) $value);
+        $pattern = '/^(?:0|[1-9][0-9]{0,'.($maxWholeDigits - 1).'})(?:[.][0-9]{1,2})?$/D';
+        if (!preg_match($pattern, $raw)) {
+            throw new InvalidArgumentException($label.' doit être positif ou nul, avec deux décimales maximum.');
+        }
+
+        [$whole, $fraction] = array_pad(explode('.', $raw, 2), 2, '');
+        return ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
+    }
+
+    private function formatCents(int $cents): string
+    {
+        return intdiv($cents, 100).'.'.str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 }

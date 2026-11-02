@@ -6,6 +6,7 @@ use App\Entity\Product;
 use App\Entity\PurchaseOrder;
 use App\Entity\PurchaseOrderLine;
 use App\Entity\SupplierInvoice;
+use App\Entity\SupplierInvoiceLine;
 use App\Entity\SupplierPayment;
 use App\Entity\ThirdParty;
 
@@ -21,6 +22,14 @@ $product = new Product('SKU-FAF', 'Composant');
 $product->update(['sku'=>'SKU-FAF','name'=>'Composant','unit'=>'pièce','purchase_price'=>'25.00','sale_price'=>'40','vat_rate'=>'20','stock_tracked'=>'1','stock_alert_threshold'=>'0','active'=>'1']);
 $order = new PurchaseOrder($supplier);
 $line = new PurchaseOrderLine($product, '5', 1);
+foreach (['1e3', '0.0001', '1,000'] as $invalidQuantity) {
+    try {
+        new SupplierInvoiceLine($product, 'Quantité invalide', $invalidQuantity, '25.00', '20.00', 1);
+        throw new RuntimeException('Invalid supplier invoice quantity was accepted: '.$invalidQuantity);
+    } catch (InvalidArgumentException) {
+    }
+}
+
 $order->addLine($line);
 $order->setStatus(PurchaseOrder::STATUS_SENT);
 try {
@@ -32,15 +41,64 @@ $order->refreshReceiptStatus();
 $invoice = new SupplierInvoice($order, 'F-2026-001');
 expectSupplierInvoice($invoice->getLines()->count() === 1, 'Received quantities must be copied to supplier invoice lines.');
 expectSupplierInvoice($invoice->getLines()->first()->getQuantity() === '3.000', 'Only received quantity may be invoiced.');
+expectSupplierInvoice($line->getInvoicedQuantity() === '3.000' && $line->getRemainingInvoicableQuantity() === '0.000', 'The first invoice must reserve only the received quantity against duplicate billing.');
 expectSupplierInvoice($invoice->getTotalExcludingTax() === 75.0, 'Supplier invoice must snapshot purchase prices.');
 expectSupplierInvoice($invoice->getTotalIncludingTax() === 90.0, 'Supplier invoice VAT total must be calculated.');
+expectSupplierInvoice($invoice->getTotalExcludingTaxCents() === 7500 && $invoice->getTotalTaxCents() === 1500 && $invoice->getTotalIncludingTaxCents() === 9000, 'Supplier invoice totals must remain exact in cents.');
+$normalizedPayment = new SupplierPayment($invoice, '0.5', new DateTimeImmutable('2026-10-10'), 'cash');
+expectSupplierInvoice($normalizedPayment->getAmount() === '0.50', 'Supplier payment amounts must be normalized exactly.');
+foreach (['0', '-1.00', '+1.00', '01.00', '1,00', '1.001', '1e2', '10000000000.00'] as $invalidAmount) {
+    try {
+        new SupplierPayment($invoice, $invalidAmount, new DateTimeImmutable('2026-10-10'), 'cash');
+        throw new RuntimeException('Invalid supplier payment amount was accepted: '.$invalidAmount);
+    } catch (InvalidArgumentException) {
+        // Supplier payments require a positive bounded decimal amount.
+    }
+}
 $invoice->receive(new DateTimeImmutable('2026-10-01'), new DateTimeImmutable('2026-10-31'));
 $payment = new SupplierPayment($invoice, '30.00', new DateTimeImmutable('2026-10-10'), 'bank_transfer', 'VIR-001');
 $invoice->addPayment($payment);
 expectSupplierInvoice($invoice->getStatus() === SupplierInvoice::STATUS_PARTIALLY_PAID, 'Partial supplier payment status is incorrect.');
-expectSupplierInvoice($invoice->getPaidAmount() === 30.0 && $invoice->getRemainingAmount() === 60.0, 'Supplier payment balance is incorrect.');
+expectSupplierInvoice($invoice->getPaidAmountCents() === 3000 && $invoice->getRemainingAmountCents() === 6000, 'Supplier payment balance is incorrect.');
 $invoice->addPayment(new SupplierPayment($invoice, '60.00', new DateTimeImmutable('2026-10-15'), 'bank_transfer'));
 expectSupplierInvoice($invoice->getStatus() === SupplierInvoice::STATUS_PAID, 'Fully paid supplier invoice must be marked paid.');
+$line->receive('2');
+$order->refreshReceiptStatus();
+$secondInvoice = new SupplierInvoice($order, 'F-2026-002');
+expectSupplierInvoice($secondInvoice->getLines()->count() === 1, 'A second invoice must be created for a later partial receipt.');
+expectSupplierInvoice($secondInvoice->getLines()->first()->getQuantity() === '2.000', 'A later invoice must contain only the newly received, not-yet-invoiced quantity.');
+expectSupplierInvoice($secondInvoice->getTotalIncludingTaxCents() === 6000, 'The second partial invoice total must be calculated from its own received quantity.');
+expectSupplierInvoice($line->getInvoicedQuantity() === '5.000' && $line->getRemainingInvoicableQuantity() === '0.000', 'All received quantities must be marked invoiced exactly once.');
+try {
+    $line->markInvoiced('0.001');
+    throw new RuntimeException('A quantity above the uninvoiced receipt balance was accepted.');
+} catch (InvalidArgumentException) {
+    // No received unit can be invoiced more than once.
+}
+try {
+    new SupplierInvoice($order, 'F-2026-003');
+    throw new RuntimeException('A duplicate invoice with no newly received quantity was accepted.');
+} catch (InvalidArgumentException) {
+    // Already invoiced quantities cannot be billed again.
+}
+
+$boundaryOrder = new PurchaseOrder($supplier);
+$boundaryLine = new PurchaseOrderLine($product, '5', 1);
+$boundaryOrder->addLine($boundaryLine);
+$boundaryOrder->setStatus(PurchaseOrder::STATUS_SENT);
+$boundaryLine->receive('3');
+$boundaryOrder->refreshReceiptStatus();
+$boundaryInvoice = new SupplierInvoice($boundaryOrder, 'F-2026-004');
+$boundaryInvoice->receive(new DateTimeImmutable('2026-10-01'), new DateTimeImmutable('2026-10-31'));
+$boundaryInvoice->addPayment(new SupplierPayment($boundaryInvoice, '89.99', new DateTimeImmutable('2026-10-10'), 'bank_transfer'));
+expectSupplierInvoice($boundaryInvoice->getRemainingAmountCents() === 1, 'A one-cent supplier balance must remain outstanding exactly.');
+try {
+    $boundaryInvoice->addPayment(new SupplierPayment($boundaryInvoice, '0.02', new DateTimeImmutable('2026-10-10'), 'cash'));
+    throw new RuntimeException('A supplier payment one cent above the balance was accepted.');
+} catch (InvalidArgumentException) {
+    // Integer-cent comparisons must reject even a one-cent overpayment.
+}
+
 foreach ([
     fn () => new SupplierInvoice($order, ''),
     fn () => new SupplierPayment($invoice, '0', new DateTimeImmutable('today'), 'cash'),

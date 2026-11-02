@@ -1,0 +1,125 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Controller;
+
+use App\Service\AccountingAmount;
+use DateTimeImmutable;
+use Doctrine\DBAL\Connection;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+
+#[Route('/accounting/statements')]
+final class FinancialStatementsController extends AbstractController
+{
+    #[Route('', name: 'app_financial_statements', methods: ['GET'])]
+    public function index(Connection $db, Request $request): Response
+    {
+        $from = (string) $request->query->get('from', (new DateTimeImmutable('first day of january this year'))->format('Y-m-d'));
+        $to = (string) $request->query->get('to', (new DateTimeImmutable('today'))->format('Y-m-d'));
+        foreach ([$from, $to] as $date) {
+            $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+            if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+                throw $this->createNotFoundException('Période invalide.');
+            }
+        }
+        if ($from > $to) {
+            throw $this->createNotFoundException('Période invalide.');
+        }
+
+        $fiscalYearStart = (new DateTimeImmutable($to))->modify('first day of january')->format('Y-m-d');
+
+        // Balance sheet: cumulative posted balances through the closing date.
+        // Its unclosed result is calculated from the start of the fiscal year.
+        // Income statement: movements restricted to the user-selected period.
+        $rows = $db->fetchAllAssociative(<<<'SQL'
+SELECT a.code, a.name, LEFT(a.code, 1) AS class,
+       ROUND(COALESCE(SUM(CASE WHEN e.entry_date <= ? THEN l.debit ELSE 0 END), 0), 2) AS cumulative_debit,
+       ROUND(COALESCE(SUM(CASE WHEN e.entry_date <= ? THEN l.credit ELSE 0 END), 0), 2) AS cumulative_credit,
+       ROUND(COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.debit ELSE 0 END), 0), 2) AS period_debit,
+       ROUND(COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.credit ELSE 0 END), 0), 2) AS period_credit,
+       ROUND(COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.debit ELSE 0 END), 0), 2) AS fiscal_debit,
+       ROUND(COALESCE(SUM(CASE WHEN e.entry_date BETWEEN ? AND ? THEN l.credit ELSE 0 END), 0), 2) AS fiscal_credit
+FROM app_accounting_account a
+LEFT JOIN app_journal_entry_line l ON l.account_id = a.id
+LEFT JOIN app_journal_entry e ON e.id = l.entry_id AND e.status = 'posted' AND e.entry_date <= ?
+WHERE a.code REGEXP '^[1-7]'
+GROUP BY a.id, a.code, a.name
+ORDER BY a.code
+SQL, [$to, $to, $from, $to, $from, $to, $fiscalYearStart, $to, $fiscalYearStart, $to, $to]);
+
+        $groups = ['assets' => [], 'liabilities' => [], 'equity' => [], 'income' => [], 'expenses' => []];
+        $totals = ['assets' => 0, 'liabilities' => 0, 'equity' => 0, 'income' => 0, 'expenses' => 0];
+        $fiscalIncome = 0;
+        $fiscalExpenses = 0;
+
+        foreach ($rows as $row) {
+            $class = (string) $row['class'];
+            $code = (string) $row['code'];
+            $debit = AccountingAmount::toCents((string) $row['cumulative_debit']);
+            $credit = AccountingAmount::toCents((string) $row['cumulative_credit']);
+            $periodDebit = AccountingAmount::toCents((string) $row['period_debit']);
+            $periodCredit = AccountingAmount::toCents((string) $row['period_credit']);
+            $yearDebit = AccountingAmount::toCents((string) $row['fiscal_debit']);
+            $yearCredit = AccountingAmount::toCents((string) $row['fiscal_credit']);
+
+            $add = static function (array &$groups, array &$totals, string $key, array $row, int $balance): void {
+                if ($balance === 0) {
+                    return;
+                }
+                $groups[$key][] = ['code' => $row['code'], 'name' => $row['name'], 'balance' => AccountingAmount::formatFrenchCents($balance)];
+                $totals[$key] = AccountingAmount::addSignedCents($totals[$key], $balance);
+            };
+
+            if (in_array($class, ['2', '3'], true)) {
+                $add($groups, $totals, 'assets', $row, AccountingAmount::addSignedCents($debit, -$credit));
+            } elseif ($class === '1') {
+                // PCG accounts 10–15 are equity; 16–18 are financing liabilities.
+                $key = preg_match('/^1[0-5]/', $code) ? 'equity' : 'liabilities';
+                $add($groups, $totals, $key, $row, AccountingAmount::addSignedCents($credit, -$debit));
+            } elseif (in_array($class, ['4', '5'], true)) {
+                $signed = AccountingAmount::addSignedCents($debit, -$credit);
+                $key = $signed >= 0 ? 'assets' : 'liabilities';
+                $add($groups, $totals, $key, $row, abs($signed));
+            } elseif ($class === '6') {
+                $add($groups, $totals, 'expenses', $row, AccountingAmount::addSignedCents($periodDebit, -$periodCredit));
+                $fiscalExpenses = AccountingAmount::addSignedCents($fiscalExpenses, AccountingAmount::addSignedCents($yearDebit, -$yearCredit));
+            } elseif ($class === '7') {
+                $add($groups, $totals, 'income', $row, AccountingAmount::addSignedCents($periodCredit, -$periodDebit));
+                $fiscalIncome = AccountingAmount::addSignedCents($fiscalIncome, AccountingAmount::addSignedCents($yearCredit, -$yearDebit));
+            }
+        }
+
+        // The period result belongs in the income statement; the fiscal-year
+        // result belongs in equity until the closing entry transfers it.
+        $netResult = AccountingAmount::addSignedCents($totals['income'], -$totals['expenses']);
+        $balanceSheetResult = AccountingAmount::addSignedCents($fiscalIncome, -$fiscalExpenses);
+        if ($balanceSheetResult !== 0) {
+            $groups['equity'][] = [
+                'code' => 'Résultat',
+                'name' => 'Résultat de l’exercice (avant affectation)',
+                'balance' => AccountingAmount::formatFrenchCents($balanceSheetResult),
+            ];
+            $totals['equity'] = AccountingAmount::addSignedCents($totals['equity'], $balanceSheetResult);
+        }
+        $balanceSheetTotal = AccountingAmount::addSignedCents($totals['liabilities'], $totals['equity']);
+        $balanceSheetDifference = AccountingAmount::addSignedCents($totals['assets'], -$balanceSheetTotal);
+        foreach ($totals as &$value) {
+            $value = AccountingAmount::formatFrenchCents($value);
+        }
+        unset($value);
+
+        return $this->render('accounting/statements.html.twig', [
+            'groups' => $groups,
+            'totals' => $totals,
+            'from' => $from,
+            'to' => $to,
+            'balance_sheet_total' => AccountingAmount::formatFrenchCents($balanceSheetTotal),
+            'balance_sheet_difference' => AccountingAmount::formatFrenchCents($balanceSheetDifference),
+            'balance_sheet_balanced' => $balanceSheetDifference === 0,
+            'net_result' => AccountingAmount::formatFrenchCents($netResult),
+        ]);
+    }
+}

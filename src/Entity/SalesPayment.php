@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\AccountingAmount;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
@@ -44,18 +45,19 @@ class SalesPayment
 
     public function __construct(SalesInvoice $invoice, string $amount, DateTimeImmutable $paidAt, string $method, ?string $reference = null, ?string $note = null)
     {
-        if (!is_numeric($amount) || (float) $amount <= 0 || (float) $amount > 9999999999.99) {
-            throw new InvalidArgumentException('Payment amount must be greater than zero.');
+        $amountInCents = AccountingAmount::toCents($amount);
+        if ($amountInCents <= 0 || $amountInCents > 999999999999) {
+            throw new InvalidArgumentException('Montant de règlement invalide.');
         }
         if (!in_array($method, self::METHODS, true)) {
-            throw new InvalidArgumentException('Unsupported payment method.');
+            throw new InvalidArgumentException('Moyen de règlement invalide.');
         }
         $reference = $reference !== null ? trim($reference) : null;
         if ($reference !== null && mb_strlen($reference) > 120) {
-            throw new InvalidArgumentException('Payment reference is too long.');
+            throw new InvalidArgumentException('Référence de règlement trop longue.');
         }
         $this->invoice = $invoice;
-        $this->amount = number_format((float) $amount, 2, '.', '');
+        $this->amount = AccountingAmount::formatCents($amountInCents);
         $this->paidAt = $paidAt;
         $this->method = $method;
         $this->reference = $reference !== '' ? $reference : null;

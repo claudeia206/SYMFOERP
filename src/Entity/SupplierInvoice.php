@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\AccountingAmount;
+use App\Service\StockQuantity;
+
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -12,9 +15,8 @@ use InvalidArgumentException;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'app_supplier_invoice', uniqueConstraints: [
-    new ORM\UniqueConstraint(name: 'uniq_supplier_invoice_order', columns: ['purchase_order_id']),
     new ORM\UniqueConstraint(name: 'uniq_supplier_invoice_reference', columns: ['supplier_id', 'supplier_invoice_number']),
-])]
+], indexes: [new ORM\Index(name: 'idx_supplier_invoice_order', columns: ['purchase_order_id'])])]
 #[ORM\Index(name: 'idx_supplier_invoice_status_due', columns: ['status', 'due_date'])]
 class SupplierInvoice
 {
@@ -28,7 +30,7 @@ class SupplierInvoice
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     private ?int $id = null;
 
-    #[ORM\OneToOne(targetEntity: PurchaseOrder::class)]
+    #[ORM\ManyToOne(targetEntity: PurchaseOrder::class)]
     #[ORM\JoinColumn(name: 'purchase_order_id', nullable: false, onDelete: 'RESTRICT')]
     private PurchaseOrder $purchaseOrder;
 
@@ -85,19 +87,34 @@ class SupplierInvoice
         $this->lines = new ArrayCollection();
         $this->payments = new ArrayCollection();
 
+        $pendingLines = [];
         foreach ($order->getLines() as $line) {
-            if ((float) $line->getReceivedQuantity() <= 0) { continue; }
-            $this->addLine(new SupplierInvoiceLine(
-                $line->getProduct(),
-                $line->getDescription(),
-                $line->getReceivedQuantity(),
-                $line->getUnitPrice(),
-                $line->getVatRate(),
-                $line->getPosition()
-            ));
+            $quantity = $line->getRemainingInvoicableQuantity();
+            if (StockQuantity::toMilliunits($quantity) <= 0) {
+                continue;
+            }
+
+            $pendingLines[] = [
+                'order_line' => $line,
+                'quantity' => $quantity,
+                'invoice_line' => new SupplierInvoiceLine(
+                    $line->getProduct(),
+                    $line->getDescription(),
+                    $quantity,
+                    $line->getUnitPrice(),
+                    $line->getVatRate(),
+                    $line->getPosition()
+                ),
+            ];
         }
-        if ($this->lines->isEmpty()) {
-            throw new InvalidArgumentException('Aucune quantité réceptionnée ne peut être facturée.');
+
+        if ($pendingLines === []) {
+            throw new InvalidArgumentException('Aucune quantité réceptionnée non encore facturée ne peut être facturée.');
+        }
+
+        foreach ($pendingLines as $pendingLine) {
+            $pendingLine['order_line']->markInvoiced($pendingLine['quantity']);
+            $this->addLine($pendingLine['invoice_line']);
         }
     }
 
@@ -134,22 +151,62 @@ class SupplierInvoice
         if ($payment->getInvoice() !== $this || !in_array($this->status, [self::STATUS_RECEIVED, self::STATUS_PARTIALLY_PAID], true)) {
             throw new InvalidArgumentException('Seule une facture fournisseur reçue peut être réglée.');
         }
-        if ($this->getRemainingAmount() <= 0 || (float) $payment->getAmount() > $this->getRemainingAmount() + 0.001) {
+        $remainingCents = $this->getRemainingAmountCents();
+        if ($remainingCents <= 0 || self::decimalToCents($payment->getAmount()) > $remainingCents) {
             throw new InvalidArgumentException('Le règlement dépasse le solde restant ou la facture est déjà soldée.');
         }
         if (!$this->payments->contains($payment)) { $this->payments->add($payment); }
-        $this->status = $this->getRemainingAmount() <= 0.001 ? self::STATUS_PAID : self::STATUS_PARTIALLY_PAID;
+        $this->status = $this->getRemainingAmountCents() === 0 ? self::STATUS_PAID : self::STATUS_PARTIALLY_PAID;
         return $this;
     }
 
-    public function getTotalExcludingTax(): float { return array_reduce($this->lines->toArray(), static fn(float $s, SupplierInvoiceLine $l): float => $s + $l->getTotalExcludingTax(), 0.0); }
-    public function getTotalTax(): float { return array_reduce($this->lines->toArray(), static fn(float $s, SupplierInvoiceLine $l): float => $s + $l->getTotalTax(), 0.0); }
-    public function getTotalIncludingTax(): float { return round($this->getTotalExcludingTax() + $this->getTotalTax(), 2); }
-    public function getPaidAmount(): float { return round(array_reduce($this->payments->toArray(), static fn(float $s, SupplierPayment $p): float => $s + (float) $p->getAmount(), 0.0), 2); }
-    public function getRemainingAmount(): float { return max(0.0, round($this->getTotalIncludingTax() - $this->getPaidAmount(), 2)); }
+    public function getTotalExcludingTaxCents(): int
+    {
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SupplierInvoiceLine $line): int => AccountingAmount::addCents($sum, $line->getTotalExcludingTaxCents()), 0);
+    }
+
+    public function getTotalTaxCents(): int
+    {
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SupplierInvoiceLine $line): int => AccountingAmount::addCents($sum, $line->getTotalTaxCents()), 0);
+    }
+
+    public function getTotalIncludingTaxCents(): int
+    {
+        return AccountingAmount::addCents($this->getTotalExcludingTaxCents(), $this->getTotalTaxCents());
+    }
+
+    public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
+    public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
+    public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
+    public function getPaidAmountCents(): int
+    {
+        return array_reduce($this->payments->toArray(), static fn (int $sum, SupplierPayment $payment): int => AccountingAmount::addCents($sum, self::decimalToCents($payment->getAmount())), 0);
+    }
+
+    public function getPaidAmount(): float
+    {
+        return $this->getPaidAmountCents() / 100;
+    }
+
+    public function getRemainingAmount(): float
+    {
+        return $this->getRemainingAmountCents() / 100;
+    }
+
+    public function getRemainingAmountCents(): int
+    {
+        $totalCents = $this->getTotalIncludingTaxCents();
+        $paidCents = $this->getPaidAmountCents(); 
+        return max(0, $totalCents - $paidCents);
+    }
+
+    private static function decimalToCents(string $amount): int
+    {
+        return AccountingAmount::toCents($amount);
+    }
     public function getEffectiveStatus(?DateTimeImmutable $today = null): string
     {
-        if (in_array($this->status, [self::STATUS_RECEIVED, self::STATUS_PARTIALLY_PAID], true) && $this->getRemainingAmount() > 0 && $this->dueDate < ($today ?? new DateTimeImmutable('today'))) { return self::STATUS_OVERDUE; }
+        if (in_array($this->status, [self::STATUS_RECEIVED, self::STATUS_PARTIALLY_PAID], true) && $this->getRemainingAmountCents() > 0 && $this->dueDate < ($today ?? new DateTimeImmutable('today'))) { return self::STATUS_OVERDUE; }
         return $this->status;
     }
 }

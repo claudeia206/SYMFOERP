@@ -1,0 +1,127 @@
+<?php
+declare(strict_types=1);
+
+use App\Controller\FixedAssetController;
+use App\Service\DepreciationCalculator;
+use App\Service\FixedAssetDepreciationSequence;
+
+require dirname(__DIR__).'/vendor/autoload.php';
+
+$controller = (new ReflectionClass(FixedAssetController::class))->newInstanceWithoutConstructor();
+$parseMoney = (new ReflectionClass(FixedAssetController::class))->getMethod('parseMoney');
+$parseMoney->setAccessible(true);
+if ($parseMoney->invoke($controller, '999999999999.99') !== '999999999999.99'
+    || $parseMoney->invoke($controller, '1000000000000.00') !== null
+    || $parseMoney->invoke($controller, 1.25) !== null) {
+    throw new RuntimeException('Fixed asset monetary inputs must respect exact journal precision and reject floats.');
+}
+
+$calculator = new DepreciationCalculator();
+$start = new DateTimeImmutable('2024-07-01');
+$end = new DateTimeImmutable('2029-07-01');
+$rows = $calculator->straightLine('10000.01', '0.01', 5, $start, $end);
+if (count($rows) !== 6) {
+    throw new RuntimeException('Expected calendar-year prorated depreciation periods.');
+}
+$totalCents = 0;
+foreach ($rows as $row) {
+    $totalCents += App\Service\AccountingAmount::toCents($row['amount']);
+    if (!is_string($row['amount']) || !is_string($row['accumulated']) || !is_string($row['net_book_value'])) {
+        throw new RuntimeException('Depreciation amounts must remain exact decimal strings.');
+    }
+}
+if ($totalCents !== 1000000 || $rows[array_key_last($rows)]['net_book_value'] !== '0.01') {
+    throw new RuntimeException('Depreciation must allocate the exact depreciable base and preserve residual value.');
+}
+
+$partial = $calculator->straightLine('0.03', '0.00', 3, new DateTimeImmutable('2025-01-01'), new DateTimeImmutable('2025-12-31'));
+if (array_sum(array_map(static fn(array $row): int => App\Service\AccountingAmount::toCents($row['amount']), $partial)) !== 1) {
+    throw new RuntimeException('Partial-period depreciation must round cumulatively to exact cents.');
+}
+
+$sequence = new FixedAssetDepreciationSequence();
+try {
+    $sequence->assertPriorPeriodsPosted($rows, 2026, [2024]);
+    throw new RuntimeException('Out-of-order depreciation posting must be rejected.');
+} catch (InvalidArgumentException $exception) {
+    if (!str_contains($exception->getMessage(), '2025')) {
+        throw $exception;
+    }
+}
+$sequence->assertPriorPeriodsPosted($rows, 2026, [2024, 2025]);
+
+try {
+    $sequence->assertPeriodComplete(new DateTimeImmutable('2026-10-31'), 2026);
+    throw new RuntimeException('A partial fiscal-year depreciation period must not be posted.');
+} catch (InvalidArgumentException) {
+}
+$sequence->assertPeriodComplete(new DateTimeImmutable('2026-12-31'), 2026);
+
+
+
+$scenarios = [
+    ['2024-02-29', 1],
+    ['2025-12-31', 3],
+    ['2026-01-01', 7],
+    ['2026-06-30', 40],
+];
+foreach ($scenarios as [$startDate, $years]) {
+    $scenarioStart = new DateTimeImmutable($startDate);
+    $scenarioEnd = $scenarioStart->modify(sprintf('+%d years', $years));
+    $scenarioRows = $calculator->straightLine('12345.67', '123.45', $years, $scenarioStart, $scenarioEnd);
+    $allocated = 0;
+    $previousAccumulated = 0;
+    $previousYear = 0;
+    foreach ($scenarioRows as $scenarioRow) {
+        $amount = App\Service\AccountingAmount::toCents($scenarioRow['amount']);
+        $accumulated = App\Service\AccountingAmount::toCents($scenarioRow['accumulated']);
+        if ($amount <= 0 || $accumulated < $previousAccumulated || (int) $scenarioRow['period'] <= $previousYear) {
+            throw new RuntimeException('Depreciation rows must be positive, cumulative and ordered by calendar year.');
+        }
+        $allocated += $amount;
+        if ($accumulated !== $allocated) {
+            throw new RuntimeException('Displayed accumulated depreciation must equal the sum of plan periods.');
+        }
+        $previousAccumulated = $accumulated;
+        $previousYear = (int) $scenarioRow['period'];
+        $snapshotRows = $calculator->straightLine(
+            '12345.67',
+            '123.45',
+            $years,
+            $scenarioStart,
+            new DateTimeImmutable($scenarioRow['period'] . '-12-31')
+        );
+        $snapshot = $snapshotRows[array_key_last($snapshotRows)] ?? null;
+        if ($snapshot === null
+            || $snapshot['amount'] !== $scenarioRow['amount']
+            || $snapshot['accumulated'] !== $scenarioRow['accumulated']
+            || $snapshot['net_book_value'] !== $scenarioRow['net_book_value']) {
+            throw new RuntimeException('A finalized calendar-year depreciation amount must not change in later simulations.');
+        }
+    }
+    if ($allocated !== 1222222 || $scenarioRows[array_key_last($scenarioRows)]['net_book_value'] !== '123.45') {
+        throw new RuntimeException(sprintf('Depreciation did not preserve residual value for %s / %d years.', $startDate, $years));
+    }
+}
+
+try {
+    $calculator->straightLine('100.00', '0.00', 5, new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2025-12-31'));
+    throw new RuntimeException('Depreciation before the in-service date must be rejected.');
+} catch (InvalidArgumentException) {
+}
+
+$invalidAmounts = [1.25, '1,25', '1e3', '01.00', '1.234', '10000000000000.00'];
+foreach ($invalidAmounts as $invalidAmount) {
+    try {
+        App\Service\AccountingAmount::toCents($invalidAmount);
+        throw new RuntimeException('Invalid accounting amount was accepted: ' . var_export($invalidAmount, true));
+    } catch (InvalidArgumentException) {
+    }
+}
+if (App\Service\AccountingAmount::toCents('-0.01') !== -1
+    || App\Service\AccountingAmount::formatCents(-12345) !== '-123.45'
+    || App\Service\AccountingAmount::formatCents(0) !== '0.00') {
+    throw new RuntimeException('Accounting amount conversion must preserve sign and exact cents.');
+}
+
+echo "Fixed asset exact-cent depreciation and posting-order smoke tests passed.\n";

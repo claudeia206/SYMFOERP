@@ -1,0 +1,19 @@
+{% extends 'base.html.twig' %}
+{% block title %}Utilisateurs · SYMFOERP{% endblock %}
+{% block body %}
+<p class="muted">ADMINISTRATION</p><h1>Utilisateurs et rôles</h1>
+<p class="muted">Gérez les comptes qui peuvent accéder à cet espace SYMFOERP.</p>
+{% for message in app.flashes('success') %}<p role="status">{{ message }}</p>{% endfor %}
+{% for message in app.flashes('error') %}<p role="alert">{{ message }}</p>{% endfor %}
+<p><a href="{{ path('app_admin_users_new') }}">＋ Créer un utilisateur</a></p>
+<section class="card table-scroll"><table class="data-table">
+<thead><tr><th>Adresse e-mail</th><th>Rôle</th><th>Modifier les droits</th></tr></thead><tbody>
+{% for user in users %}<tr><td>{{ user.email }}{% if app.user.id == user.id %} <span class="muted">(vous)</span>{% endif %}</td>
+<td>{% if 'ROLE_ADMIN' in user.roles %}Administrateur{% else %}Utilisateur{% endif %}</td>
+<td><form method="post" action="{{ path('app_admin_users_role', {id: user.id}) }}">
+<input type="hidden" name="_token" value="{{ csrf_token('admin_user_role_' ~ user.id) }}">
+<label><input type="checkbox" name="is_admin" value="1" {% if 'ROLE_ADMIN' in user.roles %}checked{% endif %}> Administrateur</label>
+<button type="submit">Enregistrer</button></form></td></tr>
+{% else %}<tr><td colspan="3">Aucun utilisateur enregistré.</td></tr>{% endfor %}
+</tbody></table></section>
+{% endblock %}

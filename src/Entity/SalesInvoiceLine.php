@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\StockQuantity;
+use App\Service\AccountingAmount;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 
@@ -37,6 +39,9 @@ class SalesInvoiceLine
     #[ORM\Column(name: 'vat_rate', type: 'decimal', precision: 5, scale: 2)]
     private string $vatRate;
 
+    #[ORM\Column(name: 'credited_quantity', type: 'decimal', precision: 10, scale: 3, options: ['default' => '0.000'])]
+    private string $creditedQuantity = '0.000';
+
     #[ORM\Column]
     private int $position;
 
@@ -46,20 +51,23 @@ class SalesInvoiceLine
         if ($description === '' || mb_strlen($description) > 255) {
             throw new InvalidArgumentException('Invoice line description is required (255 characters maximum).');
         }
-        if (!is_numeric($quantity) || (float) $quantity <= 0 || (float) $quantity > 9999999.999) {
-            throw new InvalidArgumentException('Invoice line quantity must be positive.');
+        $quantityMilliunits = StockQuantity::toMilliunits($quantity);
+        if ($quantityMilliunits <= 0 || $quantityMilliunits > 9_999_999_999) {
+            throw new InvalidArgumentException('Invoice line quantity must be positive and fit the database precision.');
         }
-        if (!is_numeric($unitPrice) || (float) $unitPrice < 0 || (float) $unitPrice > 9999999999.99) {
+        $unitPriceCents = AccountingAmount::toCents($unitPrice);
+        $vatRateCents = AccountingAmount::toCents($vatRate);
+        if ($unitPriceCents < 0 || $unitPriceCents > 999999999999) {
             throw new InvalidArgumentException('Invoice line unit price is invalid.');
         }
-        if (!is_numeric($vatRate) || (float) $vatRate < 0 || (float) $vatRate > 100) {
+        if ($vatRateCents < 0 || $vatRateCents > 10000) {
             throw new InvalidArgumentException('Invoice line VAT rate is invalid.');
         }
         $this->product = $product;
         $this->description = $description;
-        $this->quantity = number_format((float) $quantity, 3, '.', '');
-        $this->unitPrice = number_format((float) $unitPrice, 2, '.', '');
-        $this->vatRate = number_format((float) $vatRate, 2, '.', '');
+        $this->quantity = StockQuantity::format($quantityMilliunits);
+        $this->unitPrice = AccountingAmount::formatCents($unitPriceCents);
+        $this->vatRate = AccountingAmount::formatCents($vatRateCents);
         $this->position = max(1, $position);
     }
 
@@ -71,7 +79,39 @@ class SalesInvoiceLine
     public function getUnitPrice(): string { return $this->unitPrice; }
     public function getVatRate(): string { return $this->vatRate; }
     public function getPosition(): int { return $this->position; }
-    public function getTotalExcludingTax(): float { return round((float) $this->quantity * (float) $this->unitPrice, 2); }
-    public function getTotalTax(): float { return round($this->getTotalExcludingTax() * (float) $this->vatRate / 100, 2); }
-    public function getTotalIncludingTax(): float { return $this->getTotalExcludingTax() + $this->getTotalTax(); }
+    public function getCreditedQuantity(): string { return $this->creditedQuantity; }
+    public function getCreditEligibleQuantity(): string
+    {
+        return StockQuantity::format(max(0, StockQuantity::toMilliunits($this->quantity) - StockQuantity::toMilliunits($this->creditedQuantity)));
+    }
+    public function recordCredit(string $quantity): self
+    {
+        $quantityMilliunits = StockQuantity::toMilliunits($quantity);
+        $eligibleMilliunits = StockQuantity::toMilliunits($this->getCreditEligibleQuantity());
+        if ($quantityMilliunits <= 0 || $quantityMilliunits > $eligibleMilliunits) {
+            throw new InvalidArgumentException('La quantité de l’avoir dépasse la quantité encore facturable sur cette ligne.');
+        }
+        $this->creditedQuantity = StockQuantity::format(
+            StockQuantity::toMilliunits($this->creditedQuantity) + $quantityMilliunits
+        );
+        return $this;
+    }
+    public function getTotalExcludingTaxCents(): int
+    {
+        return AccountingAmount::lineNetCents($this->quantity, $this->unitPrice);
+    }
+
+    public function getTotalTaxCents(): int
+    {
+        return AccountingAmount::taxCents($this->getTotalExcludingTaxCents(), $this->vatRate);
+    }
+
+    public function getTotalIncludingTaxCents(): int
+    {
+        return AccountingAmount::addCents($this->getTotalExcludingTaxCents(), $this->getTotalTaxCents());
+    }
+
+    public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
+    public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
+    public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
 }

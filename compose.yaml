@@ -46,68 +46,9 @@ services:
     networks:
       - symfony_net
 
-  # Fresh Dolibarr 24.0.2 installation; no legacy database import.
-  dolibarr:
-    image: dolibarr/dolibarr:24.0.2-php8.5
-    container_name: symfoerp-dolibarr
-    restart: unless-stopped
-    depends_on:
-      db_dolibarr:
-        condition: service_healthy
-    environment:
-      DOLI_INSTALL_AUTO: "1"
-      DOLI_INIT_DEMO: "0"
-      DOLI_PROD: "1"
-      DOLI_DB_TYPE: mysqli
-      DOLI_DB_HOST: db_dolibarr
-      DOLI_DB_HOST_PORT: "3306"
-      DOLI_DB_NAME: ${DOLI_DB_NAME}
-      DOLI_DB_USER: ${DOLI_DB_USER}
-      DOLI_DB_PASSWORD: ${DOLI_DB_PASSWORD}
-      DOLI_URL_ROOT: http://localhost:8080
-      DOLI_ADMIN_LOGIN: ${DOLI_ADMIN_LOGIN}
-      DOLI_ADMIN_PASSWORD: ${DOLI_ADMIN_PASSWORD}
-      DOLI_INSTANCE_UNIQUE_ID: ${DOLI_INSTANCE_UNIQUE_ID}
-      DOLI_CRON: "0"
-      PHP_INI_DATE_TIMEZONE: Europe/Paris
-      PHP_INI_MEMORY_LIMIT: 512M
-      PHP_INI_UPLOAD_MAX_FILESIZE: 64M
-      PHP_INI_POST_MAX_SIZE: 66M
-    ports:
-      - "127.0.0.1:8080:80"
-    volumes:
-      - dolibarr_documents:/var/www/documents
-      - dolibarr_custom:/var/www/html/custom
-    networks:
-      - dolibarr_net
-
-  db_dolibarr:
-    image: mariadb:11.4
-    container_name: symfoerp-dolibarr-db
-    restart: unless-stopped
-    environment:
-      MARIADB_DATABASE: ${DOLI_DB_NAME}
-      MARIADB_USER: ${DOLI_DB_USER}
-      MARIADB_PASSWORD: ${DOLI_DB_PASSWORD}
-      MARIADB_ROOT_PASSWORD: ${DOLI_DB_ROOT_PASSWORD}
-    volumes:
-      - dolibarr_database:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - dolibarr_net
-
 volumes:
   symfony_var:
   symfony_database:
-  dolibarr_database:
-  dolibarr_documents:
-  dolibarr_custom:
 
 networks:
   symfony_net:
-  dolibarr_net:

@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+{% block title %}Clôture annuelle et FEC · SYMFOERP{% endblock %}
+{% block body %}
+<p class="muted">COMPTABILITÉ / CONTRÔLE DE CLÔTURE</p>
+<h1>Préparation de clôture et export FEC</h1>
+<form method="get" class="card">
+    <label>Exercice <input type="number" name="year" min="2000" max="2100" value="{{ year }}"></label>
+    <button type="submit">Analyser l’exercice</button>
+</form>
+<section class="grid">
+    <article class="card"><p class="muted">Écritures comptabilisées</p><h2>{{ summary.entries }}</h2></article>
+    <article class="card"><p class="muted">Lignes exportables</p><h2>{{ summary.lines }}</h2></article>
+    <article class="card"><p class="muted">Total débit</p><h2>{{ summary.debit }} €</h2></article>
+    <article class="card"><p class="muted">Total crédit</p><h2>{{ summary.credit }} €</h2></article>
+</section>
+<section class="card">
+    <h2>Contrôles avant verrouillage</h2>
+    <p>{% if balanced %}✓{% else %}⚠{% endif %} Équilibre global : {{ summary.difference }} € d’écart</p>
+    <p>{% if unbalanced_count == 0 %}✓{% else %}⚠{% endif %} Écritures déséquilibrées : {{ unbalanced_count }}</p>
+    <p>{% if draft_count == 0 %}✓{% else %}⚠{% endif %} Écritures non comptabilisées : {{ draft_count }}</p>
+    {% if closed_at %}
+        <p class="status">Exercice verrouillé le {{ closed_at|date('d/m/Y H:i') }} — aucune nouvelle écriture autorisée</p>
+    {% elseif ready %}
+        <p class="status">Contrôles techniques réussis — validation humaine toujours requise avant verrouillage</p>
+        <form method="post" action="{{ path('app_accounting_fiscal_year_close') }}" onsubmit="return confirm('Verrouiller cet exercice ? Les nouvelles écritures seront bloquées. Aucun journal de clôture ni à-nouveaux ne sera généré.');">
+            <input type="hidden" name="_token" value="{{ csrf_token('accounting_fiscal_year_close') }}">
+            <input type="hidden" name="year" value="{{ year }}">
+            <button type="submit">Verrouiller les écritures de {{ year }}</button>
+        </form>
+    {% else %}
+        <p class="status">Des anomalies doivent être corrigées avant le verrouillage</p>
+    {% endif %}
+    <p><a href="{{ path('app_accounting_fec_export', {year: year}) }}">Télécharger le FEC {{ year }}</a></p>
+</section>
+<p class="muted">L’export contient les 18 colonnes du format FEC et les écritures au statut « posted ». Les auxiliaires, lettrages et montants en devise restent vides car ils ne sont pas disponibles dans le modèle actuel. L’action de verrouillage bloque uniquement les nouvelles écritures de l’exercice : elle ne génère ni journal de clôture, ni résultat affecté, ni à-nouveaux. La clôture comptable complète reste à effectuer et à valider avec votre expert-comptable. Faites valider le fichier par votre expert-comptable avant dépôt.</p>
+{% endblock %}

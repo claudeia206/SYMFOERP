@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Service\AccountingAmount;
 use App\Repository\SalesInvoiceRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -71,6 +72,11 @@ class SalesInvoice
     #[ORM\OrderBy(['position' => 'ASC', 'id' => 'ASC'])]
     private Collection $lines;
 
+    /** @var Collection<int, SalesCreditNote> */
+    #[ORM\OneToMany(mappedBy: 'invoice', targetEntity: SalesCreditNote::class, cascade: ['persist'], orphanRemoval: true)]
+    #[ORM\OrderBy(['creditDate' => 'DESC', 'id' => 'DESC'])]
+    private Collection $creditNotes;
+
     /** @var Collection<int, SalesPayment> */
     #[ORM\OneToMany(mappedBy: 'invoice', targetEntity: SalesPayment::class, cascade: ['persist'], orphanRemoval: true)]
     #[ORM\OrderBy(['paidAt' => 'DESC', 'id' => 'DESC'])]
@@ -89,6 +95,7 @@ class SalesInvoice
         $this->createdAt = new DateTimeImmutable();
         $this->lines = new ArrayCollection();
         $this->payments = new ArrayCollection();
+        $this->creditNotes = new ArrayCollection();
 
         foreach ($order->getLines() as $line) {
             $this->addLine(new SalesInvoiceLine($line->getDescription(), $line->getQuantity(), $line->getUnitPrice(), $line->getVatRate(), $line->getPosition(), $line->getProduct()));
@@ -115,7 +122,7 @@ class SalesInvoice
         if ($this->status !== self::STATUS_DRAFT || $this->number !== null) {
             throw new InvalidArgumentException('Only a draft invoice can be issued once.');
         }
-        if (!preg_match('/^FAC-\\d{4}-\\d{6}$/', $number)) {
+        if (!preg_match('/^FAC-\d{4}-\d{6}$/', $number)) {
             throw new InvalidArgumentException('Invalid invoice number format.');
         }
         if (trim((string) ($customerSnapshot['name'] ?? '')) === '' || trim((string) ($customerSnapshot['address'] ?? '')) === '' || trim((string) ($customerSnapshot['postal_code'] ?? '')) === '' || trim((string) ($customerSnapshot['city'] ?? '')) === '') {
@@ -146,6 +153,30 @@ class SalesInvoice
     /** @return Collection<int, SalesPayment> */
     public function getPayments(): Collection { return $this->payments; }
 
+    /** @return Collection<int, SalesCreditNote> */
+    public function getCreditNotes(): Collection { return $this->creditNotes; }
+
+    public function addCreditNote(SalesCreditNote $creditNote): self
+    {
+        if ($creditNote->getInvoice() !== $this) {
+            throw new InvalidArgumentException('Credit note belongs to another invoice.');
+        }
+        if (!$this->creditNotes->contains($creditNote)) {
+            $this->creditNotes->add($creditNote);
+        }
+        return $this;
+    }
+
+    public function getCreditedAmountCents(): int
+    {
+        return array_reduce($this->creditNotes->toArray(), static fn (int $sum, SalesCreditNote $note): int => AccountingAmount::addCents($sum, $note->getTotalIncludingTaxCents()), 0);
+    }
+
+    public function getCreditedAmount(): float
+    {
+        return $this->getCreditedAmountCents() / 100;
+    }
+
     public function addPayment(SalesPayment $payment): self
     {
         if ($payment->getInvoice() !== $this) {
@@ -154,44 +185,70 @@ class SalesInvoice
         if ($this->status !== self::STATUS_ISSUED && $this->status !== self::STATUS_PARTIALLY_PAID) {
             throw new InvalidArgumentException('Only issued invoices can receive payments.');
         }
-        if ($this->getRemainingAmount() <= 0) {
+        $remainingCents = $this->getRemainingAmountCents();
+        if ($remainingCents <= 0) {
             throw new InvalidArgumentException('This invoice has no remaining balance.');
         }
-        if ((float) $payment->getAmount() > $this->getRemainingAmount() + 0.001) {
+        if (self::decimalToCents($payment->getAmount()) > $remainingCents) {
             throw new InvalidArgumentException('Payment exceeds the remaining invoice balance.');
         }
         if (!$this->payments->contains($payment)) {
             $this->payments->add($payment);
         }
-        $this->status = $this->getRemainingAmount() <= 0.001 ? self::STATUS_PAID : self::STATUS_PARTIALLY_PAID;
+        $this->status = $this->getRemainingAmountCents() === 0 ? self::STATUS_PAID : self::STATUS_PARTIALLY_PAID;
         return $this;
     }
 
-    public function getTotalExcludingTax(): float
+    public function getTotalExcludingTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (float $sum, SalesInvoiceLine $line): float => $sum + $line->getTotalExcludingTax(), 0.0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesInvoiceLine $line): int => AccountingAmount::addCents($sum, $line->getTotalExcludingTaxCents()), 0);
     }
 
-    public function getTotalTax(): float
+    public function getTotalTaxCents(): int
     {
-        return array_reduce($this->lines->toArray(), static fn (float $sum, SalesInvoiceLine $line): float => $sum + $line->getTotalTax(), 0.0);
+        return array_reduce($this->lines->toArray(), static fn (int $sum, SalesInvoiceLine $line): int => AccountingAmount::addCents($sum, $line->getTotalTaxCents()), 0);
     }
 
-    public function getTotalIncludingTax(): float { return round($this->getTotalExcludingTax() + $this->getTotalTax(), 2); }
+    public function getTotalIncludingTaxCents(): int
+    {
+        return AccountingAmount::addCents($this->getTotalExcludingTaxCents(), $this->getTotalTaxCents());
+    }
+
+    public function getTotalExcludingTax(): float { return $this->getTotalExcludingTaxCents() / 100; }
+    public function getTotalTax(): float { return $this->getTotalTaxCents() / 100; }
+    public function getTotalIncludingTax(): float { return $this->getTotalIncludingTaxCents() / 100; }
+
+    public function getPaidAmountCents(): int
+    {
+        return array_reduce($this->payments->toArray(), static fn (int $sum, SalesPayment $payment): int => AccountingAmount::addCents($sum, self::decimalToCents($payment->getAmount())), 0);
+    }
 
     public function getPaidAmount(): float
     {
-        return round(array_reduce($this->payments->toArray(), static fn (float $sum, SalesPayment $payment): float => $sum + (float) $payment->getAmount(), 0.0), 2);
+        return $this->getPaidAmountCents() / 100;
     }
 
     public function getRemainingAmount(): float
     {
-        return max(0.0, round($this->getTotalIncludingTax() - $this->getPaidAmount(), 2));
+        return $this->getRemainingAmountCents() / 100;
+    }
+
+    public function getRemainingAmountCents(): int
+    {
+        $totalCents = $this->getTotalIncludingTaxCents();
+        $paidCents = $this->getPaidAmountCents();
+        $creditedCents = array_reduce($this->creditNotes->toArray(), static fn (int $sum, SalesCreditNote $note): int => AccountingAmount::addCents($sum, $note->getTotalIncludingTaxCents()), 0);
+        return max(0, $totalCents - $paidCents - $creditedCents);
+    }
+
+    private static function decimalToCents(string $amount): int
+    {
+        return AccountingAmount::toCents($amount);
     }
 
     public function getEffectiveStatus(?DateTimeImmutable $today = null): string
     {
-        if (in_array($this->status, [self::STATUS_ISSUED, self::STATUS_PARTIALLY_PAID], true) && $this->getRemainingAmount() > 0 && $this->dueDate < ($today ?? new DateTimeImmutable('today'))) {
+        if (in_array($this->status, [self::STATUS_ISSUED, self::STATUS_PARTIALLY_PAID], true) && $this->getRemainingAmountCents() > 0 && $this->dueDate < ($today ?? new DateTimeImmutable('today'))) {
             return self::STATUS_OVERDUE;
         }
         return $this->status;
